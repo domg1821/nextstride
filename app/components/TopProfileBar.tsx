@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import { Image, Pressable, Text, View } from "react-native";
 import { useThemeColors } from "../theme-context";
 
@@ -77,25 +78,43 @@ export default function TopProfileBar({
         )}
       </View>
 
-      {onRightPress && (
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
         <Pressable
-          onPress={onRightPress}
+          onPress={() => router.push("/welcome")}
           style={{
-            width: 44,
-            height: 44,
-            borderRadius: 22,
+            borderRadius: 18,
             backgroundColor: colors.card,
             borderWidth: 1,
             borderColor: colors.border,
-            justifyContent: "center",
-            alignItems: "center",
+            paddingHorizontal: 12,
+            paddingVertical: 10,
           }}
         >
-          <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700" }}>
-            {rightIcon}
+          <Text style={{ color: colors.text, fontSize: 13, fontWeight: "700" }}>
+            Website
           </Text>
         </Pressable>
-      )}
+
+        {onRightPress && (
+          <Pressable
+            onPress={onRightPress}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: colors.card,
+              borderWidth: 1,
+              borderColor: colors.border,
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700" }}>
+              {rightIcon}
+            </Text>
+          </Pressable>
+        )}
+      </View>
     </View>
   );
 }

@@ -4,7 +4,7 @@ import { Pressable, Text, TextInput, View } from "react-native";
 import { useProfile } from "./profile-context";
 
 export default function Login() {
-  const { logIn } = useProfile();
+  const { logIn, isAuthenticated } = useProfile();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -94,6 +94,14 @@ export default function Login() {
           Need an account? Create one
         </Text>
       </Pressable>
+
+      {isAuthenticated ? (
+        <Pressable onPress={() => router.replace("/(tabs)")} style={{ marginTop: 12 }}>
+          <Text style={{ color: "#cbd5e1", textAlign: "center", fontSize: 14 }}>
+            Continue to the app
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }

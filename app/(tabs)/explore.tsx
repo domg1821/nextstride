@@ -21,7 +21,7 @@ if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 export default function Plan() {
-  const { profile } = useProfile();
+  const { profile, heartRateZones } = useProfile();
   const {
     likedWorkoutCategories,
     toggleLikedWorkout,
@@ -79,6 +79,7 @@ export default function Plan() {
           day={day}
           index={index}
           colors={colors}
+          heartRateZones={heartRateZones}
           isLiked={isWorkoutLiked(day.id)}
           completedCount={completedWorkoutIds.length}
           onToggleLike={() => toggleLikedWorkout(day.id, day.category)}
@@ -93,6 +94,7 @@ function PlanWorkoutCard({
   day,
   index,
   colors,
+  heartRateZones,
   isLiked,
   completedCount,
   onToggleLike,
@@ -101,6 +103,7 @@ function PlanWorkoutCard({
   day: PlanDay;
   index: number;
   colors: ReturnType<typeof useThemeColors>["colors"];
+  heartRateZones: ReturnType<typeof useProfile>["heartRateZones"];
   isLiked: boolean;
   completedCount: number;
   onToggleLike: () => void;
@@ -109,6 +112,8 @@ function PlanWorkoutCard({
   const opacity = useRef(new Animated.Value(1)).current;
   const translateY = useRef(new Animated.Value(0)).current;
   const [isCompleting, setIsCompleting] = useState(false);
+  const heartRateGuidance = getHeartRateGuidance(day, heartRateZones);
+  const fuelingTips = getFuelingSuggestions(day.category);
 
   useEffect(() => {
     opacity.setValue(1);
@@ -180,6 +185,27 @@ function PlanWorkoutCard({
             >
               {day.details || "Session details will appear here."}
             </Text>
+
+            <View
+              style={{
+                marginTop: 14,
+                backgroundColor: colors.cardAlt,
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: colors.border,
+                padding: 12,
+                gap: 8,
+              }}
+            >
+              <Text style={{ color: colors.text, fontSize: 13, fontWeight: "700" }}>
+                {heartRateGuidance}
+              </Text>
+              {fuelingTips.map((tip) => (
+                <Text key={tip} style={{ color: colors.subtext, fontSize: 13, lineHeight: 19 }}>
+                  {`\u2022 ${tip}`}
+                </Text>
+              ))}
+            </View>
           </View>
 
           <View
@@ -251,4 +277,70 @@ function PlanWorkoutCard({
       </InfoCard>
     </Animated.View>
   );
+}
+
+function getHeartRateGuidance(
+  day: PlanDay,
+  heartRateZones: ReturnType<typeof useProfile>["heartRateZones"]
+) {
+  if (day.category === "rest") {
+    return "Target HR: No specific target on rest day";
+  }
+
+  if (heartRateZones.length === 0) {
+    return "Target HR: Add age in Settings to calculate zones";
+  }
+
+  const zone1 = heartRateZones.find((zone) => zone.name === "Zone 1");
+  const zone2 = heartRateZones.find((zone) => zone.name === "Zone 2");
+  const zone3 = heartRateZones.find((zone) => zone.name === "Zone 3");
+  const zone4 = heartRateZones.find((zone) => zone.name === "Zone 4");
+  const zone5 = heartRateZones.find((zone) => zone.name === "Zone 5");
+
+  switch (day.category) {
+    case "easy":
+      return zone2
+        ? `Target HR: ${zone2.min}-${zone2.max} bpm (${zone2.name})`
+        : "Target HR: Zone 2";
+    case "recovery":
+      return zone1 && zone2
+        ? `Target HR: ${zone1.min}-${zone2.max} bpm (Zone 1-2)`
+        : "Target HR: Zone 1-2";
+    case "threshold":
+      return zone3 && zone4
+        ? `Target HR: ${zone3.min}-${zone4.max} bpm (Zone 3-4)`
+        : "Target HR: Zone 3-4";
+    case "intervals":
+      return zone4 && zone5
+        ? `Target HR: ${zone4.min}-${zone5.max} bpm (Zone 4-5)`
+        : "Target HR: Zone 4-5";
+    case "steady":
+      return zone2 && zone3
+        ? `Target HR: ${zone2.min}-${zone3.max} bpm (Zone 2-3)`
+        : "Target HR: Zone 2-3";
+    case "long":
+      return zone2
+        ? `Target HR: ${zone2.min}-${zone2.max} bpm (${zone2.name})`
+        : "Target HR: Zone 2";
+  }
+}
+
+function getFuelingSuggestions(category: PlanDay["category"]) {
+  switch (category) {
+    case "easy":
+    case "recovery":
+    case "rest":
+      return ["Focus on balanced meals, no special fueling needed."];
+    case "threshold":
+    case "steady":
+      return ["Moderate carbs before run.", "Light recovery meal after."];
+    case "intervals":
+      return ["Carb-focused pre-run fuel.", "Protein + carbs after workout."];
+    case "long":
+      return [
+        "Carb load before run.",
+        "Consider mid-run fueling (gels, electrolytes).",
+        "Recovery meal within 30-60 minutes.",
+      ];
+  }
 }
