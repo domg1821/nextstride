@@ -1,10 +1,25 @@
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
+import { useProfile } from "./profile-context";
 
 export default function Login() {
+  const { logIn } = useProfile();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const handleLogIn = () => {
+    const result = logIn({ email, password });
+
+    if (!result.ok) {
+      setError(result.error || "Unable to log in.");
+      return;
+    }
+
+    setError("");
+    router.replace("/(tabs)");
+  };
 
   return (
     <View
@@ -28,6 +43,8 @@ export default function Login() {
         placeholderTextColor="#64748b"
         value={email}
         onChangeText={setEmail}
+        autoCapitalize="none"
+        keyboardType="email-address"
         style={{
           backgroundColor: "#1e293b",
           color: "white",
@@ -52,8 +69,14 @@ export default function Login() {
         }}
       />
 
+      {!!error && (
+        <Text style={{ color: "#f87171", marginTop: -6, marginBottom: 18, fontSize: 14 }}>
+          {error}
+        </Text>
+      )}
+
       <Pressable
-        onPress={() => router.replace("/(tabs)")}
+        onPress={handleLogIn}
         style={{
           backgroundColor: "#2563eb",
           paddingVertical: 16,
@@ -63,6 +86,12 @@ export default function Login() {
       >
         <Text style={{ color: "white", fontSize: 16, fontWeight: "600" }}>
           Log In
+        </Text>
+      </Pressable>
+
+      <Pressable onPress={() => router.push("/signup")} style={{ marginTop: 18 }}>
+        <Text style={{ color: "#93c5fd", textAlign: "center", fontSize: 15, fontWeight: "600" }}>
+          Need an account? Create one
         </Text>
       </Pressable>
     </View>

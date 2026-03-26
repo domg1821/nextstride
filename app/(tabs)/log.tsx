@@ -19,6 +19,7 @@ export default function Log() {
   const [splits, setSplits] = useState("");
   const [effort, setEffort] = useState(5);
   const [notes, setNotes] = useState("");
+  const formattedEffort = effort.toFixed(1);
 
   const getEffortLabel = (value: number) => {
     if (value <= 3) return "Easy";
@@ -101,7 +102,7 @@ export default function Log() {
           }}
         >
           <Text style={{ color: colors.text, fontSize: 16, fontWeight: "700" }}>
-            Effort {effort}/10
+            Effort {formattedEffort}/10
           </Text>
           <Text style={{ color: colors.subtext, marginTop: 4, fontSize: 14 }}>
             {getEffortLabel(effort)}
@@ -110,7 +111,6 @@ export default function Log() {
           <Slider
             minimumValue={1}
             maximumValue={10}
-            step={1}
             value={effort}
             onValueChange={setEffort}
             minimumTrackTintColor={colors.primary}
@@ -118,6 +118,22 @@ export default function Log() {
             thumbTintColor={colors.primary}
             style={{ marginTop: 8 }}
           />
+
+          <View
+            style={{
+              marginTop: 6,
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ color: colors.subtext, fontSize: 12, fontWeight: "600" }}>
+              Easy
+            </Text>
+            <Text style={{ color: colors.subtext, fontSize: 12, fontWeight: "600" }}>
+              Max
+            </Text>
+          </View>
 
           <Text style={{ color: colors.subtext, marginTop: 4, fontSize: 13 }}>
             1 = very easy, 10 = max effort

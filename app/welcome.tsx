@@ -103,11 +103,14 @@ export default function Welcome() {
                 marginTop: 28,
               }}
             >
-              <SiteButton label="Download App" onPress={() => router.push("/signup")} />
               <SiteButton
-                label="Join Waitlist"
-                variant="secondary"
+                label="Create Account"
                 onPress={() => router.push("/signup")}
+              />
+              <SiteButton
+                label="Log In"
+                variant="secondary"
+                onPress={() => router.push("/login")}
               />
             </View>
 
@@ -315,15 +318,18 @@ export default function Welcome() {
                 maxWidth: 620,
               }}
             >
-              NextStride is ready to grow into a full product site and a future custom
-              domain like nextstride.app without changing the overall structure.
+              Create an account to set up your training profile, or log back in to pick up
+              where you left off.
             </Text>
           </View>
 
           <View style={{ flexDirection: isTablet ? "row" : "column", gap: 12 }}>
-            <SiteButton label="Join Waitlist" onPress={() => router.push("/signup")} />
             <SiteButton
-              label="Learn More"
+              label="Create Account"
+              onPress={() => router.push("/signup")}
+            />
+            <SiteButton
+              label="Log In"
               variant="secondary"
               onPress={() => router.push("/login")}
             />

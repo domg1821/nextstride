@@ -1,11 +1,26 @@
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
+import { useProfile } from "./profile-context";
 
 export default function SignUp() {
+  const { signUp } = useProfile();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const handleCreateAccount = () => {
+    const result = signUp({ name, email, password });
+
+    if (!result.ok) {
+      setError(result.error || "Unable to create account.");
+      return;
+    }
+
+    setError("");
+    router.replace("/(tabs)");
+  };
 
   return (
     <View
@@ -43,6 +58,8 @@ export default function SignUp() {
         placeholderTextColor="#64748b"
         value={email}
         onChangeText={setEmail}
+        autoCapitalize="none"
+        keyboardType="email-address"
         style={{
           backgroundColor: "#1e293b",
           color: "white",
@@ -67,8 +84,14 @@ export default function SignUp() {
         }}
       />
 
+      {!!error && (
+        <Text style={{ color: "#f87171", marginTop: -6, marginBottom: 18, fontSize: 14 }}>
+          {error}
+        </Text>
+      )}
+
       <Pressable
-        onPress={() => router.replace("/(tabs)")}
+        onPress={handleCreateAccount}
         style={{
           backgroundColor: "#2563eb",
           paddingVertical: 16,
@@ -78,6 +101,12 @@ export default function SignUp() {
       >
         <Text style={{ color: "white", fontSize: 16, fontWeight: "600" }}>
           Create Account
+        </Text>
+      </Pressable>
+
+      <Pressable onPress={() => router.push("/login")} style={{ marginTop: 18 }}>
+        <Text style={{ color: "#93c5fd", textAlign: "center", fontSize: 15, fontWeight: "600" }}>
+          Already have an account? Log in
         </Text>
       </Pressable>
     </View>

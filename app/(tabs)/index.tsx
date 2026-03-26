@@ -9,7 +9,7 @@ import { buildWeeklyPlan } from "../training-plan";
 import { useWorkouts } from "../workout-context";
 
 export default function Home() {
-  const { profile, setProfile } = useProfile();
+  const { profile, setProfile, displayName } = useProfile();
   const { workouts } = useWorkouts();
   const { colors } = useThemeColors();
 
@@ -40,7 +40,7 @@ export default function Home() {
 
   return (
     <ScreenScroll colors={colors}>
-      <TopProfileBar imageUri={profile.image} name={profile.name} showName={true} />
+      <TopProfileBar imageUri={profile.image} name={displayName} showName={true} />
 
       <PageHeader
         eyebrow="Today"

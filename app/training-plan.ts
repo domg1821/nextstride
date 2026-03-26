@@ -7,26 +7,33 @@ export type SupportedGoalEvent =
   | "marathon";
 
 export type PlanDay = {
+  id: string;
   day: string;
   kind: "rest" | "recovery" | "easy" | "quality" | "steady" | "long";
+  category: WorkoutPreferenceCategory;
   title: string;
   details: string;
   distance: number;
+  logType: string;
 };
 
-type WorkoutRole =
+export type WorkoutPreferenceCategory =
   | "rest"
   | "recovery"
   | "easy"
   | "intervals"
   | "threshold"
+  | "steady"
   | "long";
+
+type WorkoutRole = WorkoutPreferenceCategory;
 
 type PlannedDay = {
   day: DayName;
   kind: PlanDay["kind"];
   role: WorkoutRole;
   title: string;
+  logType: string;
   distance: number;
 };
 
@@ -102,12 +109,15 @@ export function parseWeeklyMileage(mileage: string) {
 export function buildWeeklyPlan(
   goalEvent: string,
   mileage: string,
-  pr5k = ""
+  pr5k = "",
+  likedCategories: WorkoutPreferenceCategory[] = [],
+  planCycle = 0
 ): PlanDay[] {
   const goal = normalizeGoalEvent(goalEvent);
   const weeklyMileage = parseWeeklyMileage(mileage);
   const paceProfile = buildPaceProfile(pr5k, goal);
-  const template = getTemplate(weeklyMileage);
+  const template = getTemplate(weeklyMileage, likedCategories);
+  const detailSeed = planCycle + getLikedCategoryOffset(likedCategories);
   const weightTotal = template.reduce(
     (sum, day) => sum + getWeight(day.role, goal),
     0
@@ -118,11 +128,14 @@ export function buildWeeklyPlan(
     const distance = day.kind === "rest" ? 0 : roundToHalf(baseUnit * getWeight(day.role, goal));
 
     return {
+      id: buildPlanDayId(day, planCycle),
       day: day.day,
       kind: day.kind,
+      category: day.role,
       title: day.title,
+      logType: day.logType,
       distance,
-      details: buildDetails(day, goal, distance, weeklyMileage, paceProfile),
+      details: buildDetails(day, goal, distance, weeklyMileage, paceProfile, detailSeed),
     };
   });
 }
@@ -132,39 +145,44 @@ export function getTodayPlanDay(plan: PlanDay[], date = new Date()) {
   return plan[mondayFirstIndex];
 }
 
-function getTemplate(weeklyMileage: number): PlannedDay[] {
+function getTemplate(
+  weeklyMileage: number,
+  likedCategories: WorkoutPreferenceCategory[]
+): PlannedDay[] {
+  const sundayRole = selectSundayRole(weeklyMileage, likedCategories);
+
   if (weeklyMileage <= 20) {
     return [
-      createDay("Monday", "rest", "Rest Day", "rest"),
-      createDay("Tuesday", "quality", "Interval Session", "intervals"),
-      createDay("Wednesday", "recovery", "Recovery Run", "recovery"),
-      createDay("Thursday", "steady", "Threshold Workout", "threshold"),
-      createDay("Friday", "rest", "Rest Day", "rest"),
+      createRoleDay("Monday", "intervals"),
+      createRoleDay("Tuesday", "easy"),
+      createRoleDay("Wednesday", "threshold"),
+      createRoleDay("Thursday", "steady"),
+      createRoleDay("Friday", "easy"),
       createDay("Saturday", "long", "Long Run", "long"),
-      createDay("Sunday", "easy", "Easy Run", "easy"),
+      createRoleDay("Sunday", sundayRole),
     ];
   }
 
   if (weeklyMileage <= 35) {
     return [
-      createDay("Monday", "recovery", "Recovery Run", "recovery"),
-      createDay("Tuesday", "quality", "Interval Session", "intervals"),
-      createDay("Wednesday", "easy", "Easy Run", "easy"),
-      createDay("Thursday", "steady", "Threshold Workout", "threshold"),
-      createDay("Friday", "recovery", "Recovery Run", "recovery"),
+      createRoleDay("Monday", "intervals"),
+      createRoleDay("Tuesday", "easy"),
+      createRoleDay("Wednesday", "threshold"),
+      createRoleDay("Thursday", "steady"),
+      createRoleDay("Friday", "easy"),
       createDay("Saturday", "long", "Long Run", "long"),
-      createDay("Sunday", "easy", "Easy Run", "easy"),
+      createRoleDay("Sunday", sundayRole),
     ];
   }
 
   return [
-    createDay("Monday", "recovery", "Recovery Run", "recovery"),
-    createDay("Tuesday", "quality", "Interval Session", "intervals"),
-    createDay("Wednesday", "easy", "Easy Run", "easy"),
-    createDay("Thursday", "steady", "Threshold Workout", "threshold"),
-    createDay("Friday", "recovery", "Recovery Run", "recovery"),
+    createRoleDay("Monday", "intervals"),
+    createRoleDay("Tuesday", "easy"),
+    createRoleDay("Wednesday", "threshold"),
+    createRoleDay("Thursday", "steady"),
+    createRoleDay("Friday", "easy"),
     createDay("Saturday", "long", "Long Run", "long"),
-    createDay("Sunday", "easy", "Easy Run", "easy"),
+    createRoleDay("Sunday", sundayRole),
   ];
 }
 
@@ -179,8 +197,46 @@ function createDay(
     kind,
     role,
     title,
+    logType: title,
     distance: 0,
   };
+}
+
+function buildPlanDayId(day: PlannedDay, planCycle: number) {
+  return `${planCycle}-${day.day.toLowerCase()}-${day.role}`;
+}
+
+function createRoleDay(day: DayName, role: WorkoutRole): PlannedDay {
+  const descriptor = getRoleDescriptor(role);
+  return {
+    day,
+    kind: descriptor.kind,
+    role,
+    title: descriptor.title,
+    logType: descriptor.logType,
+    distance: 0,
+  };
+}
+
+function getRoleDescriptor(
+  role: WorkoutRole
+): Pick<PlannedDay, "kind" | "title" | "logType"> {
+  switch (role) {
+    case "rest":
+      return { kind: "rest", title: "Rest Day", logType: "Rest" };
+    case "recovery":
+      return { kind: "recovery", title: "Recovery Run", logType: "Recovery Run" };
+    case "easy":
+      return { kind: "easy", title: "Easy Run", logType: "Easy Run" };
+    case "intervals":
+      return { kind: "quality", title: "Track Workout", logType: "Track Workout" };
+    case "threshold":
+      return { kind: "steady", title: "Tempo Workout", logType: "Tempo Workout" };
+    case "steady":
+      return { kind: "steady", title: "Aerobic Run", logType: "Aerobic Run" };
+    case "long":
+      return { kind: "long", title: "Long Run", logType: "Long Run" };
+  }
 }
 
 function getWeight(role: WorkoutRole, goal: SupportedGoalEvent) {
@@ -204,6 +260,8 @@ function getWeight(role: WorkoutRole, goal: SupportedGoalEvent) {
       return 1.1;
     case "threshold":
       return 1.15;
+    case "steady":
+      return 1.05;
     case "long":
       return longRunWeight[goal];
   }
@@ -214,7 +272,8 @@ function buildDetails(
   goal: SupportedGoalEvent,
   distance: number,
   weeklyMileage: number,
-  paceProfile: PaceProfile
+  paceProfile: PaceProfile,
+  detailSeed: number
 ) {
   switch (day.role) {
     case "rest":
@@ -225,110 +284,267 @@ function buildDetails(
         paceProfile.easyHighPerMile + 30
       )}, then 4 x 20-second strides if legs feel good.`;
     case "easy":
-      return `${formatMiles(distance)} easy aerobic running at ${formatPaceRange(
-        paceProfile.easyLowPerMile,
-        paceProfile.easyHighPerMile
-      )}.`;
+      return buildEasyDetails(day.day, distance, paceProfile, detailSeed);
     case "intervals":
-      return buildIntervalDetails(goal, weeklyMileage, paceProfile);
+      return buildIntervalDetails(goal, weeklyMileage, paceProfile, detailSeed);
     case "threshold":
-      return buildThresholdDetails(goal, weeklyMileage, paceProfile);
+      return buildThresholdDetails(goal, weeklyMileage, paceProfile, detailSeed);
+    case "steady":
+      return buildAerobicDetails(distance, paceProfile, weeklyMileage, detailSeed);
     case "long":
-      return buildLongRunDetails(goal, distance, paceProfile);
+      return buildLongRunDetails(goal, distance, paceProfile, detailSeed);
   }
 }
 
 function buildIntervalDetails(
   goal: SupportedGoalEvent,
   weeklyMileage: number,
-  paceProfile: PaceProfile
+  paceProfile: PaceProfile,
+  detailSeed: number
 ) {
   const pace = formatPace(paceProfile.intervalPacePerMile);
+  const variant = detailSeed % 4;
 
   if (goal === "800") {
-    const reps = weeklyMileage <= 25 ? "6 x 300m" : weeklyMileage <= 45 ? "8 x 300m" : "10 x 300m";
+    const repsOptions =
+      weeklyMileage <= 25
+        ? ["6 x 300m", "8 x 200m", "5 x 400m", "4 x 500m"]
+        : weeklyMileage <= 45
+          ? ["8 x 300m", "6 x 400m", "5 x 500m", "4 x 600m"]
+          : ["10 x 300m", "8 x 400m", "6 x 500m", "5 x 600m"];
+    const reps = repsOptions[variant];
     return `2 mi warm-up, ${reps} at about ${pace}/mi effort with 200m jog, then cool down. Based on a ${paceProfile.prLabel} 5K PR.`;
   }
 
   if (goal === "1600/mile") {
-    const reps = weeklyMileage <= 25 ? "5 x 600m" : weeklyMileage <= 45 ? "6 x 600m" : "7 x 600m";
+    const repsOptions =
+      weeklyMileage <= 25
+        ? ["5 x 600m", "6 x 400m", "4 x 800m", "8 x 300m"]
+        : weeklyMileage <= 45
+          ? ["6 x 600m", "5 x 800m", "4 x 1k", "8 x 400m"]
+          : ["7 x 600m", "6 x 800m", "5 x 1k", "10 x 400m"];
+    const reps = repsOptions[variant];
     return `2 mi warm-up, ${reps} at about ${pace}/mi effort with 200m jog, then cool down. Based on a ${paceProfile.prLabel} 5K PR.`;
   }
 
   if (goal === "5k") {
-    const reps = weeklyMileage <= 25 ? "5 x 1k" : weeklyMileage <= 45 ? "6 x 1k" : "7 x 1k";
+    const repsOptions =
+      weeklyMileage <= 25
+        ? ["5 x 1k", "6 x 800m", "4 x 1200m", "8 x 400m"]
+        : weeklyMileage <= 45
+          ? ["6 x 1k", "5 x 1200m", "8 x 600m", "10 x 400m"]
+          : ["7 x 1k", "6 x 1200m", "5 x 1 mile", "12 x 400m"];
+    const reps = repsOptions[variant];
     return `2 mi warm-up, ${reps} at ${pace}/mi pace with 2-minute jog recovery, then cool down. Based on a ${paceProfile.prLabel} 5K PR.`;
   }
 
   if (goal === "10k") {
-    const reps = weeklyMileage <= 25 ? "5 x 1k" : weeklyMileage <= 45 ? "6 x 1k" : "7 x 1k";
+    const repsOptions =
+      weeklyMileage <= 25
+        ? ["5 x 1k", "4 x 1200m", "6 x 800m", "8 x 400m"]
+        : weeklyMileage <= 45
+          ? ["6 x 1k", "5 x 1200m", "4 x 1 mile", "10 x 400m"]
+          : ["7 x 1k", "6 x 1200m", "5 x 1 mile", "12 x 400m"];
+    const reps = repsOptions[variant];
     return `2 mi warm-up, ${reps} at ${pace}/mi pace with 90-second jog recovery, then cool down. Based on a ${paceProfile.prLabel} 5K PR.`;
   }
 
   if (goal === "half marathon") {
-    const reps = weeklyMileage <= 30 ? "5 x 1 mile" : weeklyMileage <= 50 ? "6 x 1 mile" : "7 x 1 mile";
+    const repsOptions =
+      weeklyMileage <= 30
+        ? ["5 x 1 mile", "4 x 1.25 miles", "6 x 1k", "3 x 2 miles"]
+        : weeklyMileage <= 50
+          ? ["6 x 1 mile", "5 x 2k", "4 x 1.5 miles", "3 x 2 miles"]
+          : ["7 x 1 mile", "6 x 2k", "5 x 1.5 miles", "4 x 2 miles"];
+    const reps = repsOptions[variant];
     return `2 mi warm-up, ${reps} at ${pace}/mi pace with 75-90 seconds jog recovery, then cool down. Based on a ${paceProfile.prLabel} 5K PR.`;
   }
 
-  const reps = weeklyMileage <= 35 ? "6 x 1k" : weeklyMileage <= 55 ? "8 x 1k" : "10 x 1k";
+  const repsOptions =
+    weeklyMileage <= 35
+      ? ["6 x 1k", "5 x 1200m", "4 x 1 mile", "8 x 600m"]
+      : weeklyMileage <= 55
+        ? ["8 x 1k", "6 x 1200m", "5 x 1 mile", "4 x 2k"]
+        : ["10 x 1k", "8 x 1200m", "6 x 1 mile", "5 x 2k"];
+  const reps = repsOptions[variant];
   return `2 mi warm-up, ${reps} at ${pace}/mi pace with 60-75 seconds jog recovery, then cool down. Based on a ${paceProfile.prLabel} 5K PR.`;
 }
 
 function buildThresholdDetails(
   goal: SupportedGoalEvent,
   weeklyMileage: number,
-  paceProfile: PaceProfile
+  paceProfile: PaceProfile,
+  detailSeed: number
 ) {
   const thresholdPace = formatPace(paceProfile.thresholdPacePerMile);
+  const variant = detailSeed % 4;
 
   if (goal === "800") {
-    const block = weeklyMileage <= 25 ? "2 x 8 minutes" : "3 x 8 minutes";
+    const blockOptions =
+      weeklyMileage <= 25
+        ? ["2 x 8 minutes", "16 minutes continuous", "3 x 6 minutes", "8 x 2 minutes"]
+        : ["3 x 8 minutes", "20 minutes continuous", "4 x 6 minutes", "10 x 2 minutes"];
+    const block = blockOptions[variant];
     return `${block} at about ${thresholdPace}/mi threshold pace with 2 minutes easy jog, plus short hill sprints after.`;
   }
 
   if (goal === "1600/mile") {
-    const block = weeklyMileage <= 25 ? "20 minutes continuous" : "3 x 10 minutes";
+    const blockOptions =
+      weeklyMileage <= 25
+        ? ["20 minutes continuous", "3 x 8 minutes", "5 x 5 minutes", "2 x 10 minutes"]
+        : ["3 x 10 minutes", "25 minutes continuous", "4 x 8 minutes", "2 x 12 minutes"];
+    const block = blockOptions[variant];
     return `${block} at about ${thresholdPace}/mi threshold pace with relaxed control throughout.`;
   }
 
   if (goal === "5k") {
-    const block = weeklyMileage <= 25 ? "20 minutes continuous" : weeklyMileage <= 45 ? "25 minutes continuous" : "3 x 10 minutes";
+    const blockOptions =
+      weeklyMileage <= 25
+        ? ["20 minutes continuous", "4 x 5 minutes", "3 x 8 minutes", "2 mi tempo"]
+        : weeklyMileage <= 45
+          ? ["25 minutes continuous", "5 x 5 minutes", "3 x 10 minutes", "3 mi tempo"]
+          : ["3 x 10 minutes", "30 minutes continuous", "4 x 8 minutes", "4 mi tempo"];
+    const block = blockOptions[variant];
     return `${block} at about ${thresholdPace}/mi threshold pace with 2 minutes easy jog if broken up.`;
   }
 
   if (goal === "10k") {
-    const block = weeklyMileage <= 25 ? "3 x 8 minutes" : weeklyMileage <= 45 ? "3 x 10 minutes" : "4 x 10 minutes";
+    const blockOptions =
+      weeklyMileage <= 25
+        ? ["3 x 8 minutes", "20 minutes continuous", "4 x 6 minutes", "2 mi progression tempo"]
+        : weeklyMileage <= 45
+          ? ["3 x 10 minutes", "25 minutes continuous", "4 x 8 minutes", "3 mi progression tempo"]
+          : ["4 x 10 minutes", "30 minutes continuous", "5 x 8 minutes", "4 mi progression tempo"];
+    const block = blockOptions[variant];
     return `${block} at about ${thresholdPace}/mi threshold pace with 2 minutes easy jog.`;
   }
 
   if (goal === "half marathon") {
-    const block = weeklyMileage <= 30 ? "3 miles steady tempo" : weeklyMileage <= 50 ? "4 miles steady tempo" : "5 miles steady tempo";
+    const blockOptions =
+      weeklyMileage <= 30
+        ? ["3 miles steady tempo", "2 x 2 miles", "20 minutes tempo + 10 minutes steady", "4 x 8 minutes"]
+        : weeklyMileage <= 50
+          ? ["4 miles steady tempo", "3 x 2 miles", "25 minutes tempo + 10 minutes steady", "5 x 8 minutes"]
+          : ["5 miles steady tempo", "2 x 3 miles", "30 minutes tempo + 15 minutes steady", "6 x 8 minutes"];
+    const block = blockOptions[variant];
     return `${block} at about ${thresholdPace}/mi threshold pace, staying smooth rather than all-out.`;
   }
 
-  const block = weeklyMileage <= 35 ? "3 x 2 miles" : weeklyMileage <= 55 ? "2 x 3 miles" : "5-6 miles continuous";
+  const blockOptions =
+    weeklyMileage <= 35
+      ? ["3 x 2 miles", "4 miles continuous", "4 x 10 minutes", "20 minutes tempo + 15 minutes steady"]
+      : weeklyMileage <= 55
+        ? ["2 x 3 miles", "5 miles continuous", "5 x 10 minutes", "25 minutes tempo + 20 minutes steady"]
+        : ["5-6 miles continuous", "3 x 3 miles", "6 x 10 minutes", "30 minutes tempo + 20 minutes steady"];
+  const block = blockOptions[variant];
   return `${block} at about ${thresholdPace}/mi threshold pace with short float recovery if needed.`;
+}
+
+function buildEasyDetails(
+  dayName: DayName,
+  distance: number,
+  paceProfile: PaceProfile,
+  detailSeed: number
+) {
+  const easyRange = formatPaceRange(
+    paceProfile.easyLowPerMile,
+    paceProfile.easyHighPerMile
+  );
+  const variant = detailSeed % 4;
+  const finishingTouches =
+    dayName === "Tuesday"
+      ? ["plus 4 x 20-second strides.", "with relaxed form focus.", "keeping the final 10 minutes smooth.", "staying conversational throughout."]
+      : ["keeping it calm and controlled.", "with soft aerobic rhythm.", "finishing relaxed, not pressing.", "staying easy on tired legs."];
+
+  return `${formatMiles(distance)} easy aerobic running at ${easyRange}, ${finishingTouches[variant]}`;
+}
+
+function buildAerobicDetails(
+  distance: number,
+  paceProfile: PaceProfile,
+  weeklyMileage: number,
+  detailSeed: number
+) {
+  const steadyLow = paceProfile.easyLowPerMile - 15;
+  const steadyHigh = paceProfile.easyHighPerMile - 10;
+  const steadyRange = formatPaceRange(steadyLow, steadyHigh);
+  const variant = detailSeed % 4;
+  const options =
+    weeklyMileage <= 30
+      ? [
+          `${formatMiles(distance)} aerobic running at ${steadyRange} with a smooth steady finish.`,
+          `${formatMiles(distance)} steady aerobic running at ${steadyRange}, keeping cadence relaxed.`,
+          `${formatMiles(distance)} aerobic running at ${steadyRange} with the middle third slightly stronger.`,
+          `${formatMiles(distance)} controlled aerobic running at ${steadyRange} on relaxed effort.`,
+        ]
+      : [
+          `${formatMiles(distance)} aerobic running at ${steadyRange} with a smooth steady finish.`,
+          `${formatMiles(distance)} steady aerobic running at ${steadyRange}, settling in after the first mile.`,
+          `${formatMiles(distance)} aerobic running at ${steadyRange} with the final 15 minutes comfortably strong.`,
+          `${formatMiles(distance)} controlled aerobic running at ${steadyRange} with even effort throughout.`,
+        ];
+
+  return options[variant];
 }
 
 function buildLongRunDetails(
   goal: SupportedGoalEvent,
   distance: number,
-  paceProfile: PaceProfile
+  paceProfile: PaceProfile,
+  detailSeed: number
 ) {
   const longRange = formatPaceRange(
     paceProfile.longLowPerMile,
     paceProfile.longHighPerMile
   );
+  const variant = detailSeed % 4;
 
   if (goal === "800" || goal === "1600/mile") {
-    return `${formatMiles(distance)} relaxed aerobic long run at ${longRange}, finishing with 4 x 20-second strides.`;
+    const options = [
+      `${formatMiles(distance)} relaxed aerobic long run at ${longRange}, finishing with 4 x 20-second strides.`,
+      `${formatMiles(distance)} smooth long aerobic run at ${longRange} with the final mile a touch steadier.`,
+      `${formatMiles(distance)} relaxed aerobic long run at ${longRange}, keeping the middle miles rhythmic.`,
+      `${formatMiles(distance)} long run at ${longRange} on soft effort with 6 short strides after.`,
+    ];
+    return options[variant];
   }
 
   if (goal === "5k" || goal === "10k") {
-    return `${formatMiles(distance)} controlled long run at ${longRange}, keeping the final 10 minutes steady.`;
+    const options = [
+      `${formatMiles(distance)} controlled long run at ${longRange}, keeping the final 10 minutes steady.`,
+      `${formatMiles(distance)} long aerobic run at ${longRange} with a moderate pickup over the final 2 miles.`,
+      `${formatMiles(distance)} smooth long run at ${longRange}, staying even from start to finish.`,
+      `${formatMiles(distance)} controlled long run at ${longRange} with the last 20 minutes just under easy pace.`,
+    ];
+    return options[variant];
   }
 
-  return `${formatMiles(distance)} long aerobic run at ${longRange}, staying smooth and efficient the whole way.`;
+  const options = [
+    `${formatMiles(distance)} long aerobic run at ${longRange}, staying smooth and efficient the whole way.`,
+    `${formatMiles(distance)} long run at ${longRange} with the final 3 miles progressing gently.`,
+    `${formatMiles(distance)} aerobic long run at ${longRange}, settling into strong rhythm after the opening miles.`,
+    `${formatMiles(distance)} long run at ${longRange} with a controlled steady finish over the final quarter.`,
+  ];
+  return options[variant];
+}
+
+function selectSundayRole(
+  weeklyMileage: number,
+  likedCategories: WorkoutPreferenceCategory[]
+): WorkoutRole {
+  if (likedCategories.includes("recovery")) {
+    return "recovery";
+  }
+
+  if (likedCategories.includes("rest")) {
+    return "rest";
+  }
+
+  return weeklyMileage <= 24 ? "rest" : "recovery";
+}
+
+function getLikedCategoryOffset(likedCategories: WorkoutPreferenceCategory[]) {
+  return likedCategories.reduce((sum, category) => sum + category.charCodeAt(0), 0) % 4;
 }
 
 function buildPaceProfile(pr5k: string, goal: SupportedGoalEvent): PaceProfile {
