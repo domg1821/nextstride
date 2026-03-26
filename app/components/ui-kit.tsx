@@ -1,0 +1,225 @@
+import React from "react";
+import { Pressable, Text, View } from "react-native";
+import { useThemeColors } from "../theme-context";
+
+export function PageHeader({
+  eyebrow,
+  title,
+  subtitle,
+  rightContent,
+}: {
+  eyebrow?: string;
+  title: string;
+  subtitle?: string;
+  rightContent?: React.ReactNode;
+}) {
+  const { colors } = useThemeColors();
+
+  return (
+    <View
+      style={{
+        backgroundColor: colors.cardAlt,
+        borderRadius: 28,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: 22,
+      }}
+    >
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 14,
+        }}
+      >
+        <View style={{ flex: 1 }}>
+          {eyebrow ? (
+            <Text
+              style={{
+                color: colors.primary,
+                fontSize: 12,
+                fontWeight: "700",
+                letterSpacing: 0.8,
+                textTransform: "uppercase",
+              }}
+            >
+              {eyebrow}
+            </Text>
+          ) : null}
+
+          <Text
+            style={{
+              color: colors.text,
+              fontSize: 28,
+              fontWeight: "700",
+              marginTop: eyebrow ? 8 : 0,
+              lineHeight: 34,
+            }}
+          >
+            {title}
+          </Text>
+
+          {subtitle ? (
+            <Text
+              style={{
+                color: colors.subtext,
+                fontSize: 15,
+                lineHeight: 22,
+                marginTop: 10,
+              }}
+            >
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
+
+        {rightContent}
+      </View>
+    </View>
+  );
+}
+
+export function PrimaryButton({
+  label,
+  onPress,
+}: {
+  label: string;
+  onPress: () => void;
+}) {
+  const { colors } = useThemeColors();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        backgroundColor: colors.primary,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        borderRadius: 18,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Text style={{ color: "#ffffff", fontSize: 15, fontWeight: "700" }}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+export function SecondaryButton({
+  label,
+  onPress,
+}: {
+  label: string;
+  onPress: () => void;
+}) {
+  const { colors } = useThemeColors();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        backgroundColor: colors.card,
+        borderWidth: 1,
+        borderColor: colors.border,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        borderRadius: 18,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Text style={{ color: colors.text, fontSize: 15, fontWeight: "700" }}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+export function InfoCard({
+  title,
+  subtitle,
+  children,
+}: {
+  title?: string;
+  subtitle?: string;
+  children?: React.ReactNode;
+}) {
+  const { colors } = useThemeColors();
+
+  return (
+    <View
+      style={{
+        backgroundColor: colors.card,
+        borderRadius: 24,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: 18,
+      }}
+    >
+      {title ? (
+        <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700" }}>
+          {title}
+        </Text>
+      ) : null}
+
+      {subtitle ? (
+        <Text
+          style={{
+            color: colors.subtext,
+            fontSize: 14,
+            lineHeight: 20,
+            marginTop: title ? 6 : 0,
+          }}
+        >
+          {subtitle}
+        </Text>
+      ) : null}
+
+      {children ? <View style={{ marginTop: title || subtitle ? 14 : 0 }}>{children}</View> : null}
+    </View>
+  );
+}
+
+export function StatCard({
+  label,
+  value,
+  helper,
+}: {
+  label: string;
+  value: string;
+  helper?: string;
+}) {
+  const { colors } = useThemeColors();
+
+  return (
+    <View
+      style={{
+        backgroundColor: colors.card,
+        borderRadius: 24,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: 18,
+      }}
+    >
+      <Text style={{ color: colors.subtext, fontSize: 13 }}>{label}</Text>
+      <Text
+        style={{
+          color: colors.text,
+          fontSize: 24,
+          fontWeight: "700",
+          marginTop: 8,
+        }}
+      >
+        {value}
+      </Text>
+      {helper ? (
+        <Text style={{ color: colors.subtext, fontSize: 13, marginTop: 6 }}>
+          {helper}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
