@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -11,9 +12,9 @@ import {
 } from "react-native";
 import TopProfileBar from "../components/TopProfileBar";
 import { InfoCard, PageHeader, PrimaryButton, SecondaryButton, StatCard } from "../components/ui-kit";
-import { ScreenScroll, SectionTitle } from "../components/ui-shell";
+import { AnimatedTabScene, ScreenScroll, SectionTitle } from "../components/ui-shell";
 import { useProfile } from "../profile-context";
-import { PlanDay, buildWeeklyPlan } from "../training-plan";
+import { PlanDay, buildAdaptiveWeeklyPlan } from "../training-plan";
 import { useThemeColors } from "../theme-context";
 import { useWorkouts } from "../workout-context";
 
@@ -31,6 +32,7 @@ const EFFORT_OPTIONS = [
 export default function Plan() {
   const { profile, heartRateZones } = useProfile();
   const {
+    workouts,
     likedWorkoutCategories,
     toggleLikedWorkout,
     isWorkoutLiked,
@@ -43,12 +45,16 @@ export default function Plan() {
   const { colors } = useThemeColors();
   const mileage = parseFloat(profile.mileage) || 30;
 
-  const weekPlan = buildWeeklyPlan(
+  const { plan: weekPlan, feedback: adaptationFeedback } = buildAdaptiveWeeklyPlan(
     profile.goalEvent || "",
     mileage,
     profile.pr5k || "",
     likedWorkoutCategories,
-    planCycle
+    planCycle,
+    {
+      workouts: workoutsToAdaptiveContext(workouts),
+      completedWorkoutIds,
+    }
   );
 
   const visibleWeekPlan = weekPlan.filter((day) => !isWorkoutCompleted(day.id));
@@ -63,36 +69,109 @@ export default function Plan() {
   };
 
   return (
-    <ScreenScroll colors={colors}>
-      <TopProfileBar imageUri={profile.image} name={profile.name} />
-      <PageHeader
-        eyebrow="Weekly Plan"
-        title={profile.goalEvent || "Build Your Block"}
-        subtitle={`A structured seven-day view built around ${mileage} miles per week.`}
-      />
-
-      <StatCard label="Target Volume" value={`${mileage} mi`} helper="This week" />
-
-      <SectionTitle
-        colors={colors}
-        title="This Week"
-        subtitle="Structured sessions first, premium guidance locked below each workout."
-      />
-
-      {visibleWeekPlan.map((day, index) => (
-        <PlanWorkoutCard
-          key={day.id}
-          day={day}
-          index={index}
-          colors={colors}
-          heartRateZones={heartRateZones}
-          isLiked={isWorkoutLiked(day.id)}
-          completedCount={completedWorkoutIds.length}
-          onToggleLike={() => toggleLikedWorkout(day.id, day.category)}
-          onComplete={handleComplete}
+    <AnimatedTabScene tabKey="explore">
+      <ScreenScroll colors={colors}>
+        <TopProfileBar imageUri={profile.image} name={profile.name} />
+        <PageHeader
+          eyebrow="Weekly Plan"
+          title={profile.goalEvent || "Build Your Block"}
+          subtitle={`A structured seven-day view built around ${mileage} miles per week.`}
         />
-      ))}
-    </ScreenScroll>
+
+        <View style={{ flexDirection: "row", gap: 12, alignItems: "stretch" }}>
+          <View style={{ flex: 1 }}>
+            <StatCard label="Target Volume" value={`${mileage} mi`} helper="This week" />
+          </View>
+          <View style={{ width: 140, justifyContent: "center" }}>
+            <SecondaryButton label="Open Calendar" onPress={() => router.push("/calendar")} />
+          </View>
+        </View>
+
+        <InfoCard>
+        <SectionTitle
+          colors={colors}
+          title="Week Calendar"
+          subtitle="See the whole week at a glance with completed days highlighted."
+        />
+
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 14 }}>
+          {weekPlan.map((day) => {
+            const completed = completedWorkoutIds.includes(day.id);
+
+            return (
+              <View
+                key={day.id}
+                style={{
+                  width: "30.8%",
+                  backgroundColor: completed ? colors.primarySoft : colors.cardAlt,
+                  borderRadius: 18,
+                  borderWidth: 1,
+                  borderColor: completed ? colors.primary : colors.border,
+                  padding: 12,
+                }}
+              >
+                <Text style={{ color: colors.subtext, fontSize: 12, fontWeight: "700" }}>
+                  {day.day.slice(0, 3).toUpperCase()}
+                </Text>
+                <Text style={{ color: colors.text, fontSize: 15, fontWeight: "700", marginTop: 8 }}>
+                  {day.title}
+                </Text>
+                <Text style={{ color: colors.subtext, fontSize: 12, marginTop: 6 }}>
+                  {completed ? "Completed" : day.kind === "rest" ? "Planned rest" : "Planned"}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+        </InfoCard>
+
+        <SectionTitle
+          colors={colors}
+          title="This Week"
+          subtitle="Structured sessions first, with lightweight adjustments based on what you actually do."
+        />
+
+        {adaptationFeedback.length > 0 ? (
+          <InfoCard>
+            <SectionTitle
+              colors={colors}
+              title="Coach adjustments"
+              subtitle="Simple rule-based changes to keep the week responsive."
+            />
+            <View style={{ marginTop: 14, gap: 10 }}>
+              {adaptationFeedback.map((message) => (
+                <View
+                  key={message}
+                  style={{
+                    backgroundColor: colors.cardAlt,
+                    borderRadius: 18,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    padding: 14,
+                  }}
+                >
+                  <Text style={{ color: colors.text, fontSize: 14, lineHeight: 20 }}>{message}</Text>
+                </View>
+              ))}
+            </View>
+          </InfoCard>
+        ) : null}
+
+        {visibleWeekPlan.map((day, index) => (
+          <PlanWorkoutCard
+            key={day.id}
+            day={day}
+            index={index}
+            colors={colors}
+            heartRateZones={heartRateZones}
+            isLiked={isWorkoutLiked(day.id)}
+            completedCount={completedWorkoutIds.length}
+            onToggleLike={() => toggleLikedWorkout(day.id, day.category)}
+            onComplete={handleComplete}
+          />
+        ))}
+      </ScreenScroll>
+    </AnimatedTabScene>
   );
 }
 
@@ -195,6 +274,26 @@ function PlanWorkoutCard({
               {day.details || "Session details will appear here."}
             </Text>
 
+            {day.adjustmentNote ? (
+              <View
+                style={{
+                  marginTop: 12,
+                  backgroundColor: colors.primarySoft,
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  padding: 12,
+                }}
+              >
+                <Text style={{ color: colors.text, fontSize: 13, fontWeight: "700" }}>
+                  Coach note
+                </Text>
+                <Text style={{ color: colors.text, fontSize: 13, lineHeight: 19, marginTop: 6 }}>
+                  {day.adjustmentNote}
+                </Text>
+              </View>
+            ) : null}
+
             <PremiumLockedPanel
               colors={colors}
               title="Premium guidance"
@@ -284,6 +383,15 @@ function PlanWorkoutCard({
       />
     </Animated.View>
   );
+}
+
+function workoutsToAdaptiveContext(workouts: ReturnType<typeof useWorkouts>["workouts"]) {
+  return workouts.map((workout) => ({
+    date: workout.date,
+    effort: workout.effort,
+    notes: workout.notes,
+    distance: workout.distance,
+  }));
 }
 
 function PremiumLockedPanel({

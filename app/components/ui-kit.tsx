@@ -19,10 +19,10 @@ export function PageHeader({
     <View
       style={{
         backgroundColor: colors.cardAlt,
-        borderRadius: 28,
+        borderRadius: 30,
         borderWidth: 1,
         borderColor: colors.border,
-        padding: 22,
+        padding: 24,
       }}
     >
       <View
@@ -37,13 +37,13 @@ export function PageHeader({
           {eyebrow ? (
             <Text
               style={{
-                color: colors.primary,
-                fontSize: 12,
-                fontWeight: "700",
-                letterSpacing: 0.8,
-                textTransform: "uppercase",
-              }}
-            >
+              color: colors.primary,
+              fontSize: 12,
+              fontWeight: "800",
+              letterSpacing: 1.1,
+              textTransform: "uppercase",
+            }}
+          >
               {eyebrow}
             </Text>
           ) : null}
@@ -51,10 +51,10 @@ export function PageHeader({
           <Text
             style={{
               color: colors.text,
-              fontSize: 28,
-              fontWeight: "700",
-              marginTop: eyebrow ? 8 : 0,
-              lineHeight: 34,
+              fontSize: 30,
+              fontWeight: "800",
+              marginTop: eyebrow ? 10 : 0,
+              lineHeight: 36,
             }}
           >
             {title}
@@ -65,8 +65,9 @@ export function PageHeader({
               style={{
                 color: colors.subtext,
                 fontSize: 15,
-                lineHeight: 22,
-                marginTop: 10,
+                lineHeight: 23,
+                marginTop: 12,
+                maxWidth: 560,
               }}
             >
               {subtitle}
@@ -92,14 +93,15 @@ export function PrimaryButton({
   return (
     <Pressable
       onPress={onPress}
-      style={{
+      style={({ pressed }) => ({
         backgroundColor: colors.primary,
-        paddingHorizontal: 16,
-        paddingVertical: 14,
+        paddingHorizontal: 18,
+        paddingVertical: 15,
         borderRadius: 18,
         alignItems: "center",
         justifyContent: "center",
-      }}
+        opacity: pressed ? 0.92 : 1,
+      })}
     >
       <Text style={{ color: "#ffffff", fontSize: 15, fontWeight: "700" }}>
         {label}
@@ -120,16 +122,17 @@ export function SecondaryButton({
   return (
     <Pressable
       onPress={onPress}
-      style={{
+      style={({ pressed }) => ({
         backgroundColor: colors.card,
         borderWidth: 1,
         borderColor: colors.border,
-        paddingHorizontal: 16,
-        paddingVertical: 14,
+        paddingHorizontal: 18,
+        paddingVertical: 15,
         borderRadius: 18,
         alignItems: "center",
         justifyContent: "center",
-      }}
+        opacity: pressed ? 0.92 : 1,
+      })}
     >
       <Text style={{ color: colors.text, fontSize: 15, fontWeight: "700" }}>
         {label}
@@ -153,10 +156,10 @@ export function InfoCard({
     <View
       style={{
         backgroundColor: colors.card,
-        borderRadius: 24,
+        borderRadius: 26,
         borderWidth: 1,
         borderColor: colors.border,
-        padding: 18,
+        padding: 20,
       }}
     >
       {title ? (
@@ -198,10 +201,10 @@ export function StatCard({
     <View
       style={{
         backgroundColor: colors.card,
-        borderRadius: 24,
+        borderRadius: 26,
         borderWidth: 1,
         borderColor: colors.border,
-        padding: 18,
+        padding: 20,
       }}
     >
       <Text style={{ color: colors.subtext, fontSize: 13 }}>{label}</Text>

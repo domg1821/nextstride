@@ -18,16 +18,16 @@ export function SiteButton({
     <Pressable
       onPress={onPress}
       style={({ pressed }) => ({
-        minWidth: 170,
+        minWidth: 168,
         paddingHorizontal: 22,
-        paddingVertical: 16,
+        paddingVertical: 15,
         borderRadius: 18,
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: primary ? "#3b82f6" : "rgba(12, 22, 39, 0.72)",
+        backgroundColor: primary ? "#3b82f6" : "rgba(10, 22, 38, 0.78)",
         borderWidth: 1,
-        borderColor: primary ? "#60a5fa" : "rgba(148, 163, 184, 0.2)",
-        opacity: pressed ? 0.9 : 1,
+        borderColor: primary ? "#60a5fa" : "rgba(148, 163, 184, 0.16)",
+        opacity: pressed ? 0.92 : 1,
       })}
     >
       <Text
@@ -58,14 +58,14 @@ export function SiteSection({
   padding: number;
 }) {
   return (
-    <View style={{ paddingHorizontal: padding, marginTop: 76 }}>
+    <View style={{ paddingHorizontal: padding, marginTop: 92 }}>
       {eyebrow ? (
         <Text
           style={{
             color: "#7dd3fc",
             fontSize: 12,
             fontWeight: "800",
-            letterSpacing: 1.3,
+            letterSpacing: 1.4,
             textTransform: "uppercase",
           }}
         >
@@ -76,10 +76,10 @@ export function SiteSection({
       <Text
         style={{
           color: "#f8fafc",
-          fontSize: 38,
+          fontSize: 40,
           fontWeight: "800",
           marginTop: eyebrow ? 12 : 0,
-          maxWidth: 820,
+          maxWidth: 760,
         }}
       >
         {title}
@@ -88,14 +88,14 @@ export function SiteSection({
         style={{
           color: "#9fb2cb",
           fontSize: 16,
-          lineHeight: 25,
-          marginTop: 12,
-          maxWidth: 780,
+          lineHeight: 26,
+          marginTop: 14,
+          maxWidth: 720,
         }}
       >
         {subtitle}
       </Text>
-      <View style={{ marginTop: 28 }}>{children}</View>
+      <View style={{ marginTop: 32 }}>{children}</View>
     </View>
   );
 }
@@ -114,12 +114,12 @@ export function FeatureCard({
   return (
     <View
       style={{
-        backgroundColor: "rgba(14, 27, 48, 0.9)",
+        backgroundColor: "rgba(10, 22, 37, 0.74)",
         borderRadius: 28,
         borderWidth: 1,
-        borderColor: "rgba(96, 165, 250, 0.14)",
+        borderColor: "rgba(96, 165, 250, 0.1)",
         padding: 22,
-        minHeight: 218,
+        minHeight: 198,
       }}
     >
       <View
@@ -146,9 +146,9 @@ export function FeatureCard({
             width: 42,
             height: 42,
             borderRadius: 14,
-            backgroundColor: "rgba(8, 15, 28, 0.92)",
+            backgroundColor: "rgba(8, 15, 28, 0.78)",
             borderWidth: 1,
-            borderColor: "rgba(96, 165, 250, 0.16)",
+            borderColor: "rgba(96, 165, 250, 0.12)",
             justifyContent: "center",
             alignItems: "center",
           }}
@@ -160,7 +160,7 @@ export function FeatureCard({
       <Text
         style={{
           color: "#f8fafc",
-          fontSize: 22,
+          fontSize: 21,
           fontWeight: "700",
           marginTop: 18,
         }}
@@ -171,7 +171,7 @@ export function FeatureCard({
         style={{
           color: "#9fb2cb",
           fontSize: 15,
-          lineHeight: 23,
+          lineHeight: 22,
           marginTop: 10,
         }}
       >
@@ -195,10 +195,10 @@ export function StepCard({
       style={{
         flex: 1,
         minWidth: 220,
-        backgroundColor: "rgba(14, 27, 48, 0.92)",
+        backgroundColor: "rgba(10, 22, 37, 0.72)",
         borderRadius: 26,
         borderWidth: 1,
-        borderColor: "rgba(96, 165, 250, 0.14)",
+        borderColor: "rgba(96, 165, 250, 0.1)",
         padding: 22,
       }}
     >
@@ -254,12 +254,12 @@ export function PreviewCard({
       style={{
         flex: 1,
         minWidth: 240,
-        backgroundColor: "rgba(14, 27, 48, 0.92)",
+        backgroundColor: "rgba(10, 22, 37, 0.72)",
         borderRadius: 30,
         borderWidth: 1,
-        borderColor: "rgba(96, 165, 250, 0.14)",
+        borderColor: "rgba(96, 165, 250, 0.1)",
         padding: 18,
-        minHeight: tall ? 370 : 320,
+        minHeight: tall ? 370 : 300,
       }}
     >
       <View
@@ -267,7 +267,7 @@ export function PreviewCard({
           backgroundColor: "#081220",
           borderRadius: 25,
           borderWidth: 1,
-          borderColor: "rgba(96, 165, 250, 0.12)",
+          borderColor: "rgba(96, 165, 250, 0.1)",
           padding: 16,
           flex: 1,
         }}
@@ -328,10 +328,10 @@ export function PreviewCard({
             backgroundColor: "rgba(15, 23, 42, 0.95)",
             borderRadius: 20,
             borderWidth: 1,
-            borderColor: "rgba(96, 165, 250, 0.12)",
-            padding: 16,
-          }}
-        >
+              borderColor: "rgba(96, 165, 250, 0.08)",
+              padding: 16,
+            }}
+          >
           <Text style={{ color: accent, fontSize: 12, fontWeight: "700" }}>NextStride</Text>
           <Text
             style={{
@@ -364,7 +364,7 @@ export function PreviewCard({
                 borderRadius: 18,
                 padding: 12,
                 borderWidth: 1,
-                borderColor: "rgba(96, 165, 250, 0.1)",
+                borderColor: "rgba(96, 165, 250, 0.08)",
               }}
             >
               <Text style={{ color: "#e2e8f0", fontWeight: "600" }}>{label}</Text>

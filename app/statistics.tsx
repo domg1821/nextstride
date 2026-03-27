@@ -5,143 +5,140 @@ import { ScreenScroll, SectionTitle } from "./components/ui-shell";
 import { useProfile } from "./profile-context";
 import { useThemeColors } from "./theme-context";
 import { useWorkouts } from "./workout-context";
-
-type WorkoutLike = {
-  distance: string;
-  time: string;
-  effort: number;
-};
+import {
+  getAverageEffort,
+  getAveragePace,
+  getDashboardStats,
+  getRecentMileageTrend,
+  parseDistance,
+} from "./workout-utils";
 
 type EventTarget = {
   label: string;
-  miles: number;
-  fallback?: string;
+  key: keyof ReturnType<typeof useProfile>["profile"]["prs"];
 };
 
 const EVENT_TARGETS: EventTarget[] = [
-  { label: "400m", miles: 0.2485 },
-  { label: "800m", miles: 0.4971 },
-  { label: "1600m", miles: 0.9942 },
-  { label: "5K", miles: 3.1069 },
-  { label: "10K", miles: 6.2137 },
-  { label: "Half Marathon", miles: 13.1094 },
-  { label: "Marathon", miles: 26.2188 },
+  { label: "400m", key: "400" },
+  { label: "800m", key: "800" },
+  { label: "1600m / Mile", key: "1600" },
+  { label: "3200m / 2 Mile", key: "3200" },
+  { label: "5K", key: "5k" },
+  { label: "10K", key: "10k" },
+  { label: "Half Marathon", key: "half" },
+  { label: "Marathon", key: "marathon" },
 ];
 
 export default function Statistics() {
   const { profile } = useProfile();
   const { workouts } = useWorkouts();
   const { colors } = useThemeColors();
-
-  const parsedWorkouts = workouts
-    .map((workout) => ({
-      distance: parseDistance(workout.distance),
-      timeSeconds: parseTimeToSeconds(workout.time),
-      effort: Number.isFinite(workout.effort) ? workout.effort : null,
-    }))
-    .filter((workout) => workout.distance !== null);
-
-  const totalMiles = parsedWorkouts.reduce(
-    (sum, workout) => sum + (workout.distance ?? 0),
-    0
-  );
-
-  const workoutsLogged = workouts.length;
-
-  const effortValues = parsedWorkouts
-    .map((workout) => workout.effort)
-    .filter((effort): effort is number => effort !== null);
-
-  const averageEffort =
-    effortValues.length > 0
-      ? (effortValues.reduce((sum, effort) => sum + effort, 0) / effortValues.length).toFixed(1)
-      : "0.0";
-
-  const longestRun = parsedWorkouts.reduce((longest, workout) => {
-    return Math.max(longest, workout.distance ?? 0);
-  }, 0);
+  const stats = getDashboardStats(workouts);
+  const trend = getRecentMileageTrend(workouts);
+  const totalMiles = workouts.reduce((sum, workout) => sum + (parseDistance(workout.distance) ?? 0), 0);
+  const averageEffort = getAverageEffort(workouts);
+  const averagePace = getAveragePace(workouts);
 
   const prCards = EVENT_TARGETS.map((event) => ({
     label: event.label,
-    value:
-      event.label === "5K" && profile.pr5k
-        ? profile.pr5k
-        : findBestTimeForDistance(workouts, event.miles) ?? "Not added",
+    value: event.key === "5k" ? profile.pr5k || profile.prs["5k"] || "Not added" : profile.prs[event.key] || "Not added",
   }));
 
   return (
     <ScreenScroll colors={colors}>
       <Pressable onPress={() => router.back()} style={{ alignSelf: "flex-start" }}>
-        <Text style={{ color: colors.primary, fontSize: 15, fontWeight: "700" }}>
-          Back
-        </Text>
+        <Text style={{ color: colors.primary, fontSize: 15, fontWeight: "700" }}>Back</Text>
       </Pressable>
 
       <PageHeader
         eyebrow="Statistics"
-        title="Your training numbers"
-        subtitle="A clean snapshot of the volume, effort, and benchmarks you have logged so far."
+        title="Detailed training numbers"
+        subtitle="A more complete view of lifetime totals, average training quality, and benchmark performances."
       />
 
-      <View style={{ flexDirection: "row", gap: 14, flexWrap: "wrap" }}>
-        <View style={{ width: "47.8%" }}>
-          <StatCard
-            label="Total Miles Logged"
-            value={`${totalMiles.toFixed(1)} mi`}
-            helper="Across all saved workouts"
-          />
-        </View>
-        <View style={{ width: "47.8%" }}>
-          <StatCard
-            label="Workouts Logged"
-            value={`${workoutsLogged}`}
-            helper="Sessions saved"
-          />
-        </View>
-        <View style={{ width: "47.8%" }}>
-          <StatCard
-            label="Average Effort"
-            value={`${averageEffort}/10`}
-            helper="Based on logged effort"
-          />
-        </View>
-        <View style={{ width: "47.8%" }}>
-          <StatCard
-            label="Longest Run"
-            value={`${longestRun.toFixed(1)} mi`}
-            helper="Single longest distance"
-          />
-        </View>
-      </View>
-
-      <InfoCard
-        title="Performance Snapshot"
-        subtitle="Quick summary of your current logged running profile."
+      <Pressable
+        onPress={() => router.push("/race-predictor")}
+        style={{
+          backgroundColor: colors.cardAlt,
+          borderRadius: 20,
+          borderWidth: 1,
+          borderColor: colors.border,
+          padding: 16,
+        }}
       >
-        <DataRow label="Goal Event" value={profile.goalEvent || "Not set"} />
-        <DataRow label="Weekly Mileage Goal" value={`${profile.mileage || "0"} mi`} />
-        <DataRow label="Saved 5K PR" value={profile.pr5k || "Not added"} />
-      </InfoCard>
+        <Text style={{ color: colors.text, fontSize: 17, fontWeight: "700" }}>Open Race Predictor</Text>
+        <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 20, marginTop: 6 }}>
+          See current race predictions across events using your recent workouts and profile data.
+        </Text>
+      </Pressable>
 
-      <SectionTitle
-        colors={colors}
-        title="Personal Records"
-        subtitle="Best marks read from your current profile and matching logged workout distances."
-      />
-
-      <View style={{ flexDirection: "row", gap: 14, flexWrap: "wrap" }}>
-        {prCards.map((card) => (
-          <View key={card.label} style={{ width: "47.8%" }}>
-            <InfoCard title={card.label}>
-              <Text style={{ color: colors.text, fontSize: 22, fontWeight: "700" }}>
-                {card.value}
-              </Text>
-            </InfoCard>
+      {workouts.length === 0 ? (
+        <InfoCard
+          title="No statistics yet"
+          subtitle="Log workouts to unlock mileage totals, pace averages, effort trends, and record tracking."
+        />
+      ) : (
+        <>
+          <View style={{ flexDirection: "row", gap: 14, flexWrap: "wrap" }}>
+            <StatWrap>
+              <StatCard label="Total Miles" value={`${totalMiles.toFixed(1)} mi`} helper="Lifetime logged volume" />
+            </StatWrap>
+            <StatWrap>
+              <StatCard label="Total Workouts" value={`${stats.totalWorkouts}`} helper="All saved sessions" />
+            </StatWrap>
+            <StatWrap>
+              <StatCard
+                label="Average Effort"
+                value={averageEffort === null ? "N/A" : `${averageEffort.toFixed(1)}/10`}
+                helper="Across all workouts"
+              />
+            </StatWrap>
+            <StatWrap>
+              <StatCard label="Average Pace" value={averagePace ?? "N/A"} helper="Valid timed runs only" />
+            </StatWrap>
           </View>
-        ))}
-      </View>
+
+          <InfoCard>
+            <SectionTitle
+              colors={colors}
+              title="Recent Volume"
+              subtitle="A compact four-week mileage trend to complement the main dashboard."
+            />
+            <MiniTrendRow colors={colors} points={trend} />
+          </InfoCard>
+
+          <InfoCard title="Performance Snapshot" subtitle="A quick summary of your current running profile.">
+            <DataRow label="Goal Event" value={profile.goalEvent || "Not set"} />
+            <DataRow label="Weekly Mileage Goal" value={`${profile.mileage || "0"} mi`} />
+            <DataRow label="Longest Run" value={`${stats.longestRun.toFixed(1)} mi`} />
+            <DataRow label="Miles This Month" value={`${stats.monthlyMiles.toFixed(1)} mi`} />
+          </InfoCard>
+
+          <SectionTitle
+            colors={colors}
+            title="Personal Records"
+            subtitle="Manual profile PRs stay editable, and qualifying logged efforts can now update these automatically."
+          />
+
+          <View style={{ flexDirection: "row", gap: 14, flexWrap: "wrap" }}>
+            {prCards.map((card) => (
+              <View key={card.label} style={{ width: "47.8%" }}>
+                <InfoCard title={card.label}>
+                  <Text style={{ color: colors.text, fontSize: 22, fontWeight: "700" }}>
+                    {card.value}
+                  </Text>
+                </InfoCard>
+              </View>
+            ))}
+          </View>
+        </>
+      )}
     </ScreenScroll>
   );
+}
+
+function StatWrap({ children }: { children: React.ReactNode }) {
+  return <View style={{ width: "47.8%" }}>{children}</View>;
 }
 
 function DataRow({ label, value }: { label: string; value: string }) {
@@ -164,68 +161,33 @@ function DataRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function parseDistance(value: string) {
-  const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
+function MiniTrendRow({
+  colors,
+  points,
+}: {
+  colors: ReturnType<typeof useThemeColors>["colors"];
+  points: ReturnType<typeof getRecentMileageTrend>;
+}) {
+  const maxMiles = Math.max(...points.map((point) => point.miles), 1);
 
-function parseTimeToSeconds(value: string) {
-  const trimmed = value.trim();
-
-  if (!trimmed) {
-    return null;
-  }
-
-  const parts = trimmed.split(":").map((part) => Number.parseInt(part, 10));
-
-  if (parts.some((part) => Number.isNaN(part))) {
-    return null;
-  }
-
-  if (parts.length === 2) {
-    return parts[0] * 60 + parts[1];
-  }
-
-  if (parts.length === 3) {
-    return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  }
-
-  return null;
-}
-
-function formatSeconds(totalSeconds: number) {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-
-  if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds
-      .toString()
-      .padStart(2, "0")}`;
-  }
-
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-}
-
-function findBestTimeForDistance(workouts: WorkoutLike[], targetMiles: number) {
-  const tolerance = Math.max(0.05, targetMiles * 0.04);
-
-  const matchingTimes = workouts
-    .map((workout) => ({
-      distance: parseDistance(workout.distance),
-      timeSeconds: parseTimeToSeconds(workout.time),
-    }))
-    .filter(
-      (workout) =>
-        workout.distance !== null &&
-        workout.timeSeconds !== null &&
-        Math.abs(workout.distance - targetMiles) <= tolerance
-    )
-    .map((workout) => workout.timeSeconds as number);
-
-  if (matchingTimes.length === 0) {
-    return null;
-  }
-
-  return formatSeconds(Math.min(...matchingTimes));
+  return (
+    <View style={{ marginTop: 18, flexDirection: "row", gap: 10, alignItems: "flex-end", height: 150 }}>
+      {points.map((point) => (
+        <View key={point.label} style={{ flex: 1, alignItems: "center", gap: 8 }}>
+          <View
+            style={{
+              width: "100%",
+              height: `${Math.max((point.miles / maxMiles) * 100, 10)}%`,
+              minHeight: 16,
+              borderRadius: 14,
+              backgroundColor: point.current ? colors.primary : colors.cardAlt,
+              borderWidth: 1,
+              borderColor: point.current ? colors.primary : colors.border,
+            }}
+          />
+          <Text style={{ color: colors.subtext, fontSize: 12 }}>{point.label}</Text>
+        </View>
+      ))}
+    </View>
+  );
 }

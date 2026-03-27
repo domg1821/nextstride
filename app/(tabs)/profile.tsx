@@ -3,7 +3,7 @@ import { router } from "expo-router";
 import { useRef } from "react";
 import { Animated, Easing, Image, Pressable, Text, View } from "react-native";
 import { InfoCard, PageHeader, PrimaryButton, StatCard } from "../components/ui-kit";
-import { ScreenScroll } from "../components/ui-shell";
+import { AnimatedTabScene, ScreenScroll, SectionTitle } from "../components/ui-shell";
 import { useProfile } from "../profile-context";
 import { useThemeColors } from "../theme-context";
 import { useWorkouts } from "../workout-context";
@@ -132,15 +132,16 @@ export default function Profile() {
   }, 0);
 
   return (
-    <ScreenScroll colors={colors}>
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 16,
-        }}
-      >
+    <AnimatedTabScene tabKey="profile">
+      <ScreenScroll colors={colors}>
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 16,
+          }}
+        >
         <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
           {profile.image ? (
             <Image
@@ -216,37 +217,50 @@ export default function Profile() {
             </Animated.Text>
           </Animated.View>
         </Pressable>
-      </View>
+        </View>
 
-      <PageHeader
-        eyebrow="Profile"
-        title="Your running identity"
-        subtitle="A focused place for your photo, stats, and quick links into the rest of the app."
-      />
+        <PageHeader
+          eyebrow="Profile"
+          title="Your running identity"
+          subtitle="A focused place for your photo, stats, and quick links into the rest of the app."
+        />
 
-      <PrimaryButton label="Upload Profile Picture" onPress={pickImage} />
+        <PrimaryButton label="Upload Profile Picture" onPress={pickImage} />
 
-      <View style={{ flexDirection: "row", gap: 14 }}>
+        <View style={{ flexDirection: "row", gap: 14 }}>
         <View style={{ flex: 1 }}>
           <StatCard label="Workouts" value={`${workouts.length}`} />
         </View>
         <View style={{ flex: 1 }}>
           <StatCard label="Miles" value={totalMiles.toFixed(1)} />
         </View>
-      </View>
+        </View>
 
-      <RouteCard
-        title="Activities"
-        subtitle="View your recent workouts and logged sessions."
-        onPress={() => router.push("/activities")}
-      />
+        <SectionTitle
+          colors={colors}
+          title="Quick links"
+          subtitle="Jump into the places you are most likely to revisit."
+        />
 
-      <RouteCard
-        title="Statistics"
-        subtitle="See mileage totals, benchmarks, and training trends."
-        onPress={() => router.push("/statistics")}
-      />
-    </ScreenScroll>
+        <RouteCard
+          title="Activity Feed"
+          subtitle="View your recent runs in a cleaner feed-style history."
+          onPress={() => router.push("/activities")}
+        />
+
+        <RouteCard
+          title="Statistics"
+          subtitle="See mileage totals, benchmarks, and training trends."
+          onPress={() => router.push("/statistics")}
+        />
+
+        <RouteCard
+          title="Race Predictor"
+          subtitle="Estimate current race fitness from recent training, effort, mileage, and saved PRs."
+          onPress={() => router.push("/race-predictor")}
+        />
+      </ScreenScroll>
+    </AnimatedTabScene>
   );
 }
 

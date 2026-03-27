@@ -1,14 +1,35 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { formatDuration, parseDistance, parseTimeToSeconds } from "./workout-utils";
+
+export type PRsType = {
+  "400": string;
+  "800": string;
+  "1600": string;
+  "3200": string;
+  "5k": string;
+  "10k": string;
+  half: string;
+  marathon: string;
+};
 
 export type ProfileType = {
   name: string;
   mileage: string;
   goalEvent: string;
   pr5k: string;
+  prs: PRsType;
   age: string;
   restingHeartRate: string;
   maxHeartRate: string;
   image?: string;
+};
+
+export type NotificationPreferences = {
+  workoutReminders: boolean;
+  longRunReminders: boolean;
+  weeklyGoalReminders: boolean;
+  streakReminders: boolean;
+  recoveryReminders: boolean;
 };
 
 export type HeartRateZone = {
@@ -22,12 +43,21 @@ type AuthAccount = {
   email: string;
   password: string;
   profile: ProfileType;
+  notifications: NotificationPreferences;
 };
 
 type ProfileContextType = {
   profile: ProfileType;
   setProfile: React.Dispatch<React.SetStateAction<ProfileType>>;
   updateProfile: (updates: Partial<ProfileType>) => void;
+  applyAutomaticPr: (input: { distance: string; time: string }) => {
+    matchedEvent: keyof PRsType | null;
+    updated: boolean;
+    label?: string;
+    time?: string;
+  };
+  notificationPreferences: NotificationPreferences;
+  updateNotificationPreferences: (updates: Partial<NotificationPreferences>) => void;
   account: AuthAccount | null;
   displayName: string;
   isAuthenticated: boolean;
@@ -47,15 +77,69 @@ type ProfileContextType = {
 
 const ProfileContext = createContext<ProfileContextType | null>(null);
 
+const PR_EVENT_RULES: {
+  key: keyof PRsType;
+  label: string;
+  miles: number;
+  tolerance: number;
+}[] = [
+  { key: "400", label: "400m", miles: 0.2485, tolerance: 0.02 },
+  { key: "800", label: "800m", miles: 0.4971, tolerance: 0.03 },
+  { key: "1600", label: "1600m / Mile", miles: 0.9942, tolerance: 0.04 },
+  { key: "3200", label: "3200m / 2 Mile", miles: 1.9884, tolerance: 0.06 },
+  { key: "5k", label: "5K", miles: 3.1069, tolerance: 0.08 },
+  { key: "10k", label: "10K", miles: 6.2137, tolerance: 0.12 },
+  { key: "half", label: "Half Marathon", miles: 13.1094, tolerance: 0.2 },
+  { key: "marathon", label: "Marathon", miles: 26.2188, tolerance: 0.35 },
+];
+
+const EMPTY_PRS: PRsType = {
+  "400": "",
+  "800": "",
+  "1600": "",
+  "3200": "",
+  "5k": "",
+  "10k": "",
+  half: "",
+  marathon: "",
+};
+
+const DEFAULT_NOTIFICATIONS: NotificationPreferences = {
+  workoutReminders: true,
+  longRunReminders: true,
+  weeklyGoalReminders: true,
+  streakReminders: true,
+  recoveryReminders: false,
+};
+
 const EMPTY_PROFILE: ProfileType = {
   name: "",
   mileage: "",
   goalEvent: "",
   pr5k: "",
+  prs: EMPTY_PRS,
   age: "",
   restingHeartRate: "",
   maxHeartRate: "",
 };
+
+function normalizeProfile(profile: ProfileType): ProfileType {
+  const prs = {
+    ...EMPTY_PRS,
+    ...profile.prs,
+  };
+  const pr5k = profile.pr5k || prs["5k"] || "";
+
+  return {
+    ...EMPTY_PROFILE,
+    ...profile,
+    pr5k,
+    prs: {
+      ...prs,
+      "5k": pr5k,
+    },
+  };
+}
 
 function formatDisplayName(name: string) {
   return name
@@ -84,6 +168,8 @@ export const ProfileProvider = ({
   const [accountsByEmail, setAccountsByEmail] = useState<Record<string, AuthAccount>>({});
   const [currentEmail, setCurrentEmail] = useState<string | null>(null);
   const [profile, setProfileState] = useState<ProfileType>(EMPTY_PROFILE);
+  const [notificationPreferences, setNotificationPreferences] =
+    useState<NotificationPreferences>(DEFAULT_NOTIFICATIONS);
 
   const account = currentEmail ? accountsByEmail[currentEmail] ?? null : null;
   const parsedAge = Number.parseInt(profile.age, 10);
@@ -105,8 +191,9 @@ export const ProfileProvider = ({
   const setProfile = useCallback<React.Dispatch<React.SetStateAction<ProfileType>>>(
     (nextProfile) => {
       setProfileState((currentProfile) => {
-        const resolvedProfile =
-          typeof nextProfile === "function" ? nextProfile(currentProfile) : nextProfile;
+        const resolvedProfile = normalizeProfile(
+          typeof nextProfile === "function" ? nextProfile(currentProfile) : nextProfile
+        );
 
         if (currentEmail) {
           setAccountsByEmail((currentAccounts) => {
@@ -134,12 +221,98 @@ export const ProfileProvider = ({
 
   const updateProfile = useCallback(
     (updates: Partial<ProfileType>) => {
-      setProfile((current) => ({
-        ...current,
-        ...updates,
-      }));
+      setProfile((current) =>
+        normalizeProfile({
+          ...current,
+          ...updates,
+          prs: {
+            ...current.prs,
+            ...(updates.prs ?? {}),
+          },
+        })
+      );
     },
     [setProfile]
+  );
+
+  const applyAutomaticPr = useCallback(
+    ({ distance, time }: { distance: string; time: string }) => {
+      const miles = parseDistance(distance);
+      const seconds = parseTimeToSeconds(time);
+
+      if (!miles || !seconds || miles <= 0 || seconds <= 0) {
+        return { matchedEvent: null, updated: false };
+      }
+
+      const matchedRule =
+        PR_EVENT_RULES.find((rule) => Math.abs(miles - rule.miles) <= rule.tolerance) ?? null;
+
+      if (!matchedRule) {
+        return { matchedEvent: null, updated: false };
+      }
+
+      const existingPrValue = profile.prs[matchedRule.key];
+      const existingSeconds = existingPrValue ? parseTimeToSeconds(existingPrValue) : null;
+
+      if (existingSeconds !== null && existingSeconds <= seconds) {
+        return {
+          matchedEvent: matchedRule.key,
+          updated: false,
+          label: matchedRule.label,
+          time: existingPrValue,
+        };
+      }
+
+      const formattedPr = formatDuration(seconds);
+
+      updateProfile({
+        prs: {
+          ...profile.prs,
+          [matchedRule.key]: formattedPr,
+        },
+        ...(matchedRule.key === "5k" ? { pr5k: formattedPr } : {}),
+      });
+
+      return {
+        matchedEvent: matchedRule.key,
+        updated: true,
+        label: matchedRule.label,
+        time: formattedPr,
+      };
+    },
+    [profile.prs, updateProfile]
+  );
+
+  const updateNotificationPreferences = useCallback(
+    (updates: Partial<NotificationPreferences>) => {
+      setNotificationPreferences((current) => {
+        const next = {
+          ...current,
+          ...updates,
+        };
+
+        if (currentEmail) {
+          setAccountsByEmail((currentAccounts) => {
+            const currentAccount = currentAccounts[currentEmail];
+
+            if (!currentAccount) {
+              return currentAccounts;
+            }
+
+            return {
+              ...currentAccounts,
+              [currentEmail]: {
+                ...currentAccount,
+                notifications: next,
+              },
+            };
+          });
+        }
+
+        return next;
+      });
+    },
+    [currentEmail]
   );
 
   const value = useMemo(
@@ -147,10 +320,11 @@ export const ProfileProvider = ({
       profile,
       setProfile,
       updateProfile,
+      applyAutomaticPr,
+      notificationPreferences,
+      updateNotificationPreferences,
       account,
-      displayName:
-        formatDisplayName(profile.name) ||
-        deriveNameFromEmail(account?.email || ""),
+      displayName: formatDisplayName(profile.name) || deriveNameFromEmail(account?.email || ""),
       isAuthenticated: Boolean(account),
       resolvedMaxHeartRate,
       heartRateZones,
@@ -195,10 +369,10 @@ export const ProfileProvider = ({
           };
         }
 
-        const nextProfile: ProfileType = {
+        const nextProfile = normalizeProfile({
           ...EMPTY_PROFILE,
           name: resolvedName,
-        };
+        });
 
         setAccountsByEmail((currentAccounts) => ({
           ...currentAccounts,
@@ -206,10 +380,12 @@ export const ProfileProvider = ({
             email: normalizedEmail,
             password: trimmedPassword,
             profile: nextProfile,
+            notifications: DEFAULT_NOTIFICATIONS,
           },
         }));
         setCurrentEmail(normalizedEmail);
         setProfileState(nextProfile);
+        setNotificationPreferences(DEFAULT_NOTIFICATIONS);
 
         return { ok: true };
       },
@@ -247,23 +423,28 @@ export const ProfileProvider = ({
         }
 
         setCurrentEmail(normalizedEmail);
-        setProfileState(matchedAccount.profile);
+        setProfileState(normalizeProfile(matchedAccount.profile));
+        setNotificationPreferences(matchedAccount.notifications ?? DEFAULT_NOTIFICATIONS);
 
         return { ok: true };
       },
       signOut: () => {
         setCurrentEmail(null);
         setProfileState(EMPTY_PROFILE);
+        setNotificationPreferences(DEFAULT_NOTIFICATIONS);
       },
     }),
     [
       account,
       accountsByEmail,
       heartRateZones,
+      notificationPreferences,
       profile,
       resolvedMaxHeartRate,
       setProfile,
+      updateNotificationPreferences,
       updateProfile,
+      applyAutomaticPr,
     ]
   );
 

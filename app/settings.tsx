@@ -127,6 +127,15 @@ export default function Settings() {
     ]).start();
   }, [backOpacity, heroOpacity, heroTranslate]);
 
+  const closeScreen = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/(tabs)/profile");
+  };
+
   return (
     <ScrollView
       style={{
@@ -141,7 +150,7 @@ export default function Settings() {
       showsVerticalScrollIndicator={false}
     >
       <Animated.View style={{ opacity: backOpacity, alignSelf: "flex-start" }}>
-        <Pressable onPress={() => router.back()} style={{ alignSelf: "flex-start" }}>
+        <Pressable onPress={closeScreen} style={{ alignSelf: "flex-start" }}>
           <Text style={{ color: colors.primary, fontSize: 15, fontWeight: "600" }}>
             Back
           </Text>
@@ -187,8 +196,7 @@ export default function Settings() {
               lineHeight: 22,
             }}
           >
-            {profile.name || "Runner"}, your preferences are local for now and ready for
-            future account settings.
+            {profile.name || "Runner"}, your profile, training preferences, and reminders are all local and ready to use.
           </Text>
         </View>
       </Animated.View>
@@ -206,19 +214,35 @@ export default function Settings() {
         />
 
         <SettingsRow
+          title="Edit Profile"
+          subtitle="Update your name, goal event, weekly mileage, and recent race times."
+          accent={colors.success}
+          delay={120}
+          onPress={() => router.push("/edit-profile")}
+        />
+
+        <SettingsRow
+          title="Notifications"
+          subtitle="Control workout reminders, streak nudges, recovery prompts, and weekly goal reminders."
+          accent={colors.primary}
+          delay={180}
+          onPress={() => router.push("/notifications")}
+        />
+
+        <SettingsRow
           title="Premium"
           subtitle="See premium features, pricing, and the upgrade placeholder."
           accent={colors.primary}
+          delay={240}
           onPress={() => router.push("/premium")}
-          delay={120}
         />
 
         <SettingsRow
           title="Day / Night"
-          subtitle={`Currently in ${mode === "dark" ? "night" : "day"} mode. This updates the global app theme context.`}
+          subtitle={`Currently in ${mode === "dark" ? "night" : "day"} mode. This updates the global app theme.`}
           accent={colors.primary}
           onPress={toggleTheme}
-          delay={180}
+          delay={300}
           trailing={
             <Switch
               value={isDark}
@@ -227,20 +251,6 @@ export default function Settings() {
               thumbColor="#ffffff"
             />
           }
-        />
-
-        <SettingsRow
-          title="Edit Profile"
-          subtitle="Placeholder row for editing your name, goal event, PRs, and weekly mileage."
-          accent={colors.success}
-          delay={240}
-        />
-
-        <SettingsRow
-          title="Notifications"
-          subtitle="Placeholder row for future reminders, workout alerts, and streak nudges."
-          accent={colors.primary}
-          delay={300}
         />
 
         <SettingsRow
@@ -322,8 +332,7 @@ function HeartRateSetupCard({
           marginTop: 8,
         }}
       >
-        Age is required for estimated heart rate zones. Resting heart rate is saved for later,
-        and max heart rate overrides the estimate if you know it.
+        Age is required for estimated heart rate zones. Resting heart rate is saved for later, and max heart rate overrides the estimate if you know it.
       </Text>
 
       <View style={{ gap: 12, marginTop: 18 }}>

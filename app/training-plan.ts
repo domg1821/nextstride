@@ -1,3 +1,10 @@
+import {
+  DayName,
+  getDateForPlanDay,
+  getDayKey,
+  getRecentMileageTrend,
+} from "./workout-utils";
+
 export type SupportedGoalEvent =
   | "800"
   | "1600/mile"
@@ -15,6 +22,24 @@ export type PlanDay = {
   details: string;
   distance: number;
   logType: string;
+  adjustmentNote?: string;
+  adjustmentType?: "recovery" | "missed" | "progression";
+};
+
+export type AdaptivePlanContext = {
+  workouts: {
+    date: string;
+    effort: number;
+    notes: string;
+    distance: string;
+  }[];
+  completedWorkoutIds: string[];
+  referenceDate?: Date;
+};
+
+export type AdaptivePlanResult = {
+  plan: PlanDay[];
+  feedback: string[];
 };
 
 export type WorkoutPreferenceCategory =
@@ -47,15 +72,6 @@ type PaceProfile = {
   longLowPerMile: number;
   longHighPerMile: number;
 };
-
-type DayName =
-  | "Monday"
-  | "Tuesday"
-  | "Wednesday"
-  | "Thursday"
-  | "Friday"
-  | "Saturday"
-  | "Sunday";
 
 const GOAL_LABELS: Record<SupportedGoalEvent, string> = {
   "800": "800m",
@@ -143,6 +159,136 @@ export function buildWeeklyPlan(
 export function getTodayPlanDay(plan: PlanDay[], date = new Date()) {
   const mondayFirstIndex = (date.getDay() + 6) % 7;
   return plan[mondayFirstIndex];
+}
+
+export function buildAdaptiveWeeklyPlan(
+  goalEvent: string,
+  mileage: string,
+  pr5k = "",
+  likedCategories: WorkoutPreferenceCategory[] = [],
+  planCycle = 0,
+  context?: AdaptivePlanContext
+): AdaptivePlanResult {
+  const basePlan = buildWeeklyPlan(goalEvent, mileage, pr5k, likedCategories, planCycle);
+
+  if (!context) {
+    return {
+      plan: basePlan,
+      feedback: [],
+    };
+  }
+
+  const referenceDate = context.referenceDate ?? new Date();
+  const todayIndex = (referenceDate.getDay() + 6) % 7;
+  const weeklyMileageGoal = parseWeeklyMileage(mileage);
+  const feedback: string[] = [];
+  const workoutsByDateKey = context.workouts.reduce<Record<string, AdaptivePlanContext["workouts"]>>(
+    (accumulator, workout) => {
+      const key = getDayKey(workout.date);
+      accumulator[key] = accumulator[key] ? [...accumulator[key], workout] : [workout];
+      return accumulator;
+    },
+    {}
+  );
+  const missedQualityDay = basePlan.find((day, index) => {
+    if (index >= todayIndex || day.kind === "rest") {
+      return false;
+    }
+
+    const plannedDateKey = getDayKey(getDateForPlanDay(day.day as DayName, referenceDate, planCycle).toISOString());
+    const completed = context.completedWorkoutIds.includes(day.id);
+    const loggedWorkoutThatDay = (workoutsByDateKey[plannedDateKey] ?? []).length > 0;
+
+    return !completed && !loggedWorkoutThatDay && (day.category === "intervals" || day.category === "threshold" || day.category === "long");
+  });
+  const recentWorkout = [...context.workouts]
+    .sort((left, right) => new Date(right.date).getTime() - new Date(left.date).getTime())[0];
+  const recentMileageTrend = getRecentMileageTrend(
+    context.workouts.map((workout) => ({
+      date: workout.date,
+      distance: workout.distance,
+    })),
+    referenceDate,
+    3
+  );
+  const averageRecentMiles =
+    recentMileageTrend.length > 0
+      ? recentMileageTrend.reduce((sum, point) => sum + point.miles, 0) / recentMileageTrend.length
+      : 0;
+  const strongConsistency =
+    averageRecentMiles >= weeklyMileageGoal * 0.85 &&
+    context.workouts.filter((workout) => {
+      const workoutDate = new Date(workout.date);
+      const daysAgo = Math.floor((referenceDate.getTime() - workoutDate.getTime()) / (1000 * 60 * 60 * 24));
+      return daysAgo <= 14;
+    }).length >= 4;
+  const highRecentEffort = recentWorkout && recentWorkout.effort >= 8;
+
+  const adaptedPlan = basePlan.map((day, index) => {
+    const nextDayGap = index - todayIndex;
+    let adaptedDay = { ...day };
+
+    if (highRecentEffort && nextDayGap >= 0 && nextDayGap <= 1 && (day.category === "easy" || day.category === "recovery" || day.category === "steady")) {
+      adaptedDay = {
+        ...adaptedDay,
+        distance: Math.max(2, roundToHalf(day.distance - 0.5)),
+        details: `${day.details} Yesterday was high effort, so today stays easy and controlled.`,
+        adjustmentNote: "Yesterday was high effort, so today stays easy.",
+        adjustmentType: "recovery",
+      };
+    }
+
+    if (
+      missedQualityDay &&
+      nextDayGap >= 0 &&
+      nextDayGap <= 2 &&
+      index > basePlan.indexOf(missedQualityDay) &&
+      (day.category === "easy" || day.category === "recovery" || day.category === "steady")
+    ) {
+      adaptedDay = {
+        ...adaptedDay,
+        distance: Math.max(2, roundToHalf(adaptedDay.distance - 0.5)),
+        details: `${adaptedDay.details} You missed ${missedQualityDay.day}'s ${missedQualityDay.title.toLowerCase()}, so this session stays lighter.`,
+        adjustmentNote: `You missed ${missedQualityDay.day}'s ${missedQualityDay.title.toLowerCase()}, so this session stays lighter.`,
+        adjustmentType: "missed",
+      };
+    }
+
+    if (
+      strongConsistency &&
+      !adaptedDay.adjustmentType &&
+      nextDayGap >= 0 &&
+      (day.category === "steady" || day.category === "long") &&
+      index >= todayIndex
+    ) {
+      adaptedDay = {
+        ...adaptedDay,
+        distance: roundToHalf(day.distance + 0.5),
+        details: `${day.details} Consistency has been strong, so this session gets a small progression.`,
+        adjustmentNote: "Consistency has been strong, so this session gets a small progression.",
+        adjustmentType: "progression",
+      };
+    }
+
+    return adaptedDay;
+  });
+
+  if (highRecentEffort) {
+    feedback.push("Yesterday was high effort, so the next easy day stays lighter.");
+  }
+
+  if (missedQualityDay) {
+    feedback.push(`You missed ${missedQualityDay.day}'s ${missedQualityDay.title.toLowerCase()}, so the next few days stay more controlled.`);
+  }
+
+  if (strongConsistency) {
+    feedback.push("Consistency has been strong, so the plan allows a small progression later in the week.");
+  }
+
+  return {
+    plan: adaptedPlan,
+    feedback: feedback.slice(0, 3),
+  };
 }
 
 function getTemplate(
