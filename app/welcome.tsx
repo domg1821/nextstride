@@ -113,111 +113,66 @@ export default function Welcome() {
             style={{
               padding: isDesktop ? 38 : 24,
               flexDirection: isDesktop ? "row" : "column",
-              gap: 24,
+              gap: 22,
             }}
           >
-            <View style={{ flex: isDesktop ? 1.08 : undefined }}>
-              <View
+            <View style={{ flex: isDesktop ? 1.04 : undefined, justifyContent: "center" }}>
+              <Text
                 style={{
-                  alignSelf: "flex-start",
-                  backgroundColor: "rgba(59, 130, 246, 0.16)",
-                  borderRadius: 999,
-                  paddingHorizontal: 13,
-                  paddingVertical: 8,
+                  color: "#93c5fd",
+                  fontSize: 13,
+                  fontWeight: "800",
+                  letterSpacing: 1.1,
+                  textTransform: "uppercase",
                 }}
               >
-                <Text
-                  style={{
-                    color: "#93c5fd",
-                    fontSize: 12,
-                    fontWeight: "800",
-                    letterSpacing: 1,
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Running plans that actually coach
-                </Text>
-              </View>
+                NextStride
+              </Text>
 
               <Text
                 style={{
                   color: "#f8fafc",
                   fontSize: heroTitleSize,
                   fontWeight: "800",
-                  lineHeight: heroTitleSize + 6,
-                  marginTop: 18,
-                  maxWidth: 760,
+                  lineHeight: heroTitleSize + 4,
+                  marginTop: 14,
+                  maxWidth: 620,
                 }}
               >
-                Train smarter. Run faster. Stay consistent.
+                Personalized training for runners.
               </Text>
 
               <Text
                 style={{
                   color: "#a8bdd7",
-                  fontSize: 18,
-                  lineHeight: 29,
-                  marginTop: 18,
-                  maxWidth: 700,
+                  fontSize: 17,
+                  lineHeight: 28,
+                  marginTop: 16,
+                  maxWidth: 620,
                 }}
               >
-                NextStride gives runners personalized weekly plans, cleaner workout logging,
-                adaptive training guidance, and progress visibility that makes every week
-                feel intentional.
+                Adaptive weekly plans, workout logging, and progress tracking built around
+                your goals so every week feels clear and worth following.
               </Text>
 
               <View
                 style={{
                   flexDirection: isTablet ? "row" : "column",
                   gap: 12,
-                  marginTop: 30,
+                  marginTop: 26,
                 }}
               >
                 <SiteButton label="Get Started" onPress={() => router.push("/signup")} />
                 <SiteButton
-                  label="View Demo Plan"
+                  label="View Demo"
                   variant="secondary"
                   onPress={() => scrollToSection("plan")}
                 />
-                <SiteButton
-                  label="Start Premium"
-                  variant="secondary"
-                  onPress={() => scrollToSection("premium")}
-                />
-              </View>
-
-              <View
-                style={{
-                  marginTop: 28,
-                  flexDirection: isTablet ? "row" : "column",
-                  gap: 12,
-                }}
-              >
-                <HeroStat value="Personalized" label="weekly plans" />
-                <HeroStat value="PR-aware" label="training logic" />
-                <HeroStat value="Built for" label="consistent runners" />
               </View>
             </View>
 
-            <View style={{ flex: isDesktop ? 0.92 : undefined, gap: 16 }}>
+            <View style={{ flex: isDesktop ? 0.96 : undefined }}>
               <HeroPreview />
-              <View
-                style={{
-                  flexDirection: isTablet ? "row" : "column",
-                  gap: 16,
-                }}
-              >
-                <HeroInsight
-                  accent="#7dd3fc"
-                  title="Adaptive structure"
-                  body="Your week stays organized around goals, mileage, and workout feedback."
-                />
-                <HeroInsight
-                  accent="#86efac"
-                  title="Progress you can feel"
-                  body="See what is planned, what is done, and how your training is moving."
-                />
-              </View>
             </View>
           </View>
         </View>
@@ -227,7 +182,7 @@ export default function Welcome() {
         <SiteSection
           eyebrow="Features"
           title="A complete running product, not just a run tracker"
-          subtitle="NextStride is designed to guide training blocks from setup to daily execution with a polished experience that feels calm, modern, and trustworthy."
+          subtitle="Everything important stays in one focused product: your plan, your logs, and your progress."
           padding={padding}
         >
           <ResponsiveGrid isDesktop={isDesktop}>
@@ -281,7 +236,7 @@ export default function Welcome() {
         <SiteSection
           eyebrow="How It Works"
           title="A simple path from setup to stronger training"
-          subtitle="NextStride stays easy to understand so runners can spend more time training well and less time figuring out the app."
+          subtitle="Set your goals, follow the week, log what you complete, and keep building momentum."
           padding={padding}
         >
           <View
@@ -318,7 +273,7 @@ export default function Welcome() {
         <SiteSection
           eyebrow="Weekly Plan Preview"
           title="See a week at a glance"
-          subtitle="This is the kind of structure runners want the moment the app opens: clear workout types, useful pacing context, and a week that already makes sense."
+          subtitle="The week is structured before you start, so the next run is always obvious."
           padding={padding}
         >
           <WeeklyPlanPreview
@@ -367,7 +322,7 @@ export default function Welcome() {
         <SiteSection
           eyebrow="Why NextStride"
           title="Most apps only record runs. NextStride helps runners train better."
-          subtitle="The difference is not more noise. It is better planning, clearer execution, and a product built to help runners stay consistent over time."
+          subtitle="Better planning, cleaner execution, and a training flow that makes consistency easier."
           padding={padding}
         >
           <View
@@ -401,7 +356,7 @@ export default function Welcome() {
         <SiteSection
           eyebrow="Premium"
           title="Premium guidance for runners who want more precision"
-          subtitle="NextStride Premium brings more detailed decision support into the app while keeping the product clean, focused, and runner-friendly."
+          subtitle="A simple upgrade for runners who want more detailed coaching without extra clutter."
           padding={padding}
         >
           <View
@@ -484,7 +439,7 @@ export default function Welcome() {
         <SiteSection
           eyebrow="App Preview"
           title="A polished product experience runners can imagine using every day"
-          subtitle="Even with placeholder visuals, the interface should already feel like a real product: thoughtful, organized, and worth returning to."
+          subtitle="A clean product flow that feels ready for real training weeks."
           padding={padding}
         >
           <View
@@ -529,7 +484,7 @@ export default function Welcome() {
         <SiteSection
           eyebrow="Start Strong"
           title="Get a cleaner, more intentional way to train"
-          subtitle="NextStride is built for runners who want structure without clutter, better weekly clarity, and a product experience that feels ready from day one."
+          subtitle="Built for runners who want structure without clutter and a product that feels easy to return to."
           padding={padding}
         >
           <View
@@ -759,69 +714,6 @@ function HeroPanelRow({ label, value }: { label: string; value: string }) {
       <Text style={{ color: "#f8fafc", fontSize: 16, fontWeight: "700", marginTop: 6 }}>
         {value}
       </Text>
-    </View>
-  );
-}
-
-function HeroInsight({
-  accent,
-  title,
-  body,
-}: {
-  accent: string;
-  title: string;
-  body: string;
-}) {
-  return (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: "rgba(225, 236, 251, 0.96)",
-        borderRadius: 26,
-        padding: 20,
-      }}
-    >
-      <Text style={{ color: accent, fontSize: 12, fontWeight: "800", letterSpacing: 1 }}>
-        NEXTSTRIDE
-      </Text>
-      <Text
-        style={{
-          color: "#0f172a",
-          fontSize: 23,
-          fontWeight: "800",
-          marginTop: 10,
-        }}
-      >
-        {title}
-      </Text>
-      <Text
-        style={{
-          color: "#334155",
-          fontSize: 14,
-          lineHeight: 21,
-          marginTop: 10,
-        }}
-      >
-        {body}
-      </Text>
-    </View>
-  );
-}
-
-function HeroStat({ value, label }: { value: string; label: string }) {
-  return (
-    <View
-      style={{
-        backgroundColor: "rgba(8, 18, 32, 0.94)",
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: "rgba(96, 165, 250, 0.12)",
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-      }}
-    >
-      <Text style={{ color: "#f8fafc", fontSize: 16, fontWeight: "700" }}>{value}</Text>
-      <Text style={{ color: "#7390af", fontSize: 13, marginTop: 4 }}>{label}</Text>
     </View>
   );
 }

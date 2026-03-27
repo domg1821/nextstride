@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Animated,
   LayoutAnimation,
+  Modal,
   Platform,
   Pressable,
   Text,
@@ -9,7 +10,7 @@ import {
   View,
 } from "react-native";
 import TopProfileBar from "../components/TopProfileBar";
-import { InfoCard, PageHeader, StatCard } from "../components/ui-kit";
+import { InfoCard, PageHeader, PrimaryButton, SecondaryButton, StatCard } from "../components/ui-kit";
 import { ScreenScroll, SectionTitle } from "../components/ui-shell";
 import { useProfile } from "../profile-context";
 import { PlanDay, buildWeeklyPlan } from "../training-plan";
@@ -19,6 +20,13 @@ import { useWorkouts } from "../workout-context";
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
+
+const EFFORT_OPTIONS = [
+  { label: "Easy", value: 3 },
+  { label: "Moderate", value: 5 },
+  { label: "Hard", value: 7 },
+  { label: "All-out", value: 9 },
+];
 
 export default function Plan() {
   const { profile, heartRateZones } = useProfile();
@@ -45,20 +53,18 @@ export default function Plan() {
 
   const visibleWeekPlan = weekPlan.filter((day) => !isWorkoutCompleted(day.id));
 
-  const handleComplete = (day: PlanDay) => {
+  const handleComplete = (day: PlanDay, effort: number) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    completePlannedWorkout(day);
+    completePlannedWorkout(day, effort);
 
     if (day.day === "Sunday") {
       advancePlanWeek();
-      return;
     }
   };
 
   return (
     <ScreenScroll colors={colors}>
       <TopProfileBar imageUri={profile.image} name={profile.name} />
-
       <PageHeader
         eyebrow="Weekly Plan"
         title={profile.goalEvent || "Build Your Block"}
@@ -70,7 +76,7 @@ export default function Plan() {
       <SectionTitle
         colors={colors}
         title="This Week"
-        subtitle="Two quality touches, one long run, and clear recovery space."
+        subtitle="Structured sessions first, premium guidance locked below each workout."
       />
 
       {visibleWeekPlan.map((day, index) => (
@@ -107,21 +113,24 @@ function PlanWorkoutCard({
   isLiked: boolean;
   completedCount: number;
   onToggleLike: () => void;
-  onComplete: (day: PlanDay) => void;
+  onComplete: (day: PlanDay, effort: number) => void;
 }) {
   const opacity = useRef(new Animated.Value(1)).current;
   const translateY = useRef(new Animated.Value(0)).current;
   const [isCompleting, setIsCompleting] = useState(false);
-  const heartRateGuidance = getHeartRateGuidance(day, heartRateZones);
-  const fuelingTips = getFuelingSuggestions(day.category);
+  const [showEffortPrompt, setShowEffortPrompt] = useState(false);
+  const [selectedEffort, setSelectedEffort] = useState(getDefaultEffort(day.category));
+  const premiumPreview = getPremiumPreview(day, heartRateZones);
 
   useEffect(() => {
     opacity.setValue(1);
     translateY.setValue(0);
     setIsCompleting(false);
-  }, [completedCount, day.id, opacity, translateY]);
+    setShowEffortPrompt(false);
+    setSelectedEffort(getDefaultEffort(day.category));
+  }, [completedCount, day.category, day.id, opacity, translateY]);
 
-  const handleCompletePress = () => {
+  const handlePromptConfirm = (effort: number) => {
     if (isCompleting) {
       return;
     }
@@ -140,7 +149,7 @@ function PlanWorkoutCard({
         useNativeDriver: true,
       }),
     ]).start(() => {
-      onComplete(day);
+      onComplete(day, effort);
     });
   };
 
@@ -186,26 +195,11 @@ function PlanWorkoutCard({
               {day.details || "Session details will appear here."}
             </Text>
 
-            <View
-              style={{
-                marginTop: 14,
-                backgroundColor: colors.cardAlt,
-                borderRadius: 16,
-                borderWidth: 1,
-                borderColor: colors.border,
-                padding: 12,
-                gap: 8,
-              }}
-            >
-              <Text style={{ color: colors.text, fontSize: 13, fontWeight: "700" }}>
-                {heartRateGuidance}
-              </Text>
-              {fuelingTips.map((tip) => (
-                <Text key={tip} style={{ color: colors.subtext, fontSize: 13, lineHeight: 19 }}>
-                  {`\u2022 ${tip}`}
-                </Text>
-              ))}
-            </View>
+            <PremiumLockedPanel
+              colors={colors}
+              title="Premium guidance"
+              preview={premiumPreview}
+            />
           </View>
 
           <View
@@ -249,7 +243,7 @@ function PlanWorkoutCard({
               </Pressable>
 
               <Pressable
-                onPress={handleCompletePress}
+                onPress={() => setShowEffortPrompt(true)}
                 disabled={isCompleting}
                 style={{
                   borderRadius: 999,
@@ -275,72 +269,301 @@ function PlanWorkoutCard({
           </View>
         </View>
       </InfoCard>
+
+      <EffortPromptModal
+        visible={showEffortPrompt}
+        colors={colors}
+        workoutTitle={day.title || "Workout"}
+        selectedEffort={selectedEffort}
+        onSelectEffort={setSelectedEffort}
+        onCancel={() => setShowEffortPrompt(false)}
+        onConfirm={() => {
+          setShowEffortPrompt(false);
+          handlePromptConfirm(selectedEffort);
+        }}
+      />
     </Animated.View>
   );
 }
 
-function getHeartRateGuidance(
-  day: PlanDay,
-  heartRateZones: ReturnType<typeof useProfile>["heartRateZones"]
-) {
-  if (day.category === "rest") {
-    return "Target HR: No specific target on rest day";
-  }
+function PremiumLockedPanel({
+  colors,
+  title,
+  preview,
+}: {
+  colors: ReturnType<typeof useThemeColors>["colors"];
+  title: string;
+  preview: {
+    badge: string;
+    teaser: string;
+    bullets: string[];
+  };
+}) {
+  return (
+    <View
+      style={{
+        marginTop: 14,
+        backgroundColor: colors.cardAlt,
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: 12,
+        overflow: "hidden",
+      }}
+    >
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 10,
+        }}
+      >
+        <Text style={{ color: colors.text, fontSize: 13, fontWeight: "700" }}>{title}</Text>
+        <View
+          style={{
+            backgroundColor: colors.primarySoft,
+            borderRadius: 999,
+            paddingHorizontal: 10,
+            paddingVertical: 5,
+            borderWidth: 1,
+            borderColor: colors.border,
+          }}
+        >
+          <Text style={{ color: colors.primary, fontSize: 11, fontWeight: "700" }}>
+            Premium Locked
+          </Text>
+        </View>
+      </View>
 
-  if (heartRateZones.length === 0) {
-    return "Target HR: Add age in Settings to calculate zones";
-  }
+      <View
+        style={{
+          gap: 8,
+          paddingRight: 84,
+        }}
+      >
+        <Text style={{ color: colors.text, fontSize: 13, fontWeight: "700" }}>
+          {preview.badge}
+        </Text>
+        <Text style={{ color: colors.subtext, fontSize: 13, lineHeight: 20 }}>
+          {preview.teaser}
+        </Text>
+        <View
+          style={{
+            gap: 7,
+          }}
+        >
+          {preview.bullets.map((bullet) => (
+            <Text key={bullet} style={{ color: colors.subtext, fontSize: 13, lineHeight: 19 }}>
+              {`\u2022 ${bullet}`}
+            </Text>
+          ))}
+        </View>
+      </View>
 
-  const zone1 = heartRateZones.find((zone) => zone.name === "Zone 1");
-  const zone2 = heartRateZones.find((zone) => zone.name === "Zone 2");
-  const zone3 = heartRateZones.find((zone) => zone.name === "Zone 3");
-  const zone4 = heartRateZones.find((zone) => zone.name === "Zone 4");
-  const zone5 = heartRateZones.find((zone) => zone.name === "Zone 5");
+      <View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          top: 38,
+          backgroundColor: `${colors.card}F2`,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <View
+          style={{
+            backgroundColor: colors.background,
+            borderRadius: 18,
+            paddingHorizontal: 16,
+            paddingVertical: 14,
+            borderWidth: 1,
+            borderColor: colors.border,
+            maxWidth: 250,
+          }}
+        >
+          <Text
+            style={{
+              color: colors.primary,
+              fontSize: 12,
+              fontWeight: "800",
+              textAlign: "center",
+              letterSpacing: 0.8,
+            }}
+          >
+            LOCKED
+          </Text>
+          <Text style={{ color: colors.text, fontSize: 14, fontWeight: "700", textAlign: "center" }}>
+            Unlock heart rate guidance, fueling tips, and smarter training insight.
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+}
 
-  switch (day.category) {
-    case "easy":
-      return zone2
-        ? `Target HR: ${zone2.min}-${zone2.max} bpm (${zone2.name})`
-        : "Target HR: Zone 2";
-    case "recovery":
-      return zone1 && zone2
-        ? `Target HR: ${zone1.min}-${zone2.max} bpm (Zone 1-2)`
-        : "Target HR: Zone 1-2";
-    case "threshold":
-      return zone3 && zone4
-        ? `Target HR: ${zone3.min}-${zone4.max} bpm (Zone 3-4)`
-        : "Target HR: Zone 3-4";
+function EffortPromptModal({
+  visible,
+  colors,
+  workoutTitle,
+  selectedEffort,
+  onSelectEffort,
+  onCancel,
+  onConfirm,
+}: {
+  visible: boolean;
+  colors: ReturnType<typeof useThemeColors>["colors"];
+  workoutTitle: string;
+  selectedEffort: number;
+  onSelectEffort: (effort: number) => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: "rgba(3, 8, 18, 0.66)",
+          justifyContent: "center",
+          padding: 20,
+        }}
+      >
+        <View
+          style={{
+            backgroundColor: colors.card,
+            borderRadius: 28,
+            borderWidth: 1,
+            borderColor: colors.border,
+            padding: 20,
+          }}
+        >
+          <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "700", letterSpacing: 0.8 }}>
+            COMPLETE WORKOUT
+          </Text>
+          <Text style={{ color: colors.text, fontSize: 28, fontWeight: "700", marginTop: 10 }}>
+            How hard did {workoutTitle.toLowerCase()} feel?
+          </Text>
+          <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 21, marginTop: 10 }}>
+            Pick an effort before the workout is marked complete and added to your history.
+          </Text>
+
+          <View style={{ gap: 10, marginTop: 20 }}>
+            {EFFORT_OPTIONS.map((option) => {
+              const active = selectedEffort === option.value;
+
+              return (
+                <Pressable
+                  key={option.label}
+                  onPress={() => onSelectEffort(option.value)}
+                  style={{
+                    backgroundColor: active ? colors.primarySoft : colors.cardAlt,
+                    borderRadius: 18,
+                    borderWidth: 1,
+                    borderColor: active ? colors.primary : colors.border,
+                    padding: 14,
+                  }}
+                >
+                  <Text style={{ color: colors.text, fontSize: 15, fontWeight: "700" }}>
+                    {option.label}
+                  </Text>
+                  <Text style={{ color: colors.subtext, fontSize: 13, marginTop: 4 }}>
+                    Effort {option.value}/10
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <View style={{ flexDirection: "row", gap: 12, marginTop: 20 }}>
+            <View style={{ flex: 1 }}>
+              <SecondaryButton label="Cancel" onPress={onCancel} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <PrimaryButton label="Confirm" onPress={onConfirm} />
+            </View>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function getDefaultEffort(category: PlanDay["category"]) {
+  switch (category) {
     case "intervals":
-      return zone4 && zone5
-        ? `Target HR: ${zone4.min}-${zone5.max} bpm (Zone 4-5)`
-        : "Target HR: Zone 4-5";
+      return 8;
+    case "threshold":
+      return 7;
     case "steady":
-      return zone2 && zone3
-        ? `Target HR: ${zone2.min}-${zone3.max} bpm (Zone 2-3)`
-        : "Target HR: Zone 2-3";
+      return 6;
     case "long":
-      return zone2
-        ? `Target HR: ${zone2.min}-${zone2.max} bpm (${zone2.name})`
-        : "Target HR: Zone 2";
+      return 6;
+    case "easy":
+      return 4;
+    case "recovery":
+      return 3;
+    case "rest":
+      return 1;
   }
 }
 
-function getFuelingSuggestions(category: PlanDay["category"]) {
-  switch (category) {
-    case "easy":
-    case "recovery":
-    case "rest":
-      return ["Focus on balanced meals, no special fueling needed."];
+function getPremiumPreview(
+  day: PlanDay,
+  heartRateZones: ReturnType<typeof useProfile>["heartRateZones"]
+) {
+  const heartRateReady = heartRateZones.length > 0;
+
+  switch (day.category) {
+    case "intervals":
+      return {
+        badge: "Requires Premium",
+        teaser: "Unlock interval-specific heart rate targets and sharper fueling guidance for hard sessions.",
+        bullets: [
+          heartRateReady ? "Zone-based workout targets personalized to your profile." : "Add your heart rate setup to unlock personalized zone targets.",
+          "Pre-workout carbs and post-session recovery suggestions.",
+        ],
+      };
     case "threshold":
     case "steady":
-      return ["Moderate carbs before run.", "Light recovery meal after."];
-    case "intervals":
-      return ["Carb-focused pre-run fuel.", "Protein + carbs after workout."];
+      return {
+        badge: "Requires Premium",
+        teaser: "Unlock guided threshold effort ranges and smarter steady-day fueling suggestions.",
+        bullets: [
+          heartRateReady ? "Tempo heart rate coaching matched to your saved zones." : "Set up heart rate in Settings to enable zone-based guidance.",
+          "Simple pre-run and recovery nutrition support.",
+        ],
+      };
     case "long":
-      return [
-        "Carb load before run.",
-        "Consider mid-run fueling (gels, electrolytes).",
-        "Recovery meal within 30-60 minutes.",
-      ];
+      return {
+        badge: "Requires Premium",
+        teaser: "Unlock long-run heart rate ranges and mid-run fueling recommendations.",
+        bullets: [
+          heartRateReady ? "Long-run effort targets built from your saved zones." : "Add your age or max heart rate to unlock long-run zone guidance.",
+          "Carb timing, electrolytes, and recovery reminders.",
+        ],
+      };
+    case "recovery":
+    case "easy":
+      return {
+        badge: "Requires Premium",
+        teaser: "Unlock easy-day heart rate guidance and simple fueling reminders.",
+        bullets: [
+          heartRateReady ? "Easy-run heart rate targets matched to your current zones." : "Add heart rate info in Settings to unlock personalized easy-day targets.",
+          "Light fueling notes for recovery and aerobic days.",
+        ],
+      };
+    case "rest":
+      return {
+        badge: "Requires Premium",
+        teaser: "Unlock recovery-focused coaching and nutrition reminders between key workouts.",
+        bullets: [
+          "Gentle guidance for rest and reset days.",
+          "Simple recovery fueling suggestions for the next session.",
+        ],
+      };
   }
 }

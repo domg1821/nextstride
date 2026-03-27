@@ -18,7 +18,7 @@ type WorkoutContextType = {
   toggleLikedWorkout: (workoutId: string, category: WorkoutPreferenceCategory) => void;
   isWorkoutLiked: (workoutId: string) => boolean;
   completedWorkoutIds: string[];
-  completePlannedWorkout: (day: PlanDay) => void;
+  completePlannedWorkout: (day: PlanDay, effort: number) => void;
   isWorkoutCompleted: (workoutId: string) => boolean;
   planCycle: number;
   advancePlanWeek: () => void;
@@ -62,7 +62,7 @@ export const WorkoutProvider = ({
 
   const likedWorkoutCategories = [...new Set(Object.values(likedWorkoutIds))];
   const isWorkoutLiked = (workoutId: string) => Boolean(likedWorkoutIds[workoutId]);
-  const completePlannedWorkout = (day: PlanDay) => {
+  const completePlannedWorkout = (day: PlanDay, effort: number) => {
     setCompletedWorkoutIds((current) =>
       current.includes(day.id) ? current : [...current, day.id]
     );
@@ -72,7 +72,7 @@ export const WorkoutProvider = ({
         distance: String(day.distance),
         time: "Completed",
         splits: "",
-        effort: getPlannedWorkoutEffort(day.category),
+        effort,
         notes: `Completed from weekly plan: ${day.title}`,
       },
       ...current,
@@ -114,22 +114,3 @@ export const useWorkouts = () => {
 
   return context;
 };
-
-function getPlannedWorkoutEffort(category: WorkoutPreferenceCategory) {
-  switch (category) {
-    case "intervals":
-      return 8;
-    case "threshold":
-      return 7;
-    case "steady":
-      return 6;
-    case "long":
-      return 6;
-    case "easy":
-      return 4;
-    case "recovery":
-      return 3;
-    case "rest":
-      return 1;
-  }
-}
