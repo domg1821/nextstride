@@ -1,45 +1,41 @@
 import { router } from "expo-router";
 import { useRef } from "react";
-import {
-  LayoutChangeEvent,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-  useWindowDimensions,
-} from "react-native";
-import {
-  FeatureCard,
-  FooterLink,
-  PreviewCard,
-  SiteButton,
-  SiteSection,
-  StepCard,
-} from "./components/marketing-site";
+import { LayoutChangeEvent, Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
+import { FeatureCard, FooterLink, SiteButton, SiteSection, WeeklyPlanPreview } from "./components/marketing-site";
 
-type SectionKey = "hero" | "how" | "features" | "preview" | "why" | "faq" | "cta";
+type SectionKey = "hero" | "why" | "week" | "premium" | "faq" | "cta";
 
 const FAQ_ITEMS = [
   {
-    question: "Who is NextStride for?",
+    question: "How are plans generated?",
     answer:
-      "NextStride is designed for runners who want a clearer weekly plan, fast workout logging, and a better sense of progress without a cluttered training app.",
+      "NextStride builds your week around goal event, mileage, recent effort, consistency, and completed sessions so the structure stays useful instead of generic.",
   },
   {
-    question: "Does it replace workout logging?",
+    question: "Is this for beginners or racers?",
     answer:
-      "No. It brings planning, logging, and progress into one cleaner flow so you do not need separate tools just to stay organized.",
+      "Both. The product is designed for runners who want more structure and better decisions, whether they are building consistency or sharpening for race day.",
   },
   {
-    question: "Can I use it if I am still building consistency?",
+    question: "What does Premium include?",
     answer:
-      "Yes. The product framing is meant to feel welcoming whether you are racing often or simply trying to train more consistently each week.",
+      "Premium adds heart rate guided training, fueling guidance, deeper adaptive adjustments, stronger race prediction context, and more advanced coach feedback.",
   },
   {
-    question: "Is there a premium tier?",
+    question: "Do I need a watch?",
     answer:
-      "Yes. The core experience stays focused, and premium layers in more detailed training guidance for runners who want extra precision.",
+      "No. You can use NextStride with simple workout logging, though watch data can make heart rate and readiness guidance more useful later.",
   },
+];
+
+const WEEK_PREVIEW = [
+  { day: "Monday", title: "Track / Intervals", detail: "Controlled quality with pace focus and a clear purpose for the day." },
+  { day: "Tuesday", title: "Easy Run", detail: "Relaxed aerobic work to absorb the harder session and keep momentum." },
+  { day: "Wednesday", title: "Tempo Workout", detail: "Steady threshold work that builds strength without racing every rep." },
+  { day: "Thursday", title: "Aerobic Run", detail: "A calmer volume day to reinforce consistency and aerobic rhythm." },
+  { day: "Friday", title: "Easy Run", detail: "Soft effort before the weekend load starts to build." },
+  { day: "Saturday", title: "Long Run", detail: "The key durability session with a little more visual emphasis in the week." },
+  { day: "Sunday", title: "Recovery / Rest", detail: "Space to reset, recover, and set up the next week well." },
 ];
 
 export default function Welcome() {
@@ -49,7 +45,7 @@ export default function Welcome() {
   const isDesktop = width >= 1120;
   const isTablet = width >= 780;
   const padding = isDesktop ? 64 : isTablet ? 32 : 20;
-  const heroTitleSize = isDesktop ? 70 : isTablet ? 52 : 38;
+  const heroTitleSize = isDesktop ? 72 : isTablet ? 54 : 40;
 
   const setSectionOffset = (key: SectionKey) => (event: LayoutChangeEvent) => {
     sectionOffsets.current[key] = event.nativeEvent.layout.y;
@@ -62,10 +58,7 @@ export default function Welcome() {
       return;
     }
 
-    scrollRef.current?.scrollTo({
-      y: Math.max(y - 24, 0),
-      animated: true,
-    });
+    scrollRef.current?.scrollTo({ y: Math.max(y - 24, 0), animated: true });
   };
 
   return (
@@ -75,13 +68,7 @@ export default function Welcome() {
       contentContainerStyle={{ paddingBottom: 34 }}
       showsVerticalScrollIndicator={false}
     >
-      <View
-        style={{
-          paddingHorizontal: padding,
-          paddingTop: isDesktop ? 36 : 20,
-        }}
-        onLayout={setSectionOffset("hero")}
-      >
+      <View style={{ paddingHorizontal: padding, paddingTop: isDesktop ? 36 : 20 }} onLayout={setSectionOffset("hero")}>
         <TopNavigation
           isTablet={isTablet}
           onJump={scrollToSection}
@@ -91,260 +78,160 @@ export default function Welcome() {
 
         <View
           style={{
-            marginTop: 30,
-            paddingTop: isDesktop ? 18 : 8,
-            paddingBottom: isDesktop ? 10 : 0,
+            marginTop: 36,
+            flexDirection: isDesktop ? "row" : "column",
+            alignItems: "center",
+            gap: isDesktop ? 56 : 28,
           }}
         >
-          <View
-            style={{
-              position: "absolute",
-              top: -50,
-              right: isDesktop ? 60 : -20,
-              width: isDesktop ? 340 : 220,
-              height: isDesktop ? 340 : 220,
-              borderRadius: 999,
-              backgroundColor: "rgba(58, 130, 246, 0.14)",
-            }}
-          />
-          <View
-            style={{
-              position: "absolute",
-              bottom: 10,
-              left: -40,
-              width: isDesktop ? 280 : 180,
-              height: isDesktop ? 280 : 180,
-              borderRadius: 999,
-              backgroundColor: "rgba(14, 165, 233, 0.08)",
-            }}
-          />
+          <View style={{ flex: 1, maxWidth: 620 }}>
+            <Text style={{ color: "#7dd3fc", fontSize: 12, fontWeight: "800", letterSpacing: 1.4, textTransform: "uppercase" }}>
+              NextStride
+            </Text>
+            <Text style={{ color: "#f8fbff", fontSize: heroTitleSize, fontWeight: "800", lineHeight: heroTitleSize + 4, marginTop: 18 }}>
+              Train smarter. Run faster.
+            </Text>
+            <Text style={{ color: "#a9bed4", fontSize: 18, lineHeight: 29, marginTop: 16, maxWidth: 560 }}>
+              Personalized plans, daily guidance, workout logging, and progress tracking built around real running goals.
+            </Text>
 
-          <View
-            style={{
-              flexDirection: isDesktop ? "row" : "column",
-              alignItems: "center",
-              gap: isDesktop ? 42 : 28,
-            }}
-          >
-            <View style={{ flex: 1, maxWidth: isDesktop ? 620 : undefined }}>
-              <Text
-                style={{
-                  color: "#7dd3fc",
-                  fontSize: 12,
-                  fontWeight: "800",
-                  letterSpacing: 1.4,
-                  textTransform: "uppercase",
-                }}
-              >
-                NextStride
-              </Text>
-
-              <Text
-                style={{
-                  color: "#f8fbff",
-                  fontSize: heroTitleSize,
-                  fontWeight: "800",
-                  lineHeight: heroTitleSize + 4,
-                  marginTop: 16,
-                  maxWidth: 620,
-                }}
-              >
-                Running plans that make the next step obvious.
-              </Text>
-
-              <Text
-                style={{
-                  color: "#a9bed4",
-                  fontSize: 17,
-                  lineHeight: 28,
-                  marginTop: 16,
-                  maxWidth: 560,
-                }}
-              >
-                NextStride brings planning, logging, and progress into one clean training flow built for real weeks of running.
-              </Text>
-
-              <View
-                style={{
-                  flexDirection: isTablet ? "row" : "column",
-                  alignItems: isTablet ? "center" : "stretch",
-                  gap: 12,
-                  marginTop: 28,
-                }}
-              >
-                <SiteButton label="Get Started" onPress={() => router.push("/signup")} />
-                <SiteButton
-                  label="See Product Preview"
-                  variant="secondary"
-                  onPress={() => scrollToSection("preview")}
-                />
-              </View>
-
-              <Text
-                style={{
-                  color: "#8fa8c4",
-                  fontSize: 13,
-                  lineHeight: 20,
-                  marginTop: 16,
-                  maxWidth: 560,
-                }}
-              >
-                Built for runners who want structure, a cleaner weekly view, and a product that feels approachable from day one.
-              </Text>
-
-              <View
-                style={{
-                  flexDirection: isTablet ? "row" : "column",
-                  gap: 14,
-                  marginTop: 18,
-                }}
-              >
-                <TrustPill label="Focused training workflow" />
-                <TrustPill label="Fast workout logging" />
-                <TrustPill label="Clear progress tracking" />
-              </View>
+            <View style={{ flexDirection: isTablet ? "row" : "column", gap: 12, marginTop: 28 }}>
+              <SiteButton label="Get Started" onPress={() => router.push("/signup")} />
+              <SiteButton label="View Demo" variant="secondary" onPress={() => scrollToSection("week")} />
             </View>
 
-            <View style={{ flex: 1, width: "100%", maxWidth: 520 }}>
-              <HeroPreview />
-            </View>
+            <Text style={{ color: "#8fa8c4", fontSize: 13, lineHeight: 20, marginTop: 16, maxWidth: 520 }}>
+              More than a run tracker. NextStride helps runners train with structure, feedback, and better decisions.
+            </Text>
+          </View>
+
+          <View style={{ flex: 1, width: "100%", maxWidth: 500 }}>
+            <HeroShowcase />
           </View>
         </View>
-      </View>
-
-      <View onLayout={setSectionOffset("how")}>
-        <SiteSection
-          eyebrow="How It Works"
-          title="Three simple steps, one calmer training loop"
-          subtitle="Set up your runner profile, follow the week, and keep the app useful by logging what you actually complete."
-          padding={padding}
-        >
-          <View
-            style={{
-              flexDirection: isDesktop ? "row" : "column",
-              gap: 16,
-            }}
-          >
-            <StepCard
-              step="01"
-              title="Set your goal"
-              body="Tell NextStride what you are training for, how much you run, and the baseline fitness it should work from."
-            />
-            <StepCard
-              step="02"
-              title="Follow the week"
-              body="See the next workout, the shape of the week, and the overall plan without hunting through clutter."
-            />
-            <StepCard
-              step="03"
-              title="Log and improve"
-              body="Capture the work you finished so your training history and progress become more useful over time."
-            />
-          </View>
-        </SiteSection>
-      </View>
-
-      <View onLayout={setSectionOffset("features")}>
-        <SiteSection
-          eyebrow="Core Features"
-          title="Everything important lives in one cleaner product"
-          subtitle="The experience is built around the moments runners revisit most often: planning, checking the next session, logging the run, and seeing progress."
-          padding={padding}
-        >
-          <ResponsiveGrid isDesktop={isDesktop}>
-            <FeatureCard
-              badge="Plans"
-              icon="P"
-              title="Personalized weekly structure"
-              body="Goal-aware training plans that help the week feel intentional instead of stitched together."
-            />
-            <FeatureCard
-              badge="Log"
-              icon="L"
-              title="Quick workout logging"
-              body="Save distance, time, effort, splits, and notes without turning post-run entry into a chore."
-            />
-            <FeatureCard
-              badge="Progress"
-              icon="T"
-              title="Progress you can read fast"
-              body="Mileage, consistency, and recent training trends stay easy to scan on both mobile and desktop."
-            />
-            <FeatureCard
-              badge="Profile"
-              icon="R"
-              title="A runner profile that matters"
-              body="Goals, PRs, and identity settings stay connected to the parts of the app that actually use them."
-            />
-          </ResponsiveGrid>
-        </SiteSection>
-      </View>
-
-      <View onLayout={setSectionOffset("preview")}>
-        <SiteSection
-          eyebrow="Product Preview"
-          title="A polished app runners can imagine using every day"
-          subtitle="The product preview keeps the framing realistic: a calmer home view, a structured week, and progress that is easy to understand."
-          padding={padding}
-        >
-          <View
-            style={{
-              flexDirection: isDesktop ? "row" : "column",
-              gap: 18,
-            }}
-          >
-            <PreviewCard
-              title="Home Dashboard"
-              subtitle="A cleaner welcome into today's workout, weekly momentum, and the next session."
-              accent="#7dd3fc"
-              tall={true}
-            />
-            <PreviewCard
-              title="Weekly Plan"
-              subtitle="A simple full-week view that helps runners understand the block at a glance."
-              accent="#60a5fa"
-              tall={true}
-            />
-            <View style={{ flex: 1, gap: 18 }}>
-              <PreviewCard
-                title="Workout Log"
-                subtitle="Fast session entry for distance, time, effort, notes, and shoes."
-                accent="#38bdf8"
-              />
-              <PreviewCard
-                title="Progress"
-                subtitle="Recent activity and trend snapshots that stay readable on small screens."
-                accent="#22c55e"
-              />
-            </View>
-          </View>
-        </SiteSection>
       </View>
 
       <View onLayout={setSectionOffset("why")}>
         <SiteSection
           eyebrow="Why NextStride"
-          title="Designed to feel more like a product and less like a training spreadsheet"
-          subtitle="NextStride focuses on clarity, rhythm, and trust so the app feels welcoming even when training is hard."
+          title="Most apps track your runs. NextStride trains you."
+          subtitle="The product is built to help runners improve with better weekly structure, clearer feedback, and training intelligence that goes beyond logging."
+          padding={padding}
+        >
+          <ResponsiveGrid isDesktop={isDesktop}>
+            <FeatureCard
+              badge="Structure"
+              icon="W"
+              title="Personalized weekly structure"
+              body="Your training week is organized around real runner rhythms so the plan feels usable, motivating, and easy to follow."
+            />
+            <FeatureCard
+              badge="Feedback"
+              icon="F"
+              title="Real training feedback"
+              body="Effort, consistency, missed days, and recent workouts all feed back into smarter guidance instead of sitting idle in a history list."
+            />
+            <FeatureCard
+              badge="Race Prep"
+              icon="R"
+              title="Smarter race preparation"
+              body="Plans, predictions, and coaching stay connected to your goals so the product helps you train toward something specific."
+            />
+            <FeatureCard
+              badge="Built for runners"
+              icon="N"
+              title="Built for runners, not just tracking"
+              body="NextStride is designed around what runners revisit every week: what is next, how the plan is going, and what to do now."
+            />
+          </ResponsiveGrid>
+        </SiteSection>
+      </View>
+
+      <View onLayout={setSectionOffset("week")}>
+        <SiteSection
+          eyebrow="See Your Week"
+          title="A training week that feels structured and motivating"
+          subtitle="This preview makes the product immediately understandable: one week, one flow, and a clear reason for each day."
+          padding={padding}
+        >
+          <View style={{ flexDirection: isDesktop ? "row" : "column", gap: 24, alignItems: "flex-start" }}>
+            <View style={{ flex: 1, maxWidth: isDesktop ? 380 : undefined }}>
+              <Text style={{ color: "#f8fbff", fontSize: 28, fontWeight: "800" }}>Know what the week is trying to do</Text>
+              <Text style={{ color: "#9fb2cb", fontSize: 15, lineHeight: 24, marginTop: 12 }}>
+                Hard days stand out, easy days look calmer, and the whole week reads like a real plan instead of a random list of workouts.
+              </Text>
+
+              <View style={{ gap: 12, marginTop: 20 }}>
+                <WeekHighlight title="Hard days are obvious" body="Track, tempo, and long run days carry stronger visual emphasis so the structure is easy to scan." />
+                <WeekHighlight title="Easy days still matter" body="Recovery and aerobic work look lighter, but still feel intentional inside the training week." />
+                <WeekHighlight title="The app feels like a coach" body="Visitors can quickly understand that NextStride is about guidance, not just tracking miles." />
+              </View>
+            </View>
+
+            <View style={{ flex: 1.2, width: "100%" }}>
+              <WeeklyPlanPreview days={WEEK_PREVIEW} />
+            </View>
+          </View>
+        </SiteSection>
+      </View>
+
+      <View onLayout={setSectionOffset("premium")}>
+        <SiteSection
+          eyebrow="Premium"
+          title="Train better. Race better. For $2.50/month."
+          subtitle="Premium is positioned around smarter decisions and more useful guidance, not generic feature stuffing."
           padding={padding}
         >
           <View
             style={{
-              gap: 18,
+              backgroundColor: "rgba(10, 22, 37, 0.76)",
+              borderRadius: 34,
+              borderWidth: 1,
+              borderColor: "rgba(96, 165, 250, 0.12)",
+              padding: isDesktop ? 28 : 22,
+              gap: 22,
             }}
           >
-            <WhyPoint
-              title="Cleaner by default"
-              body="The interface is intentionally quieter, with more space, fewer competing panels, and clearer reading order above the fold and throughout the site."
-            />
-            <WhyPoint
-              title="Built around real runner habits"
-              body="The product highlights the moments runners repeat most often: checking today, following the week, logging the run, and seeing if the plan is working."
-            />
-            <WhyPoint
-              title="Welcoming without feeling generic"
-              body="NextStride stays athletic and modern while keeping the product approachable for people who want guidance without overwhelming coaching software."
-            />
+            <View style={{ flexDirection: isDesktop ? "row" : "column", justifyContent: "space-between", gap: 18 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: "#f8fbff", fontSize: 32, fontWeight: "800" }}>Smarter training guidance for serious improvement</Text>
+                <Text style={{ color: "#9fb2cb", fontSize: 15, lineHeight: 24, marginTop: 12, maxWidth: 620 }}>
+                  Heart rate control, fueling support, adaptive adjustments, stronger insights, deeper coach feedback, and better readiness context.
+                </Text>
+              </View>
+              <View
+                style={{
+                  alignSelf: isDesktop ? "flex-start" : "stretch",
+                  backgroundColor: "#081220",
+                  borderRadius: 24,
+                  borderWidth: 1,
+                  borderColor: "rgba(96, 165, 250, 0.12)",
+                  paddingHorizontal: 22,
+                  paddingVertical: 18,
+                  minWidth: 180,
+                }}
+              >
+                <Text style={{ color: "#7dd3fc", fontSize: 12, fontWeight: "800", letterSpacing: 1 }}>PREMIUM</Text>
+                <Text style={{ color: "#f8fbff", fontSize: 34, fontWeight: "800", marginTop: 8 }}>$2.50</Text>
+                <Text style={{ color: "#9fb2cb", fontSize: 14, marginTop: 4 }}>per month</Text>
+              </View>
+            </View>
+
+            <ResponsiveGrid isDesktop={isDesktop}>
+              <FeatureCard badge="HR" icon="H" title="Heart Rate Guided Training" body="Target zones make it easier to hold the right aerobic, tempo, and harder-day effort." />
+              <FeatureCard badge="Fuel" icon="F" title="Fueling Guidance" body="Practical pre-run, long-run, and recovery fueling advice that feels runner-specific." />
+              <FeatureCard badge="Adaptive" icon="A" title="Adaptive Training Adjustments" body="Plans respond to completed workouts, missed days, effort levels, and consistency." />
+              <FeatureCard badge="Insights" icon="I" title="Race Predictor + Insights" body="Updated predictions, clearer confidence signals, and trend-based explanations from your recent training." />
+              <FeatureCard badge="Coach" icon="C" title="Advanced Coach Features" body="Deeper coach feedback, more personalized answers, and sharper suggestions from your profile and training history." />
+              <FeatureCard badge="Recovery" icon="R" title="Recovery & Readiness" body="High-effort follow-up suggestions, recovery recommendations, and warnings when training load starts looking high." />
+            </ResponsiveGrid>
+
+            <FreePremiumComparison />
+
+            <View style={{ flexDirection: isTablet ? "row" : "column", gap: 12 }}>
+              <SiteButton label="Unlock Premium" onPress={() => router.push("/premium")} />
+              <SiteButton label="See Premium Details" variant="secondary" onPress={() => router.push("/premium")} />
+            </View>
           </View>
         </SiteSection>
       </View>
@@ -352,8 +239,8 @@ export default function Welcome() {
       <View onLayout={setSectionOffset("faq")}>
         <SiteSection
           eyebrow="FAQ"
-          title="Questions runners usually ask first"
-          subtitle="A few direct answers to help visitors understand what NextStride is trying to do."
+          title="A few questions visitors usually ask first"
+          subtitle="Short, practical answers that support trust without overloading the page."
           padding={padding}
         >
           <View style={{ gap: 14 }}>
@@ -367,8 +254,8 @@ export default function Welcome() {
       <View onLayout={setSectionOffset("cta")}>
         <SiteSection
           eyebrow="Start Training"
-          title="Start with a cleaner training experience"
-          subtitle="Create an account to begin building your profile and weekly structure, or preview the product flow first."
+          title="Start with a product that actually helps you improve"
+          subtitle="Create an account to start building your profile and weekly structure, or explore the premium value first."
           padding={padding}
         >
           <View
@@ -384,34 +271,13 @@ export default function Welcome() {
             <Text style={{ color: "#f8fbff", fontSize: isDesktop ? 34 : 28, fontWeight: "800" }}>
               Built for runners who want to know what comes next.
             </Text>
-            <Text
-              style={{
-                color: "#9eb3cc",
-                fontSize: 15,
-                lineHeight: 23,
-                maxWidth: 640,
-              }}
-            >
-              NextStride keeps training plans, workout logging, and progress in one simpler flow so the product feels calm before and after the run.
+            <Text style={{ color: "#9eb3cc", fontSize: 15, lineHeight: 23, maxWidth: 640 }}>
+              NextStride keeps planning, logging, coaching, and progress in one cleaner flow so the product feels focused before and after the run.
             </Text>
-
-            <View
-              style={{
-                flexDirection: isTablet ? "row" : "column",
-                gap: 12,
-              }}
-            >
+            <View style={{ flexDirection: isTablet ? "row" : "column", gap: 12 }}>
               <SiteButton label="Create Account" onPress={() => router.push("/signup")} />
-              <SiteButton
-                label="View Preview"
-                variant="secondary"
-                onPress={() => scrollToSection("preview")}
-              />
+              <SiteButton label="Explore Premium" variant="secondary" onPress={() => router.push("/premium")} />
             </View>
-
-            <Text style={{ color: "#88a2bf", fontSize: 13, lineHeight: 20 }}>
-              Product preview available now. Core flows include training plans, workout logging, profile setup, and progress tracking.
-            </Text>
           </View>
         </SiteSection>
       </View>
@@ -450,27 +316,15 @@ function TopNavigation({
       <View>
         <Text style={{ color: "#f8fbff", fontSize: 24, fontWeight: "800" }}>NextStride</Text>
         <Text style={{ color: "#8ea5c2", marginTop: 4, fontSize: 13 }}>
-          Running plans, logging, and progress in one calmer flow.
+          More than tracking. Built to help runners improve.
         </Text>
       </View>
 
-      <View
-        style={{
-          flexDirection: isTablet ? "row" : "column",
-          alignItems: isTablet ? "center" : "flex-start",
-          gap: 12,
-        }}
-      >
-        <View
-          style={{
-            flexDirection: "row",
-            flexWrap: "wrap",
-            gap: 12,
-          }}
-        >
-          <NavLink label="How It Works" onPress={() => onJump("how")} />
-          <NavLink label="Features" onPress={() => onJump("features")} />
-          <NavLink label="Preview" onPress={() => onJump("preview")} />
+      <View style={{ flexDirection: isTablet ? "row" : "column", alignItems: isTablet ? "center" : "flex-start", gap: 12 }}>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+          <NavLink label="Why" onPress={() => onJump("why")} />
+          <NavLink label="See Your Week" onPress={() => onJump("week")} />
+          <NavLink label="Premium" onPress={() => onJump("premium")} />
           <NavLink label="FAQ" onPress={() => onJump("faq")} />
         </View>
 
@@ -491,21 +345,9 @@ function NavLink({ label, onPress }: { label: string; onPress: () => void }) {
   );
 }
 
-function ResponsiveGrid({
-  children,
-  isDesktop,
-}: {
-  children: React.ReactNode;
-  isDesktop: boolean;
-}) {
+function ResponsiveGrid({ children, isDesktop }: { children: React.ReactNode; isDesktop: boolean }) {
   return (
-    <View
-      style={{
-        flexDirection: isDesktop ? "row" : "column",
-        flexWrap: "wrap",
-        gap: 16,
-      }}
-    >
+    <View style={{ flexDirection: isDesktop ? "row" : "column", flexWrap: "wrap", gap: 16 }}>
       {Array.isArray(children)
         ? children.map((child, index) => (
             <View key={index} style={{ width: isDesktop ? "48.9%" : "100%" }}>
@@ -517,25 +359,7 @@ function ResponsiveGrid({
   );
 }
 
-function TrustPill({ label }: { label: string }) {
-  return (
-    <View
-      style={{
-        alignSelf: "flex-start",
-        backgroundColor: "rgba(9, 24, 40, 0.88)",
-        borderRadius: 999,
-        borderWidth: 1,
-        borderColor: "rgba(125, 211, 252, 0.12)",
-        paddingHorizontal: 14,
-        paddingVertical: 9,
-      }}
-    >
-      <Text style={{ color: "#dceafd", fontSize: 13, fontWeight: "600" }}>{label}</Text>
-    </View>
-  );
-}
-
-function HeroPreview() {
+function HeroShowcase() {
   return (
     <View
       style={{
@@ -546,71 +370,25 @@ function HeroPreview() {
         padding: 18,
       }}
     >
-      <View
-        style={{
-          backgroundColor: "#09131f",
-          borderRadius: 30,
-          borderWidth: 1,
-          borderColor: "rgba(96, 165, 250, 0.1)",
-          padding: 18,
-        }}
-      >
-        <View
-          style={{
-            width: 84,
-            height: 6,
-            borderRadius: 999,
-            backgroundColor: "rgba(148, 163, 184, 0.22)",
-            alignSelf: "center",
-          }}
-        />
-
-        <View
-          style={{
-            marginTop: 18,
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <Text style={{ color: "#f8fbff", fontSize: 21, fontWeight: "800" }}>Today</Text>
-          <View
-            style={{
-              backgroundColor: "rgba(59, 130, 246, 0.14)",
-              borderRadius: 999,
-              paddingHorizontal: 10,
-              paddingVertical: 6,
-            }}
-          >
-            <Text style={{ color: "#8fd1ff", fontSize: 11, fontWeight: "800" }}>NEXTSTRIDE</Text>
-          </View>
-        </View>
-
-        <Text style={{ color: "#f8fbff", fontSize: 28, fontWeight: "800", marginTop: 12 }}>
-          6 x 1K track session
-        </Text>
-        <Text
-          style={{
-            color: "#9db2ca",
-            fontSize: 14,
-            lineHeight: 22,
-            marginTop: 8,
-          }}
-        >
-          One calm place to see the workout, understand the week, and keep your training history useful.
+      <View style={{ backgroundColor: "#09131f", borderRadius: 30, borderWidth: 1, borderColor: "rgba(96, 165, 250, 0.1)", padding: 18 }}>
+        <View style={{ width: 84, height: 6, borderRadius: 999, backgroundColor: "rgba(148, 163, 184, 0.22)", alignSelf: "center" }} />
+        <Text style={{ color: "#7dd3fc", fontSize: 12, fontWeight: "800", marginTop: 18 }}>NEXTSTRIDE</Text>
+        <Text style={{ color: "#f8fbff", fontSize: 28, fontWeight: "800", marginTop: 10 }}>Your week at a glance</Text>
+        <Text style={{ color: "#9db2ca", fontSize: 14, lineHeight: 22, marginTop: 8 }}>
+          A cleaner way to see what today is for, where the week is headed, and how training is trending.
         </Text>
 
-        <View style={{ marginTop: 18, gap: 12 }}>
-          <PreviewStat label="Goal" value="Sub-1:25 half marathon" />
-          <PreviewStat label="This week" value="42 miles planned" />
-          <PreviewStat label="Progress" value="3 of 6 sessions logged" />
+        <View style={{ marginTop: 18, gap: 10 }}>
+          <ShowcaseRow label="Monday" value="Track / intervals" accent="#60a5fa" />
+          <ShowcaseRow label="Wednesday" value="Tempo workout" accent="#38bdf8" />
+          <ShowcaseRow label="Saturday" value="Long run" accent="#22c55e" />
         </View>
       </View>
     </View>
   );
 }
 
-function PreviewStat({ label, value }: { label: string; value: string }) {
+function ShowcaseRow({ label, value, accent }: { label: string; value: string; accent: string }) {
   return (
     <View
       style={{
@@ -621,36 +399,99 @@ function PreviewStat({ label, value }: { label: string; value: string }) {
         padding: 14,
       }}
     >
-      <Text style={{ color: "#6f89a8", fontSize: 12 }}>{label}</Text>
-      <Text style={{ color: "#f8fbff", fontSize: 16, fontWeight: "700", marginTop: 6 }}>
-        {value}
-      </Text>
+      <Text style={{ color: accent, fontSize: 12, fontWeight: "700" }}>{label}</Text>
+      <Text style={{ color: "#f8fbff", fontSize: 16, fontWeight: "700", marginTop: 6 }}>{value}</Text>
     </View>
   );
 }
 
-function WhyPoint({ title, body }: { title: string; body: string }) {
+function WeekHighlight({ title, body }: { title: string; body: string }) {
   return (
     <View
       style={{
         backgroundColor: "rgba(10, 22, 37, 0.62)",
-        borderRadius: 28,
-        padding: 22,
+        borderRadius: 24,
+        padding: 18,
         borderWidth: 1,
         borderColor: "rgba(96, 165, 250, 0.1)",
       }}
     >
-      <Text style={{ color: "#f8fbff", fontSize: 22, fontWeight: "800" }}>{title}</Text>
-      <Text
-        style={{
-          color: "#9db2ca",
-          fontSize: 15,
-          lineHeight: 23,
-          marginTop: 10,
-          maxWidth: 760,
-        }}
-      >
-        {body}
+      <Text style={{ color: "#f8fbff", fontSize: 18, fontWeight: "700" }}>{title}</Text>
+      <Text style={{ color: "#9db2ca", fontSize: 14, lineHeight: 22, marginTop: 8 }}>{body}</Text>
+    </View>
+  );
+}
+
+function FreePremiumComparison() {
+  const rows = [
+    ["Basic training plan", "Included", "Included"],
+    ["Workout logging", "Included", "Included"],
+    ["Progress tracking", "Included", "Included"],
+    ["AI coach basics", "Included", "Included"],
+    ["Heart rate guidance", "-", "Included"],
+    ["Fueling guidance", "-", "Included"],
+    ["Adaptive plan adjustments", "Basic", "Advanced"],
+    ["Race predictor", "Basic", "Deeper insights"],
+    ["Advanced insights", "-", "Included"],
+  ];
+
+  return (
+    <View
+      style={{
+        backgroundColor: "#081220",
+        borderRadius: 28,
+        borderWidth: 1,
+        borderColor: "rgba(96, 165, 250, 0.12)",
+        overflow: "hidden",
+      }}
+    >
+      <View style={{ flexDirection: "row", backgroundColor: "rgba(59, 130, 246, 0.08)", padding: 16 }}>
+        <ComparisonHeader title="Feature" />
+        <ComparisonHeader title="Free" />
+        <ComparisonHeader title="Premium" />
+      </View>
+      {rows.map((row, index) => (
+        <View
+          key={row[0]}
+          style={{
+            flexDirection: "row",
+            padding: 16,
+            borderTopWidth: index === 0 ? 0 : 1,
+            borderTopColor: "rgba(96, 165, 250, 0.08)",
+          }}
+        >
+          <ComparisonCell value={row[0]} flex={1.4} strong={true} />
+          <ComparisonCell value={row[1]} />
+          <ComparisonCell value={row[2]} premium={true} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function ComparisonHeader({ title }: { title: string }) {
+  return (
+    <View style={{ flex: 1 }}>
+      <Text style={{ color: "#f8fbff", fontSize: 13, fontWeight: "800" }}>{title}</Text>
+    </View>
+  );
+}
+
+function ComparisonCell({
+  value,
+  flex = 1,
+  strong,
+  premium,
+}: {
+  value: string;
+  flex?: number;
+  strong?: boolean;
+  premium?: boolean;
+}) {
+  return (
+    <View style={{ flex }}>
+      <Text style={{ color: premium ? "#7dd3fc" : strong ? "#f8fbff" : "#9fb2cb", fontSize: 13, fontWeight: strong || premium ? "700" : "500" }}>
+        {value}
       </Text>
     </View>
   );
@@ -668,16 +509,7 @@ function FaqRow({ question, answer }: { question: string; answer: string }) {
       }}
     >
       <Text style={{ color: "#f8fbff", fontSize: 19, fontWeight: "700" }}>{question}</Text>
-      <Text
-        style={{
-          color: "#9db2ca",
-          fontSize: 15,
-          lineHeight: 23,
-          marginTop: 10,
-        }}
-      >
-        {answer}
-      </Text>
+      <Text style={{ color: "#9db2ca", fontSize: 15, lineHeight: 23, marginTop: 10 }}>{answer}</Text>
     </View>
   );
 }
@@ -706,26 +538,26 @@ function Footer({
         borderTopColor: "rgba(96, 165, 250, 0.12)",
       }}
     >
-      <View
-        style={{
-          flexDirection: isDesktop ? "row" : "column",
-          justifyContent: "space-between",
-          gap: 24,
-        }}
-      >
+      <View style={{ flexDirection: isDesktop ? "row" : "column", justifyContent: "space-between", gap: 24 }}>
         <View style={{ maxWidth: 340 }}>
           <Text style={{ color: "#f8fbff", fontSize: 24, fontWeight: "800" }}>NextStride</Text>
           <Text style={{ color: "#9db2ca", fontSize: 14, lineHeight: 22, marginTop: 10 }}>
-            A cleaner training product for runners who want structure, progress, and a calmer weekly rhythm.
+            A cleaner running platform built around training guidance, not just tracking.
           </Text>
         </View>
 
         <View style={{ gap: 12 }}>
-          <Text style={{ color: "#6f89a6", fontSize: 12, fontWeight: "800" }}>SITE</Text>
-          <FooterLink label="How It Works" onPress={() => onJump("how")} />
-          <FooterLink label="Core Features" onPress={() => onJump("features")} />
-          <FooterLink label="Product Preview" onPress={() => onJump("preview")} />
+          <Text style={{ color: "#6f89a6", fontSize: 12, fontWeight: "800" }}>PRODUCT</Text>
+          <FooterLink label="Why NextStride" onPress={() => onJump("why")} />
+          <FooterLink label="See Your Week" onPress={() => onJump("week")} />
+          <FooterLink label="Premium" onPress={() => onJump("premium")} />
+        </View>
+
+        <View style={{ gap: 12 }}>
+          <Text style={{ color: "#6f89a6", fontSize: 12, fontWeight: "800" }}>SUPPORT</Text>
           <FooterLink label="FAQ" onPress={() => onJump("faq")} />
+          <FooterLink label="Contact" />
+          <FooterLink label="Premium details" onPress={() => router.push("/premium")} />
         </View>
 
         <View style={{ gap: 12 }}>
@@ -733,17 +565,10 @@ function Footer({
           <FooterLink label="Log In" onPress={onLogin} />
           <FooterLink label="Get Started" onPress={onSignup} />
         </View>
-
-        <View style={{ gap: 12 }}>
-          <Text style={{ color: "#6f89a6", fontSize: 12, fontWeight: "800" }}>TRUST</Text>
-          <FooterLink label="Focused product preview" />
-          <FooterLink label="Built around core runner flows" />
-          <FooterLink label="No fake testimonials" />
-        </View>
       </View>
 
       <Text style={{ color: "#6f89a6", fontSize: 13, marginTop: 28 }}>
-        Copyright 2026 NextStride. Built for runners who like knowing what comes next.
+        Copyright 2026 NextStride. Built for runners who want to train better and race better.
       </Text>
     </View>
   );

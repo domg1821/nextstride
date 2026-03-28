@@ -24,9 +24,9 @@ export function SiteButton({
         borderRadius: 18,
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: primary ? "#3b82f6" : "rgba(10, 22, 38, 0.78)",
+        backgroundColor: primary ? "#2f7df4" : "rgba(10, 22, 38, 0.58)",
         borderWidth: 1,
-        borderColor: primary ? "#60a5fa" : "rgba(148, 163, 184, 0.16)",
+        borderColor: primary ? "#60a5fa" : "rgba(148, 163, 184, 0.12)",
         opacity: pressed ? 0.92 : 1,
       })}
     >
@@ -58,7 +58,7 @@ export function SiteSection({
   padding: number;
 }) {
   return (
-    <View style={{ paddingHorizontal: padding, marginTop: 92 }}>
+    <View style={{ paddingHorizontal: padding, marginTop: 84 }}>
       {eyebrow ? (
         <Text
           style={{
@@ -76,7 +76,7 @@ export function SiteSection({
       <Text
         style={{
           color: "#f8fafc",
-          fontSize: 40,
+          fontSize: 38,
           fontWeight: "800",
           marginTop: eyebrow ? 12 : 0,
           maxWidth: 760,
@@ -95,7 +95,7 @@ export function SiteSection({
       >
         {subtitle}
       </Text>
-      <View style={{ marginTop: 32 }}>{children}</View>
+      <View style={{ marginTop: 28 }}>{children}</View>
     </View>
   );
 }
@@ -114,10 +114,10 @@ export function FeatureCard({
   return (
     <View
       style={{
-        backgroundColor: "rgba(10, 22, 37, 0.74)",
+        backgroundColor: "rgba(10, 22, 37, 0.62)",
         borderRadius: 28,
         borderWidth: 1,
-        borderColor: "rgba(96, 165, 250, 0.1)",
+        borderColor: "rgba(96, 165, 250, 0.08)",
         padding: 22,
         minHeight: 198,
       }}
@@ -391,7 +391,7 @@ export function WeeklyPlanPreview({
   return (
     <View
       style={{
-        backgroundColor: "rgba(14, 27, 48, 0.92)",
+        backgroundColor: "rgba(14, 27, 48, 0.78)",
         borderRadius: 34,
         borderWidth: 1,
         borderColor: "rgba(96, 165, 250, 0.14)",
@@ -429,10 +429,18 @@ export function WeeklyPlanPreview({
           <View
             key={item.day}
             style={{
-              backgroundColor: "#081220",
+              backgroundColor:
+                index === 0 || index === 2 || index === 5
+                  ? "rgba(8, 18, 32, 0.98)"
+                  : "rgba(8, 18, 32, 0.88)",
               borderRadius: 22,
               borderWidth: 1,
-              borderColor: "rgba(96, 165, 250, 0.1)",
+              borderColor:
+                index === 0 || index === 2
+                  ? "rgba(96, 165, 250, 0.16)"
+                  : index === 5
+                    ? "rgba(34, 197, 94, 0.18)"
+                    : "rgba(96, 165, 250, 0.08)",
               padding: 16,
               flexDirection: "row",
               gap: 14,
