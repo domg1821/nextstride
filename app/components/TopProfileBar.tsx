@@ -8,6 +8,7 @@ type Props = {
   showName?: boolean;
   onRightPress?: () => void;
   rightIcon?: string;
+  onAvatarPress?: () => void;
 };
 
 export default function TopProfileBar({
@@ -16,6 +17,7 @@ export default function TopProfileBar({
   showName = false,
   onRightPress,
   rightIcon = "*",
+  onAvatarPress,
 }: Props) {
   const { colors } = useThemeColors();
 
@@ -34,35 +36,41 @@ export default function TopProfileBar({
           alignItems: "center",
         }}
       >
-        {imageUri ? (
-          <Image
-            source={{ uri: imageUri }}
-            style={{
-              width: 52,
-              height: 52,
-              borderRadius: 26,
-              borderWidth: 2,
-              borderColor: colors.primary,
-            }}
-          />
-        ) : (
-          <View
-            style={{
-              width: 52,
-              height: 52,
-              borderRadius: 26,
-              backgroundColor: colors.card,
-              justifyContent: "center",
-              alignItems: "center",
-              borderWidth: 2,
-              borderColor: colors.primary,
-            }}
-          >
-            <Text style={{ color: colors.text, fontWeight: "bold", fontSize: 18 }}>
-              {name ? name.charAt(0).toUpperCase() : "?"}
-            </Text>
-          </View>
-        )}
+        <Pressable
+          onPress={onAvatarPress}
+          disabled={!onAvatarPress}
+          style={{ borderRadius: 26 }}
+        >
+          {imageUri ? (
+            <Image
+              source={{ uri: imageUri }}
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 26,
+                borderWidth: 2,
+                borderColor: colors.primary,
+              }}
+            />
+          ) : (
+            <View
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 26,
+                backgroundColor: colors.card,
+                justifyContent: "center",
+                alignItems: "center",
+                borderWidth: 2,
+                borderColor: colors.primary,
+              }}
+            >
+              <Text style={{ color: colors.text, fontWeight: "bold", fontSize: 18 }}>
+                {name ? name.charAt(0).toUpperCase() : "?"}
+              </Text>
+            </View>
+          )}
+        </Pressable>
 
         {showName && (
           <Text

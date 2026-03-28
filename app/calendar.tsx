@@ -1,87 +1,44 @@
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
-import { InfoCard, PageHeader, SecondaryButton } from "./components/ui-kit";
+import { InfoCard, PageHeader, PrimaryButton, SecondaryButton } from "./components/ui-kit";
 import { ScreenScroll, SectionTitle } from "./components/ui-shell";
 import { useProfile } from "./profile-context";
-import { buildAdaptiveWeeklyPlan, PlanDay } from "./training-plan";
+import { buildLongRangePlan, buildMonthGrid, type CalendarPlanDay } from "./training-insights";
 import { useThemeColors } from "./theme-context";
 import { useWorkouts } from "./workout-context";
-import {
-  formatFeedDate,
-  formatMonthLabel,
-  getDateForPlanDay,
-  getDayKey,
-  getPlanWeekStart,
-} from "./workout-utils";
+import { formatFeedDate, formatMonthLabel } from "./workout-utils";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-type CalendarEntry = {
-  dateKey: string;
-  date: Date;
-  planned: PlanDay | null;
-  workouts: ReturnType<typeof useWorkouts>["workouts"];
-  isCurrentMonth: boolean;
-};
-
 export default function CalendarScreen() {
   const { profile } = useProfile();
-  const {
-    workouts,
-    likedWorkoutCategories,
-    planCycle,
-    completedWorkoutIds,
-  } = useWorkouts();
+  const { workouts, likedWorkoutCategories, completedWorkoutIds, skippedWorkoutIds, planDayNotes, planCycle, plannedOverrides, completePlannedWorkout } =
+    useWorkouts();
   const { colors } = useThemeColors();
-  const mileage = parseFloat(profile.mileage) || 30;
   const [visibleMonth, setVisibleMonth] = useState(() => {
-    const start = getPlanWeekStart(new Date(), planCycle);
-    return new Date(start.getFullYear(), start.getMonth(), 1);
+    const today = new Date();
+    today.setDate(today.getDate() + planCycle * 7);
+    return new Date(today.getFullYear(), today.getMonth(), 1);
   });
-  const [selectedEntry, setSelectedEntry] = useState<CalendarEntry | null>(null);
+  const [selectedDay, setSelectedDay] = useState<CalendarPlanDay | null>(null);
 
-  const weekPlan = useMemo(
+  const planDays = useMemo(
     () =>
-      buildAdaptiveWeeklyPlan(
-        profile.goalEvent || "",
-        mileage,
-        profile.pr5k || "",
+      buildLongRangePlan({
+        profile,
+        workouts,
         likedWorkoutCategories,
+        completedWorkoutIds,
+        skippedWorkoutIds,
+        planDayNotes,
         planCycle,
-        {
-          workouts: workouts.map((workout) => ({
-            date: workout.date,
-            effort: workout.effort,
-            notes: workout.notes,
-            distance: workout.distance,
-          })),
-          completedWorkoutIds,
-        }
-      ).plan,
-    [completedWorkoutIds, likedWorkoutCategories, mileage, planCycle, profile.goalEvent, profile.pr5k, workouts]
+        plannedOverrides,
+        weeksToBuild: 18,
+      }),
+    [completedWorkoutIds, likedWorkoutCategories, planCycle, planDayNotes, plannedOverrides, profile, skippedWorkoutIds, workouts]
   );
-
-  const plannedByDayKey = useMemo(() => {
-    return weekPlan.reduce<Record<string, PlanDay>>((accumulator, day) => {
-      const date = getDateForPlanDay(day.day, new Date(), planCycle);
-      accumulator[getDayKey(date.toISOString())] = day;
-      return accumulator;
-    }, {});
-  }, [planCycle, weekPlan]);
-
-  const workoutsByDayKey = useMemo(() => {
-    return workouts.reduce<Record<string, typeof workouts>>((accumulator, workout) => {
-      const key = getDayKey(workout.date);
-      accumulator[key] = accumulator[key] ? [...accumulator[key], workout] : [workout];
-      return accumulator;
-    }, {});
-  }, [workouts]);
-
-  const monthEntries = useMemo(
-    () => buildMonthEntries(visibleMonth, plannedByDayKey, workoutsByDayKey),
-    [plannedByDayKey, visibleMonth, workoutsByDayKey]
-  );
+  const monthEntries = useMemo(() => buildMonthGrid(planDays, visibleMonth), [planDays, visibleMonth]);
 
   return (
     <ScreenScroll colors={colors}>
@@ -92,33 +49,30 @@ export default function CalendarScreen() {
       <PageHeader
         eyebrow="Calendar"
         title="Training at a glance"
-        subtitle="See planned sessions, completed workouts, and rest days together so consistency is easier to read visually."
+        subtitle="A wider view of planned sessions, completed workouts, and recovery days across future weeks."
       />
 
       <InfoCard>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-          <View>
-            <Text style={{ color: colors.text, fontSize: 24, fontWeight: "800" }}>
-              {formatMonthLabel(visibleMonth)}
-            </Text>
-            <Text style={{ color: colors.subtext, fontSize: 14, marginTop: 6 }}>
-              Planned week plus logged workouts on a monthly grid
-            </Text>
-          </View>
-
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <MonthButton colors={colors} label="Prev" onPress={() => setVisibleMonth((current) => addMonths(current, -1))} />
-            <MonthButton colors={colors} label="Next" onPress={() => setVisibleMonth((current) => addMonths(current, 1))} />
-          </View>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+          <Pressable onPress={() => setVisibleMonth((current) => addMonths(current, -1))}>
+            <Text style={{ color: colors.primary, fontSize: 14, fontWeight: "700" }}>Prev</Text>
+          </Pressable>
+          <Text style={{ color: colors.text, fontSize: 24, fontWeight: "800" }}>
+            {formatMonthLabel(visibleMonth)}
+          </Text>
+          <Pressable onPress={() => setVisibleMonth((current) => addMonths(current, 1))}>
+            <Text style={{ color: colors.primary, fontSize: 14, fontWeight: "700" }}>Next</Text>
+          </Pressable>
         </View>
 
-        <View style={{ flexDirection: "row", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
-          <LegendPill colors={colors} label="Completed" fill={colors.primary} border={colors.primary} textColor={colors.text} />
-          <LegendPill colors={colors} label="Planned" fill={colors.cardAlt} border={colors.border} textColor={colors.text} />
-          <LegendPill colors={colors} label="Rest" fill={colors.card} border={colors.success} textColor={colors.text} />
+        <View style={{ flexDirection: "row", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
+          <Legend colors={colors} label="Completed" background={colors.primary} border={colors.primary} textColor={colors.background} />
+          <Legend colors={colors} label="Today" background={colors.primarySoft} border={colors.primary} />
+          <Legend colors={colors} label="Planned" background={colors.cardAlt} border={colors.border} />
+          <Legend colors={colors} label="Rest" background={colors.card} border={colors.success} />
         </View>
 
-        <View style={{ flexDirection: "row", marginTop: 20 }}>
+        <View style={{ flexDirection: "row", marginTop: 18 }}>
           {WEEKDAY_LABELS.map((label) => (
             <View key={label} style={{ flex: 1, alignItems: "center" }}>
               <Text style={{ color: colors.subtext, fontSize: 12, fontWeight: "700" }}>{label}</Text>
@@ -126,43 +80,33 @@ export default function CalendarScreen() {
           ))}
         </View>
 
-        <View style={{ marginTop: 14, flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+        <View style={{ marginTop: 12, flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
           {monthEntries.map((entry) => (
             <Pressable
               key={entry.dateKey}
-              onPress={() => setSelectedEntry(entry)}
+              onPress={() => entry.planDay && setSelectedDay(entry.planDay)}
               style={{
                 width: "13.2%",
-                minHeight: 84,
+                minHeight: 92,
                 borderRadius: 18,
                 padding: 10,
-                backgroundColor: getCellBackground(entry, colors),
+                backgroundColor: getCellBackground(entry.planDay, colors),
                 borderWidth: 1,
-                borderColor: getCellBorder(entry, colors),
-                opacity: entry.isCurrentMonth ? 1 : 0.5,
+                borderColor: getCellBorder(entry.planDay, colors),
+                opacity: entry.isCurrentMonth ? 1 : 0.45,
               }}
             >
-              <Text
-                style={{
-                  color: colors.text,
-                  fontSize: 13,
-                  fontWeight: "700",
-                }}
-              >
-                {entry.date.getDate()}
-              </Text>
-
-              <View style={{ marginTop: 10, gap: 6 }}>
-                {entry.planned ? (
-                  <StatusDot
-                    color={entry.workouts.length > 0 ? colors.text : entry.planned.kind === "rest" ? colors.success : colors.subtext}
-                    label={entry.workouts.length > 0 ? "Done" : entry.planned.kind === "rest" ? "Rest" : "Plan"}
-                  />
-                ) : null}
-                {entry.workouts.length > 0 ? (
-                  <StatusDot color={colors.primary} label={`${entry.workouts.length} run`} />
-                ) : null}
-              </View>
+              <Text style={{ color: colors.text, fontSize: 13, fontWeight: "700" }}>{entry.date.getDate()}</Text>
+              {entry.planDay ? (
+                <View style={{ marginTop: 10, gap: 6 }}>
+                  <Text style={{ color: colors.text, fontSize: 10, fontWeight: "700" }} numberOfLines={2}>
+                    {entry.planDay.title}
+                  </Text>
+                  <Text style={{ color: colors.subtext, fontSize: 10 }}>
+                    {entry.planDay.completed ? "Done" : entry.planDay.kind === "rest" ? "Rest" : `${entry.planDay.distance} mi`}
+                  </Text>
+                </View>
+              ) : null}
             </Pressable>
           ))}
         </View>
@@ -171,126 +115,102 @@ export default function CalendarScreen() {
       <InfoCard>
         <SectionTitle
           colors={colors}
-          title="Current plan week"
-          subtitle="The active seven-day training structure mapped onto real calendar dates."
+          title="Planning horizon"
+          subtitle="NextStride currently generates about four months of structured training ahead with weekly variation."
         />
-
-        <View style={{ marginTop: 14, gap: 12 }}>
-          {weekPlan.map((day) => {
-            const date = getDateForPlanDay(day.day, new Date(), planCycle);
-            const completed = completedWorkoutIds.includes(day.id);
-
-            return (
-              <View
-                key={day.id}
-                style={{
-                  backgroundColor: colors.cardAlt,
-                  borderRadius: 18,
-                  borderWidth: 1,
-                  borderColor: completed ? colors.primary : colors.border,
-                  padding: 14,
-                }}
-              >
-                <Text style={{ color: colors.subtext, fontSize: 12, fontWeight: "700" }}>
-                  {formatFeedDate(date.toISOString())}
-                </Text>
-                <Text style={{ color: colors.text, fontSize: 17, fontWeight: "700", marginTop: 6 }}>
-                  {day.title}
-                </Text>
-                <Text style={{ color: colors.subtext, fontSize: 14, marginTop: 6 }}>
-                  {day.kind === "rest" ? "Rest day" : `${day.distance} mi planned`} {completed ? "\u2022 Completed" : ""}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
+        <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 21, marginTop: 16 }}>
+          Weekly structure stays familiar, but details and distances shift from week to week so future blocks do not feel copy-pasted.
+        </Text>
       </InfoCard>
 
-      <DayDetailModal
-        colors={colors}
-        entry={selectedEntry}
-        onClose={() => setSelectedEntry(null)}
-      />
+      <Modal visible={Boolean(selectedDay)} transparent animationType="fade" onRequestClose={() => setSelectedDay(null)}>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(3, 8, 18, 0.7)",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: colors.card,
+              borderRadius: 28,
+              borderWidth: 1,
+              borderColor: colors.border,
+              padding: 20,
+              gap: 14,
+            }}
+          >
+            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "800", letterSpacing: 0.8 }}>
+              DAY DETAILS
+            </Text>
+            <Text style={{ color: colors.text, fontSize: 26, fontWeight: "800" }}>
+              {selectedDay ? formatFeedDate(selectedDay.date.toISOString()) : ""}
+            </Text>
+
+            {selectedDay ? (
+              <View
+                style={{
+                  backgroundColor: colors.cardAlt,
+                  borderRadius: 22,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  padding: 16,
+                  gap: 8,
+                }}
+              >
+                <Text style={{ color: colors.text, fontSize: 20, fontWeight: "700" }}>{selectedDay.title}</Text>
+                <Text style={{ color: colors.subtext, fontSize: 14 }}>
+                  {selectedDay.kind === "rest" ? "Rest / recovery focus" : `${selectedDay.distance} mi planned`}
+                </Text>
+                <Text style={{ color: colors.text, fontSize: 14, lineHeight: 20 }}>{selectedDay.details}</Text>
+              </View>
+            ) : null}
+
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                <SecondaryButton label="Close" onPress={() => setSelectedDay(null)} />
+              </View>
+              {selectedDay && !selectedDay.completed && selectedDay.kind !== "rest" ? (
+                <View style={{ flex: 1 }}>
+                  <PrimaryButton
+                    label="Complete"
+                    onPress={() => {
+                      completePlannedWorkout(selectedDay, {
+                        effort: 6,
+                        dateOverride: selectedDay.date.toISOString(),
+                      });
+                      setSelectedDay(null);
+                    }}
+                  />
+                </View>
+              ) : null}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScreenScroll>
   );
 }
 
-function buildMonthEntries(
-  visibleMonth: Date,
-  plannedByDayKey: Record<string, PlanDay>,
-  workoutsByDayKey: Record<string, ReturnType<typeof useWorkouts>["workouts"]>
-) {
-  const monthStart = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1);
-  const start = new Date(monthStart);
-  const startOffset = (monthStart.getDay() + 6) % 7;
-  start.setDate(monthStart.getDate() - startOffset);
-
-  return Array.from({ length: 42 }, (_, index) => {
-    const date = new Date(start);
-    date.setDate(start.getDate() + index);
-    const dateKey = getDayKey(date.toISOString());
-
-    return {
-      dateKey,
-      date,
-      planned: plannedByDayKey[dateKey] ?? null,
-      workouts: workoutsByDayKey[dateKey] ?? [],
-      isCurrentMonth: date.getMonth() === visibleMonth.getMonth(),
-    };
-  });
-}
-
-function getCellBackground(
-  entry: CalendarEntry,
-  colors: ReturnType<typeof useThemeColors>["colors"]
-) {
-  if (entry.workouts.length > 0) {
-    return colors.primarySoft;
-  }
-
-  if (entry.planned?.kind === "rest") {
-    return colors.card;
-  }
-
-  if (entry.planned) {
-    return colors.cardAlt;
-  }
-
-  return colors.card;
-}
-
-function getCellBorder(
-  entry: CalendarEntry,
-  colors: ReturnType<typeof useThemeColors>["colors"]
-) {
-  if (entry.workouts.length > 0) {
-    return colors.primary;
-  }
-
-  if (entry.planned?.kind === "rest") {
-    return colors.success;
-  }
-
-  return colors.border;
-}
-
-function LegendPill({
+function Legend({
+  colors,
   label,
-  fill,
+  background,
   border,
   textColor,
-  colors,
 }: {
-  label: string;
-  fill: string;
-  border: string;
-  textColor: string;
   colors: ReturnType<typeof useThemeColors>["colors"];
+  label: string;
+  background: string;
+  border: string;
+  textColor?: string;
 }) {
   return (
     <View
       style={{
-        backgroundColor: fill,
+        backgroundColor: background,
         borderRadius: 999,
         borderWidth: 1,
         borderColor: border,
@@ -298,151 +218,41 @@ function LegendPill({
         paddingVertical: 8,
       }}
     >
-      <Text style={{ color: textColor || colors.text, fontSize: 12, fontWeight: "700" }}>{label}</Text>
+      <Text style={{ color: textColor ?? colors.text, fontSize: 12, fontWeight: "700" }}>{label}</Text>
     </View>
   );
 }
 
-function StatusDot({ color, label }: { color: string; label: string }) {
-  return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-      <View
-        style={{
-          width: 7,
-          height: 7,
-          borderRadius: 999,
-          backgroundColor: color,
-        }}
-      />
-      <Text style={{ color, fontSize: 10, fontWeight: "700" }}>{label}</Text>
-    </View>
-  );
+function getCellBackground(day: CalendarPlanDay | null, colors: ReturnType<typeof useThemeColors>["colors"]) {
+  if (!day) {
+    return colors.card;
+  }
+
+  if (day.completed || day.isToday) {
+    return colors.primarySoft;
+  }
+
+  if (day.kind === "rest") {
+    return colors.card;
+  }
+
+  return colors.cardAlt;
 }
 
-function MonthButton({
-  colors,
-  label,
-  onPress,
-}: {
-  colors: ReturnType<typeof useThemeColors>["colors"];
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={{
-        backgroundColor: colors.card,
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: colors.border,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-      }}
-    >
-      <Text style={{ color: colors.text, fontSize: 13, fontWeight: "700" }}>{label}</Text>
-    </Pressable>
-  );
-}
+function getCellBorder(day: CalendarPlanDay | null, colors: ReturnType<typeof useThemeColors>["colors"]) {
+  if (!day) {
+    return colors.border;
+  }
 
-function DayDetailModal({
-  colors,
-  entry,
-  onClose,
-}: {
-  colors: ReturnType<typeof useThemeColors>["colors"];
-  entry: CalendarEntry | null;
-  onClose: () => void;
-}) {
-  return (
-    <Modal visible={Boolean(entry)} transparent animationType="fade" onRequestClose={onClose}>
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: "rgba(3, 8, 18, 0.7)",
-          justifyContent: "center",
-          padding: 20,
-        }}
-      >
-        <View
-          style={{
-            backgroundColor: colors.card,
-            borderRadius: 28,
-            borderWidth: 1,
-            borderColor: colors.border,
-            padding: 20,
-          }}
-        >
-          <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "700", letterSpacing: 0.8 }}>
-            DAY DETAILS
-          </Text>
-          <Text style={{ color: colors.text, fontSize: 26, fontWeight: "800", marginTop: 10 }}>
-            {entry ? formatFeedDate(entry.date.toISOString()) : ""}
-          </Text>
+  if (day.completed || day.isToday) {
+    return colors.primary;
+  }
 
-          {entry?.planned ? (
-            <View
-              style={{
-                marginTop: 18,
-                backgroundColor: colors.cardAlt,
-                borderRadius: 20,
-                borderWidth: 1,
-                borderColor: colors.border,
-                padding: 14,
-                gap: 6,
-              }}
-            >
-              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "700" }}>PLANNED</Text>
-              <Text style={{ color: colors.text, fontSize: 17, fontWeight: "700" }}>{entry.planned.title}</Text>
-              <Text style={{ color: colors.subtext, fontSize: 14 }}>
-                {entry.planned.kind === "rest" ? "Rest day" : `${entry.planned.distance} mi planned`}
-              </Text>
-              <Text style={{ color: colors.subtext, fontSize: 13, lineHeight: 20 }}>
-                {entry.planned.details}
-              </Text>
-            </View>
-          ) : null}
+  if (day.kind === "rest") {
+    return colors.success;
+  }
 
-          <View style={{ marginTop: 18, gap: 12 }}>
-            {entry && entry.workouts.length > 0 ? (
-              entry.workouts.map((workout) => (
-                <View
-                  key={workout.id}
-                  style={{
-                    backgroundColor: colors.cardAlt,
-                    borderRadius: 20,
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                    padding: 14,
-                    gap: 6,
-                  }}
-                >
-                  <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "700" }}>COMPLETED</Text>
-                  <Text style={{ color: colors.text, fontSize: 17, fontWeight: "700" }}>{workout.type || "Workout"}</Text>
-                  <Text style={{ color: colors.subtext, fontSize: 14 }}>
-                    {workout.distance} mi {"\u2022"} Effort {workout.effort.toFixed(1)}
-                  </Text>
-                  {workout.notes ? (
-                    <Text style={{ color: colors.subtext, fontSize: 13, lineHeight: 20 }}>
-                      {workout.notes}
-                    </Text>
-                  ) : null}
-                </View>
-              ))
-            ) : (
-              <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 21 }}>
-                No completed workout logged for this date yet.
-              </Text>
-            )}
-          </View>
-
-          <View style={{ marginTop: 20 }}>
-            <SecondaryButton label="Close" onPress={onClose} />
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
+  return colors.border;
 }
 
 function addMonths(date: Date, amount: number) {

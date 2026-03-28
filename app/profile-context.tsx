@@ -12,12 +12,20 @@ export type PRsType = {
   marathon: string;
 };
 
+export type RaceGoalType = {
+  id: string;
+  event: string;
+  goalTime: string;
+  raceDate: string;
+};
+
 export type ProfileType = {
   name: string;
   mileage: string;
   goalEvent: string;
   pr5k: string;
   prs: PRsType;
+  raceGoals: RaceGoalType[];
   age: string;
   restingHeartRate: string;
   maxHeartRate: string;
@@ -118,6 +126,7 @@ const EMPTY_PROFILE: ProfileType = {
   goalEvent: "",
   pr5k: "",
   prs: EMPTY_PRS,
+  raceGoals: [],
   age: "",
   restingHeartRate: "",
   maxHeartRate: "",

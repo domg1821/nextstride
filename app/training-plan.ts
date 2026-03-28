@@ -134,11 +134,13 @@ export function buildWeeklyPlan(
   const paceProfile = buildPaceProfile(pr5k, goal);
   const template = getTemplate(weeklyMileage, likedCategories);
   const detailSeed = planCycle + getLikedCategoryOffset(likedCategories);
+  const cycleVariation = getCycleVariation(planCycle);
   const weightTotal = template.reduce(
     (sum, day) => sum + getWeight(day.role, goal),
     0
   );
-  const baseUnit = weeklyMileage / weightTotal;
+  const adjustedWeeklyMileage = weeklyMileage * cycleVariation;
+  const baseUnit = adjustedWeeklyMileage / weightTotal;
 
   return template.map((day) => {
     const distance = day.kind === "rest" ? 0 : roundToHalf(baseUnit * getWeight(day.role, goal));
@@ -151,7 +153,7 @@ export function buildWeeklyPlan(
       title: day.title,
       logType: day.logType,
       distance,
-      details: buildDetails(day, goal, distance, weeklyMileage, paceProfile, detailSeed),
+      details: buildDetails(day, goal, distance, adjustedWeeklyMileage, paceProfile, detailSeed),
     };
   });
 }
@@ -691,6 +693,21 @@ function selectSundayRole(
 
 function getLikedCategoryOffset(likedCategories: WorkoutPreferenceCategory[]) {
   return likedCategories.reduce((sum, category) => sum + category.charCodeAt(0), 0) % 4;
+}
+
+function getCycleVariation(planCycle: number) {
+  const phase = ((planCycle % 4) + 4) % 4;
+
+  switch (phase) {
+    case 0:
+      return 0.98;
+    case 1:
+      return 1.02;
+    case 2:
+      return 1.06;
+    default:
+      return 0.94;
+  }
 }
 
 function buildPaceProfile(pr5k: string, goal: SupportedGoalEvent): PaceProfile {

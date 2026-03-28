@@ -2,6 +2,7 @@ import { router } from "expo-router";
 import { Pressable, Text, View } from "react-native";
 import { InfoCard, PageHeader } from "./components/ui-kit";
 import { ScreenScroll, SectionTitle } from "./components/ui-shell";
+import { getWeeklyGoalProgress } from "./training-insights";
 import { useThemeColors } from "./theme-context";
 import { useWorkouts } from "./workout-context";
 import { formatFeedDate, getWorkoutPace } from "./workout-utils";
@@ -10,6 +11,7 @@ export default function Activities() {
   const { workouts, shoes } = useWorkouts();
   const { colors } = useThemeColors();
   const recentWorkout = workouts[0];
+  const weeklyProgress = getWeeklyGoalProgress(workouts, 30);
 
   return (
     <ScreenScroll colors={colors}>
@@ -30,6 +32,20 @@ export default function Activities() {
         />
       ) : (
         <>
+          <View style={{ flexDirection: "row", gap: 12 }}>
+            <View style={{ flex: 1 }}>
+              <FeedHighlight colors={colors} label="Logged" value={`${workouts.length}`} helper="Total activities" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <FeedHighlight
+                colors={colors}
+                label="This Week"
+                value={`${weeklyProgress.currentMiles.toFixed(1)} mi`}
+                helper={`${Math.round(weeklyProgress.progressPercent)}% of 30 mi`}
+              />
+            </View>
+          </View>
+
           <InfoCard>
             <SectionTitle
               colors={colors}
@@ -59,6 +75,34 @@ export default function Activities() {
         </>
       )}
     </ScreenScroll>
+  );
+}
+
+function FeedHighlight({
+  colors,
+  label,
+  value,
+  helper,
+}: {
+  colors: ReturnType<typeof useThemeColors>["colors"];
+  label: string;
+  value: string;
+  helper: string;
+}) {
+  return (
+    <View
+      style={{
+        backgroundColor: colors.card,
+        borderRadius: 22,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: 16,
+      }}
+    >
+      <Text style={{ color: colors.subtext, fontSize: 12 }}>{label}</Text>
+      <Text style={{ color: colors.text, fontSize: 24, fontWeight: "800", marginTop: 8 }}>{value}</Text>
+      <Text style={{ color: colors.subtext, fontSize: 12, marginTop: 6 }}>{helper}</Text>
+    </View>
   );
 }
 

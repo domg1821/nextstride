@@ -12,6 +12,7 @@ export const RUNNING_COACH_SUGGESTIONS = [
   "How hard should tempo pace be?",
   "What should I eat before a long run?",
   "Convert 18 minutes for 3 miles to pace",
+  "What is 6:00 mile pace for 800m?",
 ];
 
 type CalculationResult = {
@@ -209,6 +210,16 @@ const TOPIC_MATCHERS: TopicMatcher[] = [
           : "If you have to force the first half, the pace is too hot."
       ),
   },
+  {
+    keywords: ["split", "splits"],
+    handler: (_question, context, summary) =>
+      withContext(
+        "Good splits usually come from starting controlled enough that the final rep or final mile is still honest.",
+        context,
+        summary,
+        "Aim for repeatable pacing, not one fast split followed by a fade."
+      ),
+  },
 ];
 
 export function getRunningCoachReply(input: string, context: RunningCoachContext) {
@@ -221,7 +232,7 @@ export function getRunningCoachReply(input: string, context: RunningCoachContext
   }
 
   if (!isRunningQuestion(question)) {
-    return "I'm focused on running and training questions right now.";
+    return "I focus on running, workouts, pacing, recovery, race prep, and fueling questions.";
   }
 
   const topicReply = getTopicReply(question, context, summary);
@@ -234,7 +245,7 @@ export function getRunningCoachReply(input: string, context: RunningCoachContext
     "I can help with workouts, pacing, recovery, mileage, race prep, fueling, and running calculations.",
     context,
     summary,
-    "Ask your question as directly as you can and I'll answer it like a coach."
+    "Ask it directly and I'll keep the answer concise."
   );
 }
 
@@ -428,6 +439,8 @@ function isRunningQuestion(question: string) {
     "800",
     "1600",
     "3200",
+    "split",
+    "splits",
   ];
 
   return runningKeywords.some((keyword) => question.includes(keyword));

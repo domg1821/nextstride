@@ -255,6 +255,18 @@ export default function Profile() {
         />
 
         <RouteCard
+          title="Goals"
+          subtitle="Track race countdowns, target times, and simple on-track guidance."
+          onPress={() => router.push("/goals")}
+        />
+
+        <RouteCard
+          title="Gear"
+          subtitle="Track shoe mileage and keep your running rotation organized."
+          onPress={() => router.push("/gear")}
+        />
+
+        <RouteCard
           title="Race Predictor"
           subtitle="Estimate current race fitness from recent training, effort, mileage, and saved PRs."
           onPress={() => router.push("/race-predictor")}

@@ -1,11 +1,19 @@
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { useMemo } from "react";
+import { Text, View } from "react-native";
 import TopProfileBar from "../components/TopProfileBar";
+import { useQuickDrawer } from "../components/quick-drawer";
 import { PageHeader, SecondaryButton } from "../components/ui-kit";
 import { AnimatedTabScene, ScreenScroll, SectionTitle } from "../components/ui-shell";
 import { useProfile } from "../profile-context";
-import { getRunningCoachReply, RUNNING_COACH_SUGGESTIONS } from "../running-coach";
+import { getPredictionForEvent, normalizePredictorEvent } from "../race-predictor-engine";
+import {
+  getAdaptiveCoachRecommendations,
+  getGoalEventBaseline,
+  getInsightsSummary,
+  getWeeklyGoalProgress,
+  summarizeRaceGoal,
+} from "../training-insights";
 import { useThemeColors } from "../theme-context";
 import { buildAdaptiveWeeklyPlan } from "../training-plan";
 import { useWorkouts } from "../workout-context";
@@ -16,33 +24,21 @@ import {
   getWorkoutPace,
 } from "../workout-utils";
 
-type ChatMessage = {
-  role: "assistant" | "user";
-  text: string;
-};
-
-const INITIAL_CHAT: ChatMessage[] = [
-  {
-    role: "assistant",
-    text: "Ask a running question or a pace conversion. I answer like a built-in running coach.",
-  },
-];
-
 export default function Home() {
   const { profile, displayName } = useProfile();
   const { workouts, completedWorkoutIds, likedWorkoutCategories, planCycle } = useWorkouts();
   const { colors } = useThemeColors();
-  const [question, setQuestion] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_CHAT);
+  const { openDrawer } = useQuickDrawer();
 
   const mileageGoal = parseFloat(profile.mileage) || 30;
+  const weeklyGoal = useMemo(() => getWeeklyGoalProgress(workouts, mileageGoal), [mileageGoal, workouts]);
   const weeklySummary = useMemo(() => getWeeklySummary(workouts), [workouts]);
   const streakSummary = useMemo(
     () => getStreakSummary(workouts.map((workout) => workout.date)),
     [workouts]
   );
-  const weeklyMiles = weeklySummary.totalMiles;
-  const progressPercent = Math.min((weeklyMiles / mileageGoal) * 100, 100);
+  const weeklyMiles = weeklyGoal.currentMiles;
+  const progressPercent = weeklyGoal.progressPercent;
 
   const weeklyPlan = useMemo(
     () =>
@@ -72,47 +68,35 @@ export default function Home() {
       workouts,
     ]
   );
-  const coachContext = useMemo(
-    () => ({
-      profile: {
-        goalEvent: profile.goalEvent,
-        mileage: profile.mileage,
-        pr5k: profile.pr5k,
-        prs: profile.prs,
-      },
-      workouts,
-    }),
-    [profile.goalEvent, profile.mileage, profile.pr5k, profile.prs, workouts]
-  );
   const todaysWorkout = weeklyPlan[0];
   const secondaryWorkout = weeklyPlan[1];
   const coachFeedback = useMemo(
-    () => buildCoachFeedback(workouts, weeklyMiles, mileageGoal, streakSummary.current),
-    [mileageGoal, streakSummary, weeklyMiles, workouts]
+    () => getAdaptiveCoachRecommendations(workouts, mileageGoal),
+    [mileageGoal, workouts]
   );
-  const feedPreview = workouts.slice(0, 2);
-
-  const sendCoachMessage = (prompt: string) => {
-    const trimmed = prompt.trim();
-
-    if (!trimmed) {
-      return;
+  const insightMessages = useMemo(() => getInsightsSummary(workouts, mileageGoal), [mileageGoal, workouts]);
+  const activeGoal = useMemo(() => getGoalEventBaseline(profile), [profile]);
+  const goalPrediction = useMemo(() => {
+    if (!activeGoal) {
+      return null;
     }
 
-    const reply = getRunningCoachReply(trimmed, coachContext);
+    const eventKey = normalizePredictorEvent(activeGoal.event);
+    return eventKey ? getPredictionForEvent(eventKey, workouts, profile) : null;
+  }, [activeGoal, profile, workouts]);
+  const goalSummary = useMemo(() => {
+    if (!activeGoal) {
+      return null;
+    }
 
-    setMessages((current) => [
-      ...current,
-      { role: "user", text: trimmed },
-      { role: "assistant", text: reply },
-    ]);
-    setQuestion("");
-  };
+    return summarizeRaceGoal(activeGoal, workouts, goalPrediction?.predictedSeconds ?? null);
+  }, [activeGoal, goalPrediction?.predictedSeconds, workouts]);
+  const feedPreview = workouts.slice(0, 2);
 
   return (
     <AnimatedTabScene tabKey="index">
       <ScreenScroll colors={colors}>
-        <TopProfileBar imageUri={profile.image} name={displayName} showName={true} />
+        <TopProfileBar imageUri={profile.image} name={displayName} showName={true} onAvatarPress={openDrawer} />
 
         <PageHeader
           eyebrow="Today"
@@ -184,6 +168,9 @@ export default function Home() {
               </Text>
               <Text style={{ color: colors.subtext, fontSize: 15, marginTop: 4 }}>
                 of {mileageGoal} mi goal
+              </Text>
+              <Text style={{ color: colors.primary, fontSize: 13, fontWeight: "700", marginTop: 8 }}>
+                {Math.round(progressPercent)}% of weekly goal
               </Text>
             </View>
 
@@ -269,6 +256,67 @@ export default function Home() {
           />
         </View>
 
+        {goalSummary ? (
+          <View
+            style={{
+              backgroundColor: colors.card,
+              borderRadius: 28,
+              borderWidth: 1,
+              borderColor: colors.border,
+              padding: 20,
+              gap: 14,
+            }}
+          >
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: colors.text, fontSize: 20, fontWeight: "700" }}>Race Goal</Text>
+                <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 21, marginTop: 6 }}>
+                  {activeGoal?.event} in {activeGoal?.goalTime || "goal time not set"}
+                </Text>
+              </View>
+
+              <SecondaryButton label="Open Goals" onPress={() => router.push("/goals")} />
+            </View>
+
+            <View
+              style={{
+                backgroundColor: colors.cardAlt,
+                borderRadius: 22,
+                borderWidth: 1,
+                borderColor: colors.border,
+                padding: 16,
+                gap: 8,
+              }}
+            >
+              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "800", letterSpacing: 0.8 }}>
+                {goalSummary.status === "on-track" ? "ON TRACK" : goalSummary.status === "needs-work" ? "NEEDS WORK" : "UPCOMING"}
+              </Text>
+              <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700" }}>
+                {goalSummary.countdownLabel}
+              </Text>
+              <Text style={{ color: colors.subtext, fontSize: 14 }}>{goalSummary.progressLabel}</Text>
+              <Text style={{ color: colors.text, fontSize: 14, lineHeight: 20 }}>{goalSummary.detail}</Text>
+            </View>
+          </View>
+        ) : (
+          <View
+            style={{
+              backgroundColor: colors.card,
+              borderRadius: 28,
+              borderWidth: 1,
+              borderColor: colors.border,
+              padding: 20,
+              gap: 12,
+            }}
+          >
+            <Text style={{ color: colors.text, fontSize: 20, fontWeight: "700" }}>Race Goal</Text>
+            <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 21 }}>
+              Add a race goal to track countdown, projected fitness, and goal status from your training.
+            </Text>
+            <SecondaryButton label="Set Goal" onPress={() => router.push("/goals")} />
+          </View>
+        )}
+
         <View
           style={{
             backgroundColor: colors.card,
@@ -292,7 +340,7 @@ export default function Home() {
 
           {coachFeedback.map((message) => (
             <View
-              key={message}
+              key={message.title}
               style={{
                 backgroundColor: colors.cardAlt,
                 borderRadius: 18,
@@ -301,7 +349,37 @@ export default function Home() {
                 padding: 14,
               }}
             >
-              <Text style={{ color: colors.text, fontSize: 14, lineHeight: 20 }}>{message}</Text>
+              <Text style={{ color: colors.text, fontSize: 15, fontWeight: "700" }}>{message.title}</Text>
+              <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 20, marginTop: 6 }}>
+                {message.detail}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        <View
+          style={{
+            backgroundColor: colors.card,
+            borderRadius: 28,
+            borderWidth: 1,
+            borderColor: colors.border,
+            padding: 20,
+            gap: 12,
+          }}
+        >
+          <Text style={{ color: colors.text, fontSize: 20, fontWeight: "700" }}>Insights</Text>
+          {insightMessages.map((insight) => (
+            <View
+              key={insight.title}
+              style={{
+                backgroundColor: colors.cardAlt,
+                borderRadius: 18,
+                borderWidth: 1,
+                borderColor: colors.border,
+                padding: 14,
+              }}
+            >
+              <Text style={{ color: colors.text, fontSize: 14, lineHeight: 20 }}>{insight.title}</Text>
             </View>
           ))}
         </View>
@@ -378,6 +456,27 @@ export default function Home() {
             borderWidth: 1,
             borderColor: colors.border,
             padding: 20,
+            gap: 12,
+          }}
+        >
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.text, fontSize: 20, fontWeight: "700" }}>Gear</Text>
+              <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 21, marginTop: 6 }}>
+                Track shoe mileage and keep rotation checks simple.
+              </Text>
+            </View>
+            <SecondaryButton label="Open Gear" onPress={() => router.push("/gear")} />
+          </View>
+        </View>
+
+        <View
+          style={{
+            backgroundColor: colors.card,
+            borderRadius: 28,
+            borderWidth: 1,
+            borderColor: colors.border,
+            padding: 20,
             gap: 14,
           }}
         >
@@ -394,119 +493,11 @@ export default function Home() {
                 Running Coach
               </Text>
               <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 21, marginTop: 6 }}>
-                Focused on running questions, pacing math, workouts, recovery, and race prep.
+                Coach now has its own tab with chat, suggested prompts, and quick pace tools.
               </Text>
             </View>
 
-            <View
-              style={{
-                backgroundColor: colors.primarySoft,
-                borderRadius: 999,
-                paddingHorizontal: 12,
-                paddingVertical: 7,
-                borderWidth: 1,
-                borderColor: colors.border,
-              }}
-            >
-              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "700" }}>
-                Coach mode
-              </Text>
-            </View>
-          </View>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: 10 }}
-          >
-            {RUNNING_COACH_SUGGESTIONS.map((suggestion) => (
-              <Pressable
-                key={suggestion}
-                onPress={() => sendCoachMessage(suggestion)}
-                style={{
-                  backgroundColor: colors.cardAlt,
-                  borderRadius: 999,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  paddingHorizontal: 14,
-                  paddingVertical: 10,
-                }}
-              >
-                <Text style={{ color: colors.text, fontSize: 13, fontWeight: "600" }}>
-                  {suggestion}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-
-          <View style={{ gap: 10 }}>
-            {messages.slice(-6).map((message, index) => {
-              const fromAssistant = message.role === "assistant";
-
-              return (
-                <View
-                  key={`${message.role}-${index}-${message.text.slice(0, 20)}`}
-                  style={{
-                    alignSelf: fromAssistant ? "flex-start" : "flex-end",
-                    maxWidth: "92%",
-                    backgroundColor: fromAssistant ? colors.cardAlt : colors.primary,
-                    borderRadius: 20,
-                    borderWidth: 1,
-                    borderColor: fromAssistant ? colors.border : colors.primary,
-                    paddingHorizontal: 14,
-                    paddingVertical: 12,
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: fromAssistant ? colors.text : colors.background,
-                      fontSize: 14,
-                      lineHeight: 20,
-                    }}
-                  >
-                    {message.text}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-            <TextInput
-              value={question}
-              onChangeText={setQuestion}
-              placeholder="Ask about workouts, pace, recovery, race prep..."
-              placeholderTextColor={colors.subtext}
-              onSubmitEditing={() => sendCoachMessage(question)}
-              style={{
-                flex: 1,
-                backgroundColor: colors.cardAlt,
-                borderRadius: 18,
-                borderWidth: 1,
-                borderColor: colors.border,
-                color: colors.text,
-                paddingHorizontal: 14,
-                paddingVertical: 14,
-                fontSize: 14,
-              }}
-            />
-
-            <Pressable
-              onPress={() => sendCoachMessage(question)}
-              style={{
-                backgroundColor: colors.primary,
-                borderRadius: 18,
-                paddingHorizontal: 18,
-                paddingVertical: 14,
-                minWidth: 72,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Text style={{ color: colors.background, fontSize: 14, fontWeight: "700" }}>
-                Send
-              </Text>
-            </Pressable>
+            <SecondaryButton label="Open Coach" onPress={() => router.push("/(tabs)/coach")} />
           </View>
         </View>
       </ScreenScroll>
@@ -539,38 +530,6 @@ function MetricChip({
       </Text>
     </View>
   );
-}
-
-function buildCoachFeedback(
-  workouts: ReturnType<typeof useWorkouts>["workouts"],
-  weeklyMiles: number,
-  mileageGoal: number,
-  streak: number
-) {
-  if (workouts.length === 0) {
-    return ["Log your first run to start building coaching feedback."];
-  }
-
-  const feedback: string[] = [];
-  const lastWorkout = workouts[0];
-
-  if (lastWorkout.effort >= 8) {
-    feedback.push("Your last run was high effort. Consider an easy day or full recovery next.");
-  }
-
-  if (weeklyMiles < mileageGoal * 0.65) {
-    feedback.push("You're below your weekly mileage goal. A steady aerobic day could help close the gap.");
-  } else {
-    feedback.push("Nice consistency this week. You're tracking well against your mileage goal.");
-  }
-
-  if (streak >= 4) {
-    feedback.push(`You're on a ${streak}-day streak. Keep the easy days easy so the momentum lasts.`);
-  } else if (streak === 0) {
-    feedback.push("A small run today can restart your streak and rebuild rhythm quickly.");
-  }
-
-  return feedback.slice(0, 3);
 }
 
 function WeeklySummaryCard({
