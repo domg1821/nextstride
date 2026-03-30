@@ -284,12 +284,12 @@ export default function Settings() {
 
         <SettingsRow
           title="Sign Out"
-          subtitle="Clear the current session and return to the welcome page."
+          subtitle="Clear the current session and return to the login screen."
           accent={colors.danger}
           delay={360}
           onPress={() => {
             signOut();
-            router.replace("/welcome");
+            router.replace("/login");
           }}
         />
       </View>

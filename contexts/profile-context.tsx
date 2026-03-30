@@ -514,6 +514,7 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
   const [sessionStatusMessage, setSessionStatusMessage] = useState("");
   const accountsByEmailRef = useRef<Record<string, StoredAccount>>({});
   const authRequestInFlightRef = useRef(false);
+  const authHydratedRef = useRef(false);
 
   useEffect(() => {
     accountsByEmailRef.current = accountsByEmail;
@@ -603,6 +604,8 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
     let isMounted = true;
 
     const hydrateAuthState = async () => {
+      authHydratedRef.current = false;
+
       const storedAccounts = await readStoredJson<Record<string, Partial<StoredAccount>>>(
         AUTH_ACCOUNTS_STORAGE_KEY,
         {}
@@ -649,6 +652,7 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
         setSessionStatusMessage("");
       }
 
+      authHydratedRef.current = true;
       setAuthReady(true);
     };
 
@@ -657,6 +661,10 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!authHydratedRef.current) {
+        return;
+      }
+
       void syncUserState(session?.user ?? null, {
         restored: event === "INITIAL_SESSION",
         statusMessage: event === "SIGNED_OUT" ? "" : undefined,

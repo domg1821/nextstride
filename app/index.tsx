@@ -11,7 +11,7 @@ export default function Index() {
       return;
     }
 
-    const targetRoute = isAuthenticated ? (requiresOnboarding ? "/onboarding" : "/(tabs)") : "/welcome";
+    const targetRoute = isAuthenticated ? (requiresOnboarding ? "/onboarding" : "/(tabs)") : "/login";
     const timeout = setTimeout(
       () => {
         router.replace(targetRoute as never);
