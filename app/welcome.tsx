@@ -2,6 +2,7 @@ import { router } from "expo-router";
 import { useRef } from "react";
 import { LayoutChangeEvent, Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
 import { FeatureCard, FooterLink, SiteButton, SiteSection, WeeklyPlanPreview } from "@/components/marketing-site";
+import { useProfile } from "@/contexts/profile-context";
 import { PREMIUM_COMPARISON_ROWS, PREMIUM_FEATURES, PREMIUM_PRODUCT } from "@/lib/premium-products";
 
 type SectionKey = "hero" | "why" | "week" | "premium" | "faq" | "cta";
@@ -40,6 +41,7 @@ const WEEK_PREVIEW = [
 ];
 
 export default function Welcome() {
+  const { isAuthenticated } = useProfile();
   const scrollRef = useRef<ScrollView>(null);
   const sectionOffsets = useRef<Partial<Record<SectionKey, number>>>({});
   const { width } = useWindowDimensions();
@@ -73,8 +75,10 @@ export default function Welcome() {
         <TopNavigation
           isTablet={isTablet}
           onJump={scrollToSection}
+          isAuthenticated={isAuthenticated}
           onLogin={() => router.push("/login")}
           onSignup={() => router.push("/signup")}
+          onOpenApp={() => router.push("/(tabs)")}
         />
 
         <View
@@ -97,7 +101,10 @@ export default function Welcome() {
             </Text>
 
             <View style={{ flexDirection: isTablet ? "row" : "column", gap: 12, marginTop: 28 }}>
-              <SiteButton label="Get Started" onPress={() => router.push("/signup")} />
+              <SiteButton
+                label={isAuthenticated ? "Open App" : "Get Started"}
+                onPress={() => router.push(isAuthenticated ? "/(tabs)" : "/signup")}
+              />
               <SiteButton label="View Demo" variant="secondary" onPress={() => scrollToSection("week")} />
             </View>
           </View>
@@ -307,8 +314,10 @@ export default function Welcome() {
         padding={padding}
         isDesktop={isDesktop}
         onJump={scrollToSection}
+        isAuthenticated={isAuthenticated}
         onLogin={() => router.push("/login")}
         onSignup={() => router.push("/signup")}
+        onOpenApp={() => router.push("/(tabs)")}
       />
     </ScrollView>
   );
@@ -316,14 +325,18 @@ export default function Welcome() {
 
 function TopNavigation({
   isTablet,
+  isAuthenticated,
   onJump,
   onLogin,
   onSignup,
+  onOpenApp,
 }: {
   isTablet: boolean;
+  isAuthenticated: boolean;
   onJump: (key: SectionKey) => void;
   onLogin: () => void;
   onSignup: () => void;
+  onOpenApp: () => void;
 }) {
   return (
     <View
@@ -350,8 +363,12 @@ function TopNavigation({
         </View>
 
         <View style={{ flexDirection: "row", gap: 10 }}>
-          <SiteButton label="Log In" variant="secondary" onPress={onLogin} />
-          <SiteButton label="Get Started" onPress={onSignup} />
+          {isAuthenticated ? (
+            <SiteButton label="Open App" variant="secondary" onPress={onOpenApp} />
+          ) : (
+            <SiteButton label="Log In" variant="secondary" onPress={onLogin} />
+          )}
+          <SiteButton label={isAuthenticated ? "Create Another Account" : "Get Started"} onPress={onSignup} />
         </View>
       </View>
     </View>
@@ -524,15 +541,19 @@ function FaqRow({ question, answer }: { question: string; answer: string }) {
 function Footer({
   padding,
   isDesktop,
+  isAuthenticated,
   onJump,
   onLogin,
   onSignup,
+  onOpenApp,
 }: {
   padding: number;
   isDesktop: boolean;
+  isAuthenticated: boolean;
   onJump: (key: SectionKey) => void;
   onLogin: () => void;
   onSignup: () => void;
+  onOpenApp: () => void;
 }) {
   return (
     <View
@@ -569,7 +590,7 @@ function Footer({
 
         <View style={{ gap: 12 }}>
           <Text style={{ color: "#6f89a6", fontSize: 12, fontWeight: "800" }}>ACCOUNT</Text>
-          <FooterLink label="Log In" onPress={onLogin} />
+          <FooterLink label={isAuthenticated ? "Open App" : "Log In"} onPress={isAuthenticated ? onOpenApp : onLogin} />
           <FooterLink label="Get Started" onPress={onSignup} />
         </View>
       </View>

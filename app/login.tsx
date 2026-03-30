@@ -4,7 +4,7 @@ import { Pressable, Text, TextInput, View } from "react-native";
 import { useProfile } from "@/contexts/profile-context";
 
 export default function Login() {
-  const { logIn, isAuthenticated, requiresOnboarding, sessionStatusMessage } = useProfile();
+  const { logIn, isAuthenticated, sessionStatusMessage } = useProfile();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -151,7 +151,7 @@ export default function Login() {
 
         {isAuthenticated ? (
           <Pressable
-            onPress={() => router.replace(requiresOnboarding ? "/onboarding" : "/(tabs)")}
+            onPress={() => router.replace("/(tabs)")}
             style={{ marginTop: 16 }}
           >
             <Text style={{ color: "#9db2ca", textAlign: "center", fontSize: 14, fontWeight: "600" }}>

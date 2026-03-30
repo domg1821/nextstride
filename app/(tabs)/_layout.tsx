@@ -30,7 +30,7 @@ const TAB_CONFIGS: TabConfig[] = [
 ];
 
 export default function TabLayout() {
-  const { authReady, isAuthenticated, requiresOnboarding } = useProfile();
+  const { authReady, isAuthenticated } = useProfile();
   const { colors, isDark } = useThemeColors();
   const { width } = useWindowDimensions();
   const segments = useSegments();
@@ -48,12 +48,7 @@ export default function TabLayout() {
       router.replace("/login");
       return;
     }
-    if (requiresOnboarding) {
-      router.replace("/onboarding");
-      return;
-    }
-
-  }, [authReady, isAuthenticated, requiresOnboarding]);
+  }, [authReady, isAuthenticated]);
 
   useEffect(() => {
     const targetValue = -Math.max(activeIndex, 0) * width;
@@ -125,7 +120,7 @@ export default function TabLayout() {
     [activeTab, colors, isDark]
   );
 
-  if (!authReady || !isAuthenticated || requiresOnboarding) {
+  if (!authReady || !isAuthenticated) {
     return (
       <View
         style={{
