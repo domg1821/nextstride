@@ -118,6 +118,15 @@ export type TeamType = {
   createdAt: string;
 };
 
+export type TeamDebugInfo = {
+  generatedInviteCode: string;
+  savedInviteCode: string;
+  enteredInviteCode: string;
+  lookupInviteCode: string;
+  lookupResultTeamId: string;
+  lookupError: string;
+};
+
 type StoredAccount = {
   email: string;
   profile: ProfileType;
@@ -165,6 +174,7 @@ type ProfileContextType = {
   currentTeam: TeamType | null;
   currentTeamRole: TeamRole | null;
   teamReady: boolean;
+  teamDebug: TeamDebugInfo;
   appHomeRoute: AppRoute;
   resolvedMaxHeartRate: number | null;
   heartRateZones: HeartRateZone[];
@@ -280,6 +290,15 @@ const EMPTY_PROFILE: ProfileType = {
   runnerLevel: null,
   onboardingAnswers: EMPTY_ONBOARDING_ANSWERS,
   preferredTrainingDays: 4,
+};
+
+const EMPTY_TEAM_DEBUG: TeamDebugInfo = {
+  generatedInviteCode: "",
+  savedInviteCode: "",
+  enteredInviteCode: "",
+  lookupInviteCode: "",
+  lookupResultTeamId: "",
+  lookupError: "",
 };
 
 export type AppRoute = "/(solo)" | "/(coach)" | "/(team)";
@@ -728,6 +747,7 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
   const [currentTeam, setCurrentTeam] = useState<TeamType | null>(null);
   const [currentTeamRole, setCurrentTeamRole] = useState<TeamRole | null>(null);
   const [teamReady, setTeamReady] = useState(false);
+  const [teamDebug, setTeamDebug] = useState<TeamDebugInfo>(EMPTY_TEAM_DEBUG);
   const accountsByEmailRef = useRef<Record<string, StoredAccount>>({});
   const authRequestInFlightRef = useRef(false);
   const authHydratedRef = useRef(false);
@@ -859,6 +879,7 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
         setNotificationPreferences(DEFAULT_NOTIFICATIONS);
         setCurrentTeam(null);
         setCurrentTeamRole(null);
+        setTeamDebug(EMPTY_TEAM_DEBUG);
         setTeamReady(true);
         setSessionStatusMessage(options?.statusMessage ?? "");
         return null;
@@ -871,6 +892,7 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
         setNotificationPreferences(DEFAULT_NOTIFICATIONS);
         setCurrentTeam(null);
         setCurrentTeamRole(null);
+        setTeamDebug(EMPTY_TEAM_DEBUG);
         setTeamReady(true);
         setSessionStatusMessage(options?.statusMessage ?? "");
         return null;
@@ -967,6 +989,7 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
         setSessionRestored(false);
         setCurrentTeam(null);
         setCurrentTeamRole(null);
+        setTeamDebug(EMPTY_TEAM_DEBUG);
         setTeamReady(true);
         setSessionStatusMessage("");
       }
@@ -1456,7 +1479,13 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
           let lastError: unknown = null;
 
           for (let attempt = 0; attempt < 5; attempt += 1) {
-            const inviteCode = generateInviteCode();
+            const inviteCode = generateInviteCode().trim().toUpperCase();
+            setTeamDebug((current) => ({
+              ...current,
+              generatedInviteCode: inviteCode,
+              savedInviteCode: "",
+              lookupError: "",
+            }));
             const insertResult = await supabase
               .from(SUPABASE_TEAMS_TABLE)
               .insert({
@@ -1469,6 +1498,17 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
 
             if (!insertResult.error) {
               createdTeam = normalizeTeam(insertResult.data as SupabaseTeamRow | null);
+              const verifyResult = await supabase
+                .from(SUPABASE_TEAMS_TABLE)
+                .select("*")
+                .eq("id", createdTeam?.id || "")
+                .maybeSingle();
+
+              setTeamDebug((current) => ({
+                ...current,
+                savedInviteCode: normalizeTeam(verifyResult.data as SupabaseTeamRow | null)?.inviteCode || createdTeam?.inviteCode || "",
+                lookupError: verifyResult.error?.message || "",
+              }));
               break;
             }
 
@@ -1520,6 +1560,13 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
           }
 
           const normalizedCode = inviteCode.trim().toUpperCase();
+          setTeamDebug((current) => ({
+            ...current,
+            enteredInviteCode: inviteCode,
+            lookupInviteCode: normalizedCode,
+            lookupResultTeamId: "",
+            lookupError: "",
+          }));
 
           if (!normalizedCode) {
             return { ok: false, error: "Enter an invite code." };
@@ -1528,11 +1575,20 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
           const teamQuery = await supabase
             .from(SUPABASE_TEAMS_TABLE)
             .select("*")
-            .eq("invite_code", normalizedCode)
+            .ilike("invite_code", normalizedCode)
             .maybeSingle();
 
+          setTeamDebug((current) => ({
+            ...current,
+            lookupResultTeamId: teamQuery.data?.id || "",
+            lookupError: teamQuery.error?.message || (!teamQuery.data ? "No team row returned from teams lookup." : ""),
+          }));
+
           if (teamQuery.error || !teamQuery.data) {
-            return { ok: false, error: "Invite code not found." };
+            return {
+              ok: false,
+              error: teamQuery.error ? `Team lookup failed: ${teamQuery.error.message}` : "Invite code not found.",
+            };
           }
 
           const linkedTeam = normalizeTeam(teamQuery.data as SupabaseTeamRow | null);
@@ -1572,6 +1628,7 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
     setSessionRestored(false);
     setCurrentTeam(null);
     setCurrentTeamRole(null);
+    setTeamDebug(EMPTY_TEAM_DEBUG);
     setTeamReady(true);
     setSessionStatusMessage("");
     void supabase.auth.signOut();
@@ -1595,6 +1652,7 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
       currentTeam,
       currentTeamRole,
       teamReady,
+      teamDebug,
       appHomeRoute,
       resolvedMaxHeartRate,
       heartRateZones,
@@ -1626,6 +1684,7 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
       setProfile,
       signOut,
       signUp,
+      teamDebug,
       teamReady,
       updateNotificationPreferences,
       updateProfile,

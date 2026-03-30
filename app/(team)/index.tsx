@@ -8,7 +8,7 @@ import { useThemeColors } from "@/contexts/theme-context";
 
 export default function TeamHome() {
   const { colors } = useThemeColors();
-  const { currentTeam, displayName, joinTeamByCode, profile, teamReady } = useProfile();
+  const { currentTeam, displayName, joinTeamByCode, profile, teamDebug, teamReady } = useProfile();
   const [inviteCode, setInviteCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -78,6 +78,27 @@ export default function TeamHome() {
             {!!error ? (
               <Text style={{ color: colors.danger, fontSize: 14, fontWeight: "700" }}>{error}</Text>
             ) : null}
+
+            <View
+              style={{
+                backgroundColor: colors.background,
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: colors.border,
+                padding: 14,
+                gap: 6,
+              }}
+            >
+              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "800", letterSpacing: 1 }}>
+                TEMP DEBUG
+              </Text>
+              <Text style={{ color: colors.subtext, fontSize: 13 }}>Entered code: {teamDebug.enteredInviteCode || "n/a"}</Text>
+              <Text style={{ color: colors.subtext, fontSize: 13 }}>Lookup code: {teamDebug.lookupInviteCode || "n/a"}</Text>
+              <Text style={{ color: colors.subtext, fontSize: 13 }}>Lookup team id: {teamDebug.lookupResultTeamId || "n/a"}</Text>
+              <Text style={{ color: teamDebug.lookupError ? colors.danger : colors.subtext, fontSize: 13 }}>
+                Lookup result: {teamDebug.lookupError || "Team row found"}
+              </Text>
+            </View>
 
             <PrimaryButton label={loading ? "Joining Team..." : "Join Team"} onPress={() => void handleJoin()} />
           </View>

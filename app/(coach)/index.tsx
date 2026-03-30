@@ -8,7 +8,7 @@ import { useThemeColors } from "@/contexts/theme-context";
 
 export default function CoachDashboard() {
   const { colors } = useThemeColors();
-  const { createTeam, currentTeam, displayName, profile, teamReady } = useProfile();
+  const { createTeam, currentTeam, displayName, profile, teamDebug, teamReady } = useProfile();
   const [teamName, setTeamName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -73,6 +73,26 @@ export default function CoachDashboard() {
               Team creation is locked to one coach = one team for Phase 3. Team workouts and comments can plug into this
               shell next.
             </Text>
+
+            <View
+              style={{
+                backgroundColor: colors.background,
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: colors.border,
+                padding: 14,
+                gap: 6,
+              }}
+            >
+              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "800", letterSpacing: 1 }}>
+                TEMP DEBUG
+              </Text>
+              <Text style={{ color: colors.subtext, fontSize: 13 }}>Generated code: {teamDebug.generatedInviteCode || "n/a"}</Text>
+              <Text style={{ color: colors.subtext, fontSize: 13 }}>Saved code: {teamDebug.savedInviteCode || "n/a"}</Text>
+              {teamDebug.lookupError ? (
+                <Text style={{ color: colors.danger, fontSize: 13 }}>Verify error: {teamDebug.lookupError}</Text>
+              ) : null}
+            </View>
           </View>
         </InfoCard>
       ) : (
