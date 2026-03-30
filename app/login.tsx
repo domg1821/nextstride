@@ -1,43 +1,29 @@
-import { router, useLocalSearchParams } from "expo-router";
-import { useMemo, useState } from "react";
+import { router } from "expo-router";
+import { useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { useProfile } from "@/contexts/profile-context";
 
 export default function Login() {
-  const { logIn, isAuthenticated, requiresEmailVerification, sessionStatusMessage } = useProfile();
-  const params = useLocalSearchParams<{ verified?: string }>();
+  const { logIn, isAuthenticated, sessionStatusMessage } = useProfile();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const helperMessage = useMemo(() => {
-    if (params.verified === "1") {
-      return "Email verified. You can log in now.";
-    }
-
-    return sessionStatusMessage;
-  }, [params.verified, sessionStatusMessage]);
-
   const handleLogIn = async () => {
     setLoading(true);
-    let nextRoute: "/verify-email" | "/(tabs)" | null = null;
+    let nextRoute: "/(tabs)" | null = null;
 
     try {
       const result = await logIn({ email, password });
 
       if (!result.ok) {
         setError(result.error || "Unable to log in.");
-
-        if (result.nextStep === "verify") {
-          nextRoute = "/verify-email";
-        }
-
         return;
       }
 
       setError("");
-      nextRoute = result.nextStep === "verify" ? "/verify-email" : "/(tabs)";
+      nextRoute = "/(tabs)";
     } finally {
       setLoading(false);
 
@@ -118,9 +104,9 @@ export default function Login() {
           </Text>
         ) : null}
 
-        {!error && !!helperMessage ? (
+        {!error && !!sessionStatusMessage ? (
           <Text style={{ color: "#93c5fd", marginTop: 14, fontSize: 14, fontWeight: "600" }}>
-            {helperMessage}
+            {sessionStatusMessage}
           </Text>
         ) : null}
 
@@ -160,7 +146,7 @@ export default function Login() {
 
         {isAuthenticated ? (
           <Pressable
-            onPress={() => router.replace(requiresEmailVerification ? "/verify-email" : "/(tabs)")}
+            onPress={() => router.replace("/(tabs)")}
             style={{ marginTop: 16 }}
           >
             <Text style={{ color: "#9db2ca", textAlign: "center", fontSize: 14, fontWeight: "600" }}>

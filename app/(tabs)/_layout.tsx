@@ -30,7 +30,7 @@ const TAB_CONFIGS: TabConfig[] = [
 ];
 
 export default function TabLayout() {
-  const { authReady, isAuthenticated, requiresEmailVerification } = useProfile();
+  const { authReady, isAuthenticated } = useProfile();
   const { colors, isDark } = useThemeColors();
   const { width } = useWindowDimensions();
   const segments = useSegments();
@@ -49,10 +49,7 @@ export default function TabLayout() {
       return;
     }
 
-    if (requiresEmailVerification) {
-      router.replace("/verify-email");
-    }
-  }, [authReady, isAuthenticated, requiresEmailVerification]);
+  }, [authReady, isAuthenticated]);
 
   useEffect(() => {
     const targetValue = -Math.max(activeIndex, 0) * width;
@@ -124,7 +121,7 @@ export default function TabLayout() {
     [activeTab, colors, isDark]
   );
 
-  if (!authReady || !isAuthenticated || requiresEmailVerification) {
+  if (!authReady || !isAuthenticated) {
     return (
       <View
         style={{
@@ -140,9 +137,7 @@ export default function TabLayout() {
           Preparing your account
         </Text>
         <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 22, marginTop: 8, textAlign: "center" }}>
-          {requiresEmailVerification
-            ? "Checking your verification flow before opening the app."
-            : "Checking your remembered session and account access."}
+          Checking your remembered session and account access.
         </Text>
       </View>
     );

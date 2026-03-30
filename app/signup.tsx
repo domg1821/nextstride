@@ -9,16 +9,14 @@ export default function SignUp() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleCreateAccount = async () => {
-    if (loading || success) {
+    if (loading) {
       return;
     }
 
     setError("");
-    setSuccess("");
 
     if (!name.trim()) {
       setError("Please enter your name.");
@@ -49,7 +47,7 @@ export default function SignUp() {
         return;
       }
 
-      setSuccess("Check your email to verify your account.");
+      router.replace("/(tabs)");
     } catch {
       setError("Unable to create account.");
     } finally {
@@ -105,7 +103,7 @@ export default function SignUp() {
             marginTop: 10,
           }}
         >
-          Create your account and verify your email to start training.
+          Create your account to start training right away.
         </Text>
 
         <TextInput
@@ -175,19 +173,6 @@ export default function SignUp() {
           </Text>
         ) : null}
 
-        {!error && !!success ? (
-          <Text
-            style={{
-              color: "#93c5fd",
-              marginTop: 14,
-              fontSize: 14,
-              fontWeight: "600",
-            }}
-          >
-            {success}
-          </Text>
-        ) : null}
-
         <Pressable
           onPress={handleCreateAccount}
           style={{
@@ -196,12 +181,12 @@ export default function SignUp() {
             borderRadius: 18,
             alignItems: "center",
             marginTop: 18,
-            opacity: loading || !!success ? 0.7 : 1,
+            opacity: loading ? 0.7 : 1,
           }}
-          disabled={loading || !!success}
+          disabled={loading}
         >
           <Text style={{ color: "#ffffff", fontSize: 16, fontWeight: "700" }}>
-            {loading ? "Creating Account..." : success ? "Check Your Email" : "Create Account"}
+            {loading ? "Creating Account..." : "Create Account"}
           </Text>
         </Pressable>
 

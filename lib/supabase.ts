@@ -1,5 +1,4 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Linking from "expo-linking";
 import { createClient } from "@supabase/supabase-js";
 import "react-native-url-polyfill/auto";
 import { Platform } from "react-native";
@@ -48,11 +47,3 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: false,
   },
 });
-
-export function getEmailRedirectUrl() {
-  if (Platform.OS === "web" && typeof window !== "undefined") {
-    return `${window.location.origin}/auth/callback`;
-  }
-
-  return Linking.createURL("/auth/callback");
-}

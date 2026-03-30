@@ -1,11 +1,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { getEmailRedirectUrl, supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { readStoredJson, writeStoredJson } from "@/utils/local-storage";
 import { formatDuration, parseDistance, parseTimeToSeconds } from "@/utils/workout-utils";
 
 const AUTH_ACCOUNTS_STORAGE_KEY = "nextstride.auth.accounts.v2";
-const AUTH_PENDING_EMAIL_STORAGE_KEY = "nextstride.auth.pending-email.v1";
 
 export type PRsType = {
   "400": string;
@@ -64,13 +63,7 @@ type StoredAccount = {
 type AuthResult = {
   ok: boolean;
   error?: string;
-  nextStep?: "verify" | "app";
-};
-
-type VerificationResult = {
-  ok: boolean;
-  error?: string;
-  message?: string;
+  nextStep?: "app";
 };
 
 type ProfileContextType = {
@@ -89,17 +82,12 @@ type ProfileContextType = {
   displayName: string;
   isAuthenticated: boolean;
   authReady: boolean;
-  requiresEmailVerification: boolean;
-  verificationEmail: string;
-  verificationCodeHint: string;
   sessionRestored: boolean;
   sessionStatusMessage: string;
   resolvedMaxHeartRate: number | null;
   heartRateZones: HeartRateZone[];
   signUp: (input: { name?: string; email: string; password: string }) => Promise<AuthResult>;
   logIn: (input: { email: string; password: string }) => Promise<AuthResult>;
-  completeEmailVerification: () => Promise<VerificationResult>;
-  resendEmailVerification: () => Promise<VerificationResult>;
   signOut: () => void;
 };
 
@@ -237,11 +225,7 @@ function getFriendlyAuthError(message: string) {
     normalizedMessage.includes("rate limit") ||
     normalizedMessage.includes("too many requests")
   ) {
-    return "Too many signup or verification emails were requested. Please wait a bit, then try again.";
-  }
-
-  if (normalizedMessage.includes("email not confirmed")) {
-    return "Check your email and verify your account before logging in.";
+    return "Too many requests were sent. Please wait a bit, then try again.";
   }
 
   if (normalizedMessage.includes("invalid login credentials")) {
@@ -254,7 +238,6 @@ function getFriendlyAuthError(message: string) {
 export const ProfileProvider = ({ children }: { children: React.ReactNode }) => {
   const [accountsByEmail, setAccountsByEmail] = useState<Record<string, StoredAccount>>({});
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [pendingVerificationEmail, setPendingVerificationEmail] = useState("");
   const [profile, setProfileState] = useState<ProfileType>(EMPTY_PROFILE);
   const [notificationPreferences, setNotificationPreferences] =
     useState<NotificationPreferences>(DEFAULT_NOTIFICATIONS);
@@ -268,56 +251,38 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
     accountsByEmailRef.current = accountsByEmail;
   }, [accountsByEmail]);
 
-  const syncUserState = useCallback(
-    (user: User | null, options?: { restored?: boolean; statusMessage?: string; preservePendingEmail?: boolean }) => {
-      setCurrentUser(user);
-      setSessionRestored(Boolean(options?.restored && user));
+  const syncUserState = useCallback((user: User | null, options?: { restored?: boolean; statusMessage?: string }) => {
+    setCurrentUser(user);
+    setSessionRestored(Boolean(options?.restored && user));
 
-      if (!user) {
-        setProfileState(EMPTY_PROFILE);
-        setNotificationPreferences(DEFAULT_NOTIFICATIONS);
+    if (!user) {
+      setProfileState(EMPTY_PROFILE);
+      setNotificationPreferences(DEFAULT_NOTIFICATIONS);
+      setSessionStatusMessage(options?.statusMessage ?? "");
+      return;
+    }
 
-        if (!options?.preservePendingEmail) {
-          setPendingVerificationEmail("");
-        }
+    const email = user.email?.trim().toLowerCase();
 
-        setSessionStatusMessage(options?.statusMessage ?? "");
-        return;
-      }
+    if (!email) {
+      setProfileState(EMPTY_PROFILE);
+      setNotificationPreferences(DEFAULT_NOTIFICATIONS);
+      setSessionStatusMessage(options?.statusMessage ?? "");
+      return;
+    }
 
-      const email = user.email?.trim().toLowerCase();
+    const storedAccount = buildStoredAccount(email, user, accountsByEmailRef.current[email]);
 
-      if (!email) {
-        setProfileState(EMPTY_PROFILE);
-        setNotificationPreferences(DEFAULT_NOTIFICATIONS);
-        setSessionStatusMessage(options?.statusMessage ?? "");
-        return;
-      }
-
-      const storedAccount = buildStoredAccount(email, user, accountsByEmailRef.current[email]);
-
-      setAccountsByEmail((currentAccounts) => ({
-        ...currentAccounts,
-        [email]: storedAccount,
-      }));
-      setProfileState(storedAccount.profile);
-      setNotificationPreferences(storedAccount.notifications);
-      setPendingVerificationEmail((currentPendingEmail) => {
-        if (user.email_confirmed_at) {
-          return "";
-        }
-
-        return currentPendingEmail || email;
-      });
-      setSessionStatusMessage(
-        options?.statusMessage ??
-          (user.email_confirmed_at
-            ? `Welcome back, ${storedAccount.profile.name || "Runner"}.`
-            : "Check your email to verify your account before logging in.")
-      );
-    },
-    []
-  );
+    setAccountsByEmail((currentAccounts) => ({
+      ...currentAccounts,
+      [email]: storedAccount,
+    }));
+    setProfileState(storedAccount.profile);
+    setNotificationPreferences(storedAccount.notifications);
+    setSessionStatusMessage(
+      options?.statusMessage ?? `Welcome back, ${storedAccount.profile.name || "Runner"}.`
+    );
+  }, []);
 
   const runExclusiveAuthAction = useCallback(async <T,>(action: () => Promise<T>, fallback: T) => {
     if (authRequestInFlightRef.current) {
@@ -341,7 +306,6 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
         AUTH_ACCOUNTS_STORAGE_KEY,
         {}
       );
-      const storedPendingEmail = await readStoredJson<string>(AUTH_PENDING_EMAIL_STORAGE_KEY, "");
       const normalizedAccounts = Object.fromEntries(
         Object.entries(storedAccounts).map(([email, account]) => [
           email.trim().toLowerCase(),
@@ -354,7 +318,6 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
       }
 
       setAccountsByEmail(normalizedAccounts);
-      setPendingVerificationEmail(storedPendingEmail.trim().toLowerCase());
 
       const {
         data: { session },
@@ -376,12 +339,7 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
         setProfileState(storedAccount.profile);
         setNotificationPreferences(storedAccount.notifications);
         setSessionRestored(true);
-        setSessionStatusMessage(
-          session.user.email_confirmed_at
-            ? `Session restored for ${email}.`
-            : "Check your email to verify your account before logging in."
-        );
-        setPendingVerificationEmail(session.user.email_confirmed_at ? "" : email || storedPendingEmail);
+        setSessionStatusMessage(`Session restored for ${email}.`);
       } else {
         setCurrentUser(null);
         setProfileState(EMPTY_PROFILE);
@@ -393,24 +351,14 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
       setAuthReady(true);
     };
 
-    hydrateAuthState();
+    void hydrateAuthState();
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      const nextUser = session?.user ?? null;
-      const restored = event === "INITIAL_SESSION";
-      const statusMessage =
-        event === "SIGNED_OUT"
-          ? ""
-          : nextUser?.email_confirmed_at
-            ? undefined
-            : "Check your email to verify your account before logging in.";
-
-      syncUserState(nextUser, {
-        restored,
-        statusMessage,
-        preservePendingEmail: !nextUser?.email_confirmed_at,
+      syncUserState(session?.user ?? null, {
+        restored: event === "INITIAL_SESSION",
+        statusMessage: event === "SIGNED_OUT" ? "" : undefined,
       });
       setAuthReady(true);
     });
@@ -429,14 +377,6 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
     void writeStoredJson(AUTH_ACCOUNTS_STORAGE_KEY, accountsByEmail);
   }, [accountsByEmail, authReady]);
 
-  useEffect(() => {
-    if (!authReady) {
-      return;
-    }
-
-    void writeStoredJson(AUTH_PENDING_EMAIL_STORAGE_KEY, pendingVerificationEmail);
-  }, [authReady, pendingVerificationEmail]);
-
   const account = useMemo(() => {
     const email = currentUser?.email?.trim().toLowerCase();
 
@@ -447,7 +387,6 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
     return accountsByEmail[email] ?? buildStoredAccount(email, currentUser, null);
   }, [accountsByEmail, currentUser]);
 
-  const requiresEmailVerification = Boolean(currentUser && !currentUser.email_confirmed_at);
   const parsedAge = Number.parseInt(profile.age, 10);
   const parsedMaxHeartRate = Number.parseInt(profile.maxHeartRate, 10);
   const resolvedMaxHeartRate = useMemo(
@@ -634,7 +573,6 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
               data: {
                 name: formatDisplayName(name || "") || deriveNameFromEmail(normalizedEmail),
               },
-              emailRedirectTo: getEmailRedirectUrl(),
             },
           });
 
@@ -645,31 +583,28 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
             };
           }
 
-          const identities = data.user?.identities ?? [];
-
-          if (data.user && identities.length === 0) {
+          if (!data.user) {
             return {
               ok: false,
-              error: "This email is already registered. Try logging in after verifying it, or use a different address.",
+              error: "Unable to create account.",
             };
           }
 
-          const draftAccount = buildStoredAccount(normalizedEmail, data.user, accountsByEmailRef.current[normalizedEmail]);
-
-          setAccountsByEmail((currentAccounts) => ({
-            ...currentAccounts,
-            [normalizedEmail]: draftAccount,
-          }));
-          setPendingVerificationEmail(normalizedEmail);
-          setSessionStatusMessage("Check your email to verify your account.");
-
-          if (data.session) {
-            await supabase.auth.signOut();
+          if (!data.session) {
+            return {
+              ok: false,
+              error: "Signup succeeded, but no session was returned. Disable email confirmation in Supabase Auth settings for immediate login.",
+            };
           }
+
+          syncUserState(data.user, {
+            restored: false,
+            statusMessage: "Welcome to NextStride. Your account is ready.",
+          });
 
           return {
             ok: true,
-            nextStep: "verify",
+            nextStep: "app",
           };
         },
         {
@@ -677,7 +612,7 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
           error: "Please wait for the current auth request to finish.",
         }
       ),
-    [runExclusiveAuthAction]
+    [runExclusiveAuthAction, syncUserState]
   );
 
   const logIn = useCallback(
@@ -700,42 +635,20 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
           });
 
           if (error) {
-            const needsVerification = error.message.toLowerCase().includes("email not confirmed");
-
-            if (needsVerification) {
-              setPendingVerificationEmail(normalizedEmail);
-              setSessionStatusMessage("Check your inbox for the verification email, then sign in once your email is confirmed.");
-            }
-
             return {
               ok: false,
               error: getFriendlyAuthError(error.message),
-              nextStep: needsVerification ? "verify" : undefined,
             };
           }
 
-          const user = data.user ?? null;
-
-          if (!user) {
+          if (!data.user) {
             return {
               ok: false,
               error: "Unable to log in.",
             };
           }
 
-          if (!user.email_confirmed_at) {
-            setPendingVerificationEmail(normalizedEmail);
-            setSessionStatusMessage("Check your inbox for the verification email, then sign in once your email is confirmed.");
-            await supabase.auth.signOut();
-
-            return {
-              ok: false,
-              error: "Check your email and verify your account before logging in.",
-              nextStep: "verify",
-            };
-          }
-
-          syncUserState(user, {
+          syncUserState(data.user, {
             restored: false,
             statusMessage: "Welcome back. Your account is ready.",
           });
@@ -753,106 +666,12 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
     [runExclusiveAuthAction, syncUserState]
   );
 
-  const completeEmailVerification = useCallback(
-    async (): Promise<VerificationResult> =>
-      runExclusiveAuthAction(
-        async () => {
-          const {
-            data: { user },
-            error,
-          } = await supabase.auth.getUser();
-
-          if (error) {
-            return {
-              ok: false,
-              error: "We couldn't confirm your verification status yet.",
-            };
-          }
-
-          if (!user) {
-            return {
-              ok: false,
-              error: "Open the verification link from your email first, then return here if needed.",
-            };
-          }
-
-          if (!user.email_confirmed_at) {
-            setPendingVerificationEmail(user.email ?? pendingVerificationEmail);
-
-            return {
-              ok: false,
-              error: "This account is still waiting for email verification.",
-            };
-          }
-
-          await supabase.auth.signOut();
-          setPendingVerificationEmail("");
-          setSessionStatusMessage("Email verified. You can log in now.");
-
-          return {
-            ok: true,
-            message: "Email verified. You can log in now.",
-          };
-        },
-        {
-          ok: false,
-          error: "Please wait for the current auth request to finish.",
-        }
-      ),
-    [pendingVerificationEmail, runExclusiveAuthAction]
-  );
-
-  const resendEmailVerification = useCallback(
-    async (): Promise<VerificationResult> =>
-      runExclusiveAuthAction(
-        async () => {
-          const email = (pendingVerificationEmail || currentUser?.email || "").trim().toLowerCase();
-
-          if (!email) {
-            return {
-              ok: false,
-              error: "Enter your email on the signup screen first.",
-            };
-          }
-
-          const { error } = await supabase.auth.resend({
-            type: "signup",
-            email,
-            options: {
-              emailRedirectTo: getEmailRedirectUrl(),
-            },
-          });
-
-          if (error) {
-            return {
-              ok: false,
-              error: getFriendlyAuthError(error.message),
-            };
-          }
-
-          setPendingVerificationEmail(email);
-          setSessionStatusMessage(`A fresh verification email was sent to ${email}.`);
-
-          return {
-            ok: true,
-            message: `A fresh verification email was sent to ${email}.`,
-          };
-        },
-        {
-          ok: false,
-          error: "Please wait for the current auth request to finish.",
-        }
-      ),
-    [currentUser?.email, pendingVerificationEmail, runExclusiveAuthAction]
-  );
-
   const signOut = useCallback(() => {
     setCurrentUser(null);
     setProfileState(EMPTY_PROFILE);
     setNotificationPreferences(DEFAULT_NOTIFICATIONS);
     setSessionRestored(false);
     setSessionStatusMessage("");
-    setPendingVerificationEmail("");
     void supabase.auth.signOut();
   }, []);
 
@@ -868,32 +687,23 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
       displayName: formatDisplayName(profile.name) || deriveNameFromEmail(account?.email || ""),
       isAuthenticated: Boolean(currentUser),
       authReady,
-      requiresEmailVerification,
-      verificationEmail: pendingVerificationEmail || account?.email || "",
-      verificationCodeHint: "",
       sessionRestored,
       sessionStatusMessage,
       resolvedMaxHeartRate,
       heartRateZones,
       signUp,
       logIn,
-      completeEmailVerification,
-      resendEmailVerification,
       signOut,
     }),
     [
       account,
       applyAutomaticPr,
       authReady,
-      completeEmailVerification,
       currentUser,
       heartRateZones,
       logIn,
       notificationPreferences,
-      pendingVerificationEmail,
       profile,
-      requiresEmailVerification,
-      resendEmailVerification,
       resolvedMaxHeartRate,
       sessionRestored,
       sessionStatusMessage,

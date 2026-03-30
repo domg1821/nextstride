@@ -4,24 +4,14 @@ import { ActivityIndicator, Text, View } from "react-native";
 import { useProfile } from "@/contexts/profile-context";
 
 export default function Index() {
-  const {
-    authReady,
-    isAuthenticated,
-    requiresEmailVerification,
-    sessionRestored,
-    sessionStatusMessage,
-  } = useProfile();
+  const { authReady, isAuthenticated, sessionRestored, sessionStatusMessage } = useProfile();
 
   useEffect(() => {
     if (!authReady) {
       return;
     }
 
-    const targetRoute = isAuthenticated
-      ? requiresEmailVerification
-        ? "/verify-email"
-        : "/(tabs)"
-      : "/welcome";
+    const targetRoute = isAuthenticated ? "/(tabs)" : "/welcome";
     const timeout = setTimeout(
       () => {
         router.replace(targetRoute as never);
@@ -30,7 +20,7 @@ export default function Index() {
     );
 
     return () => clearTimeout(timeout);
-  }, [authReady, isAuthenticated, requiresEmailVerification, sessionRestored]);
+  }, [authReady, isAuthenticated, sessionRestored]);
 
   if (!authReady || (isAuthenticated && sessionRestored)) {
     return (
