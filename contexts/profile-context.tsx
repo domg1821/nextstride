@@ -8,6 +8,7 @@ const AUTH_ACCOUNTS_STORAGE_KEY = "nextstride.auth.accounts.v3";
 const SUPABASE_PROFILES_TABLE = "profiles";
 
 export type RunnerLevel = "total_beginner" | "beginner" | "intermediate" | "advanced";
+export type AccountType = "solo_runner" | "coach" | "team_runner";
 
 export type RunningExperienceOption =
   | "completely_new"
@@ -39,6 +40,7 @@ export type RaceDistanceOption =
   | "marathon";
 
 export type OnboardingSurveyAnswers = {
+  accountType: AccountType | "";
   runningExperience: RunningExperienceOption | "";
   canRunTwentyMinutes: AbilityOption | "";
   currentFrequency: FrequencyOption | "";
@@ -82,6 +84,7 @@ export type ProfileType = {
   restingHeartRate: string;
   maxHeartRate: string;
   image?: string;
+  accountType: AccountType;
   onboardingComplete: boolean;
   runnerLevel: RunnerLevel | null;
   onboardingAnswers: OnboardingSurveyAnswers;
@@ -115,6 +118,7 @@ type AuthResult = {
   ok: boolean;
   error?: string;
   nextStep?: "onboarding" | "app";
+  appRoute?: AppRoute;
 };
 
 type OnboardingResult = {
@@ -141,9 +145,10 @@ type ProfileContextType = {
   requiresOnboarding: boolean;
   sessionRestored: boolean;
   sessionStatusMessage: string;
+  appHomeRoute: AppRoute;
   resolvedMaxHeartRate: number | null;
   heartRateZones: HeartRateZone[];
-  signUp: (input: { name?: string; email: string; password: string }) => Promise<AuthResult>;
+  signUp: (input: { name?: string; email: string; password: string; accountType: AccountType }) => Promise<AuthResult>;
   logIn: (input: { email: string; password: string }) => Promise<AuthResult>;
   completeOnboarding: (answers: OnboardingSurveyAnswers) => Promise<OnboardingResult>;
   signOut: () => void;
@@ -162,6 +167,7 @@ type SupabaseProfileRow = {
   resting_heart_rate?: string | number | null;
   max_heart_rate?: string | number | null;
   image?: string | null;
+  account_type?: AccountType | null;
   onboarding_complete?: boolean | null;
   runner_level?: RunnerLevel | null;
   onboarding_answers?: Partial<OnboardingSurveyAnswers> | null;
@@ -198,6 +204,7 @@ const EMPTY_PRS: PRsType = {
 };
 
 const EMPTY_ONBOARDING_ANSWERS: OnboardingSurveyAnswers = {
+  accountType: "",
   runningExperience: "",
   canRunTwentyMinutes: "",
   currentFrequency: "",
@@ -230,11 +237,51 @@ const EMPTY_PROFILE: ProfileType = {
   age: "",
   restingHeartRate: "",
   maxHeartRate: "",
+  accountType: "solo_runner",
   onboardingComplete: false,
   runnerLevel: null,
   onboardingAnswers: EMPTY_ONBOARDING_ANSWERS,
   preferredTrainingDays: 4,
 };
+
+type AppRoute = "/(tabs)" | "/coach-app" | "/team-app";
+
+export function getAppRouteForAccountType(accountType: AccountType | "" | null | undefined): AppRoute {
+  switch (accountType) {
+    case "coach":
+      return "/coach-app";
+    case "team_runner":
+      return "/team-app";
+    default:
+      return "/(tabs)";
+  }
+}
+
+function normalizeAccountType(accountType: AccountType | "" | null | undefined): AccountType {
+  switch (accountType) {
+    case "coach":
+    case "team_runner":
+      return accountType;
+    default:
+      return "solo_runner";
+  }
+}
+
+function shouldRequireOnboarding(
+  profile: Pick<ProfileType, "accountType" | "onboardingComplete"> | null | undefined
+) {
+  if (!profile) {
+    return false;
+  }
+
+  return normalizeAccountType(profile.accountType) === "solo_runner" && !profile.onboardingComplete;
+}
+
+function getPostAuthNextStep(
+  profile: Pick<ProfileType, "accountType" | "onboardingComplete"> | null | undefined
+): "onboarding" | "app" {
+  return shouldRequireOnboarding(profile) ? "onboarding" : "app";
+}
 
 function normalizeProfile(profile: ProfileType): ProfileType {
   const prs = {
@@ -246,6 +293,7 @@ function normalizeProfile(profile: ProfileType): ProfileType {
   return {
     ...EMPTY_PROFILE,
     ...profile,
+    accountType: normalizeAccountType(profile.accountType),
     pr5k,
     prs: {
       ...prs,
@@ -309,6 +357,11 @@ function buildStoredAccount(
     profileOverride?.name ||
     existing?.profile.name ||
     deriveNameFromEmail(normalizedEmail);
+  const fallbackAccountType = normalizeAccountType(
+    profileOverride?.accountType ||
+      (user?.user_metadata?.account_type as AccountType | undefined) ||
+      existing?.profile.accountType
+  );
   const now = new Date().toISOString();
 
   return {
@@ -317,6 +370,7 @@ function buildStoredAccount(
       ...EMPTY_PROFILE,
       ...existing?.profile,
       ...profileOverride,
+      accountType: fallbackAccountType,
       name: fallbackName,
     }),
     notifications: {
@@ -570,6 +624,7 @@ function mapSupabaseProfileRow(row: SupabaseProfileRow | null | undefined): Part
     restingHeartRate: row.resting_heart_rate ? String(row.resting_heart_rate) : "",
     maxHeartRate: row.max_heart_rate ? String(row.max_heart_rate) : "",
     image: row.image ?? undefined,
+    accountType: normalizeAccountType(row.account_type ?? row.onboarding_answers?.accountType),
     onboardingComplete: Boolean(row.onboarding_complete),
     runnerLevel: row.runner_level ?? null,
     onboardingAnswers: {
@@ -594,6 +649,7 @@ function toSupabaseProfilePayload(user: User, profile: ProfileType) {
     resting_heart_rate: profile.restingHeartRate,
     max_heart_rate: profile.maxHeartRate,
     image: profile.image ?? null,
+    account_type: profile.accountType,
     onboarding_complete: profile.onboardingComplete,
     runner_level: profile.runnerLevel,
     onboarding_answers: profile.onboardingAnswers,
@@ -835,6 +891,7 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
 
     return accountsByEmail[email] ?? buildStoredAccount(email, currentUser, null);
   }, [accountsByEmail, currentUser]);
+  const appHomeRoute = useMemo(() => getAppRouteForAccountType(profile.accountType), [profile.accountType]);
 
   const parsedAge = Number.parseInt(profile.age, 10);
   const parsedMaxHeartRate = Number.parseInt(profile.maxHeartRate, 10);
@@ -988,10 +1045,12 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
       name,
       email,
       password,
+      accountType,
     }: {
       name?: string;
       email: string;
       password: string;
+      accountType: AccountType;
     }): Promise<AuthResult> =>
       runExclusiveAuthAction(
         async () => {
@@ -1025,6 +1084,7 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
             options: {
               data: {
                 name: formatDisplayName(name || "") || deriveNameFromEmail(normalizedEmail),
+                account_type: normalizeAccountType(accountType),
               },
             },
           });
@@ -1047,10 +1107,71 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
             restored: false,
             statusMessage: "Welcome to NextStride. Let's build your personalized training plan.",
           });
+          const normalizedSelectedAccountType = normalizeAccountType(accountType);
+          const nextProfile = normalizeProfile({
+            ...(syncedAccount?.profile ?? EMPTY_PROFILE),
+            accountType: normalizedSelectedAccountType,
+            onboardingComplete: normalizedSelectedAccountType === "solo_runner" ? false : syncedAccount?.profile.onboardingComplete,
+            onboardingAnswers: {
+              ...(syncedAccount?.profile.onboardingAnswers ?? EMPTY_ONBOARDING_ANSWERS),
+              accountType: normalizedSelectedAccountType,
+            },
+          });
+
+          if (data.user.email) {
+            const normalizedSignedUpEmail = data.user.email.trim().toLowerCase();
+
+            if (normalizedSelectedAccountType !== "solo_runner") {
+              const shellReadyProfile = normalizeProfile({
+                ...nextProfile,
+                onboardingComplete: true,
+              });
+
+              try {
+                await upsertProfileToSupabase(data.user, shellReadyProfile);
+              } catch (error) {
+                return {
+                  ok: false,
+                  error: `Unable to finish account setup: ${getErrorMessage(error)}`,
+                };
+              }
+
+              setProfileState(shellReadyProfile);
+              persistAccountUpdate(normalizedSignedUpEmail, {
+                profile: shellReadyProfile,
+              });
+              setSessionStatusMessage(
+                normalizedSelectedAccountType === "coach"
+                  ? "Your coach dashboard is ready."
+                  : "Your team runner dashboard is ready."
+              );
+
+              return {
+                ok: true,
+                nextStep: "app",
+                appRoute: getAppRouteForAccountType(normalizedSelectedAccountType),
+              };
+            }
+
+            try {
+              await upsertProfileToSupabase(data.user, nextProfile);
+            } catch (error) {
+              return {
+                ok: false,
+                error: `Unable to finish account setup: ${getErrorMessage(error)}`,
+              };
+            }
+
+            setProfileState(nextProfile);
+            persistAccountUpdate(normalizedSignedUpEmail, {
+              profile: nextProfile,
+            });
+          }
 
           return {
             ok: true,
-            nextStep: syncedAccount?.profile.onboardingComplete ? "app" : "onboarding",
+            nextStep: getPostAuthNextStep(nextProfile),
+            appRoute: getAppRouteForAccountType(normalizedSelectedAccountType),
           };
         },
         {
@@ -1058,7 +1179,7 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
           error: "Please wait for the current auth request to finish.",
         }
       ),
-    [runExclusiveAuthAction, syncUserState]
+    [persistAccountUpdate, runExclusiveAuthAction, syncUserState, upsertProfileToSupabase]
   );
 
   const logIn = useCallback(
@@ -1101,7 +1222,8 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
 
           return {
             ok: true,
-            nextStep: syncedAccount?.profile.onboardingComplete ? "app" : "onboarding",
+            nextStep: getPostAuthNextStep(syncedAccount?.profile),
+            appRoute: getAppRouteForAccountType(syncedAccount?.profile.accountType),
           };
         },
         {
@@ -1123,25 +1245,33 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
             };
           }
 
+          const accountType = normalizeAccountType(answers.accountType || profile.accountType);
+          const isSoloRunner = accountType === "solo_runner";
           const recentResultTime = answers.recentResultTime.trim();
           const recentPrKey = mapRaceDistanceToPrKey(answers.recentResultDistance);
-          const equivalent5k = estimateEquivalent5k(answers.recentResultDistance, recentResultTime);
+          const equivalent5k = isSoloRunner ? estimateEquivalent5k(answers.recentResultDistance, recentResultTime) : "";
           const nextPrs = {
             ...profile.prs,
-            ...(recentPrKey && recentResultTime ? { [recentPrKey]: recentResultTime } : {}),
+            ...(isSoloRunner && recentPrKey && recentResultTime ? { [recentPrKey]: recentResultTime } : {}),
           };
           const nextProfile = normalizeProfile({
             ...profile,
             name: profile.name || deriveNameFromEmail(currentUser.email),
-            mileage: mileageFromSurvey(answers.weeklyMileageRange),
-            goalEvent: goalEventFromGoalDistance(answers.goalRaceDistance) || goalEventFromSurvey(answers.mainGoal),
+            mileage: isSoloRunner ? mileageFromSurvey(answers.weeklyMileageRange) : profile.mileage,
+            goalEvent: isSoloRunner
+              ? goalEventFromGoalDistance(answers.goalRaceDistance) || goalEventFromSurvey(answers.mainGoal)
+              : profile.goalEvent,
             pr5k: equivalent5k || profile.pr5k,
             prs: nextPrs,
-            raceGoals: buildRaceGoalsFromAnswers(answers, profile.raceGoals),
+            raceGoals: isSoloRunner ? buildRaceGoalsFromAnswers(answers, profile.raceGoals) : profile.raceGoals,
+            accountType,
             onboardingComplete: true,
-            runnerLevel: classifyRunner(answers),
-            onboardingAnswers: answers,
-            preferredTrainingDays: answers.preferredTrainingDays || 4,
+            runnerLevel: isSoloRunner ? classifyRunner(answers) : profile.runnerLevel,
+            onboardingAnswers: {
+              ...answers,
+              accountType,
+            },
+            preferredTrainingDays: isSoloRunner ? answers.preferredTrainingDays || 4 : profile.preferredTrainingDays || 4,
           });
 
           try {
@@ -1159,7 +1289,13 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
           persistAccountUpdate(normalizedEmail, {
             profile: nextProfile,
           });
-          setSessionStatusMessage("Your personalized training plan is ready.");
+          setSessionStatusMessage(
+            accountType === "solo_runner"
+              ? "Your personalized training plan is ready."
+              : accountType === "coach"
+                ? "Your coach dashboard is ready."
+                : "Your team runner dashboard is ready."
+          );
 
           return { ok: true };
         },
@@ -1192,9 +1328,10 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
       displayName: formatDisplayName(profile.name) || deriveNameFromEmail(account?.email || ""),
       isAuthenticated: Boolean(currentUser),
       authReady,
-      requiresOnboarding: Boolean(currentUser && !profile.onboardingComplete),
+      requiresOnboarding: Boolean(currentUser && shouldRequireOnboarding(profile)),
       sessionRestored,
       sessionStatusMessage,
+      appHomeRoute,
       resolvedMaxHeartRate,
       heartRateZones,
       signUp,
@@ -1212,6 +1349,7 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
       logIn,
       notificationPreferences,
       profile,
+      appHomeRoute,
       resolvedMaxHeartRate,
       sessionRestored,
       sessionStatusMessage,

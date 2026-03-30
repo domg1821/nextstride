@@ -4,7 +4,7 @@ import { Pressable, Text, TextInput, View } from "react-native";
 import { useProfile } from "@/contexts/profile-context";
 
 export default function Login() {
-  const { logIn, isAuthenticated, sessionStatusMessage } = useProfile();
+  const { logIn, isAuthenticated, profile, sessionStatusMessage, appHomeRoute } = useProfile();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -17,7 +17,7 @@ export default function Login() {
 
     setError("");
     setLoading(true);
-    let nextRoute: "/(tabs)" | "/onboarding" | null = null;
+    let nextRoute: "/(tabs)" | "/coach-app" | "/team-app" | "/onboarding" | null = null;
 
     try {
       const result = await logIn({ email, password });
@@ -28,7 +28,7 @@ export default function Login() {
       }
 
       setError("");
-      nextRoute = result.nextStep === "onboarding" ? "/onboarding" : "/(tabs)";
+      nextRoute = result.nextStep === "onboarding" ? "/onboarding" : result.appRoute || appHomeRoute;
     } finally {
       setLoading(false);
 
@@ -151,7 +151,9 @@ export default function Login() {
 
         {isAuthenticated ? (
           <Pressable
-            onPress={() => router.replace("/(tabs)")}
+            onPress={() =>
+              router.replace(profile.accountType === "solo_runner" && !profile.onboardingComplete ? "/onboarding" : appHomeRoute)
+            }
             style={{ marginTop: 16 }}
           >
             <Text style={{ color: "#9db2ca", textAlign: "center", fontSize: 14, fontWeight: "600" }}>

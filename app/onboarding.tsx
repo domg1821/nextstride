@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-nativ
 import { InfoCard, PageHeader, PrimaryButton, SecondaryButton } from "@/components/ui-kit";
 import { ScreenScroll } from "@/components/ui-shell";
 import {
+  type AccountType,
   type AbilityOption,
   type FrequencyOption,
   type GoalOption,
@@ -13,12 +14,14 @@ import {
   type RaceDistanceOption,
   type RunningExperienceOption,
   type TrainingPreferenceOption,
+  getAppRouteForAccountType,
   useProfile,
 } from "@/contexts/profile-context";
 import { useThemeColors } from "@/contexts/theme-context";
 
 type QuestionStep =
   | "welcome"
+  | "accountType"
   | "runningExperience"
   | "canRunTwentyMinutes"
   | "currentFrequency"
@@ -57,6 +60,7 @@ type StepConfig =
 
 const STEPS: QuestionStep[] = [
   "welcome",
+  "accountType",
   "runningExperience",
   "canRunTwentyMinutes",
   "currentFrequency",
@@ -68,6 +72,24 @@ const STEPS: QuestionStep[] = [
   "goalRaceDistance",
   "goalTime",
   "goalRaceDate",
+];
+
+const ACCOUNT_TYPE_OPTIONS: Option<AccountType>[] = [
+  {
+    value: "solo_runner",
+    title: "Solo Runner",
+    detail: "Use the current personalized solo training flow and workout experience.",
+  },
+  {
+    value: "coach",
+    title: "Coach",
+    detail: "Set up a coach account and head into the coach dashboard shell for future phases.",
+  },
+  {
+    value: "team_runner",
+    title: "Runner Joining a Team",
+    detail: "Set up a team runner account and land in the team dashboard shell for future phases.",
+  },
 ];
 
 const EXPERIENCE_OPTIONS: Option<RunningExperienceOption>[] = [
@@ -144,6 +166,7 @@ const GOAL_RACE_OPTIONS: Option<Exclude<RaceDistanceOption, "none">>[] = [
 ];
 
 const EMPTY_ANSWERS: OnboardingSurveyAnswers = {
+  accountType: "",
   runningExperience: "",
   canRunTwentyMinutes: "",
   currentFrequency: "",
@@ -160,14 +183,23 @@ const EMPTY_ANSWERS: OnboardingSurveyAnswers = {
 
 export default function Onboarding() {
   const { colors } = useThemeColors();
-  const { authReady, isAuthenticated, profile, completeOnboarding } = useProfile();
+  const { authReady, isAuthenticated, profile, completeOnboarding, appHomeRoute } = useProfile();
   const [stepIndex, setStepIndex] = useState(0);
   const [answers, setAnswers] = useState<OnboardingSurveyAnswers>(() => ({
     ...EMPTY_ANSWERS,
+    accountType: profile.accountType,
     ...profile.onboardingAnswers,
   }));
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const activeAccountType = answers.accountType || profile.accountType || "solo_runner";
+  const steps = useMemo(
+    () =>
+      activeAccountType === "solo_runner"
+        ? STEPS
+        : STEPS.filter((currentStep) => currentStep === "welcome" || currentStep === "accountType"),
+    [activeAccountType]
+  );
 
   useEffect(() => {
     if (!authReady) {
@@ -179,14 +211,23 @@ export default function Onboarding() {
       return;
     }
 
-    if (profile.onboardingComplete) {
-      router.replace("/(tabs)");
+    if (profile.accountType !== "solo_runner") {
+      router.replace(appHomeRoute);
+      return;
     }
-  }, [authReady, isAuthenticated, profile.onboardingComplete]);
 
-  const step = STEPS[stepIndex];
+    if (profile.onboardingComplete) {
+      router.replace(appHomeRoute);
+    }
+  }, [appHomeRoute, authReady, isAuthenticated, profile.accountType, profile.onboardingComplete]);
+
+  useEffect(() => {
+    setStepIndex((current) => Math.min(current, steps.length - 1));
+  }, [steps.length]);
+
+  const step = steps[stepIndex];
   const questionIndex = Math.max(stepIndex - 1, 0);
-  const progressPercent = (questionIndex / (STEPS.length - 2)) * 100;
+  const progressPercent = steps.length > 2 ? (questionIndex / (steps.length - 2)) * 100 : 100;
   const screen = useMemo(() => getScreenConfig(step), [step]);
 
   const updateAnswer = (key: keyof OnboardingSurveyAnswers, value: string | number) => {
@@ -203,11 +244,21 @@ export default function Onboarding() {
     }
 
     updateAnswer(step as keyof OnboardingSurveyAnswers, value);
-    setStepIndex((current) => Math.min(current + 1, STEPS.length - 1));
+
+    if (step === "accountType") {
+      return;
+    }
+
+    setStepIndex((current) => Math.min(current + 1, steps.length - 1));
   };
 
   const validateCurrentStep = () => {
     switch (step) {
+      case "accountType":
+        if (!answers.accountType) {
+          return "Please choose an account type.";
+        }
+        return "";
       case "recentResult":
         if (!answers.recentResultDistance) {
           return "Please choose a recent result distance.";
@@ -248,18 +299,26 @@ export default function Onboarding() {
       return;
     }
 
-    if (stepIndex === STEPS.length - 1) {
+    if (stepIndex === steps.length - 1) {
+      const finalAnswers =
+        activeAccountType === "solo_runner"
+          ? answers
+          : {
+              ...EMPTY_ANSWERS,
+              accountType: activeAccountType,
+              preferredTrainingDays: 4,
+            };
       setLoading(true);
 
       try {
-        const result = await completeOnboarding(answers);
+        const result = await completeOnboarding(finalAnswers);
 
         if (!result.ok) {
           setError(result.error || "Unable to save onboarding.");
           return;
         }
 
-        router.replace("/(tabs)");
+        router.replace(getAppRouteForAccountType(activeAccountType));
       } finally {
         setLoading(false);
       }
@@ -280,7 +339,7 @@ export default function Onboarding() {
     setStepIndex((current) => Math.max(0, current - 1));
   };
 
-  if (!authReady || !isAuthenticated || profile.onboardingComplete) {
+  if (!authReady || !isAuthenticated || profile.accountType !== "solo_runner" || profile.onboardingComplete) {
     return (
       <View
         style={{
@@ -305,7 +364,7 @@ export default function Onboarding() {
   return (
     <ScreenScroll colors={colors}>
       <PageHeader
-        eyebrow={step === "welcome" ? "New Runner Setup" : `Step ${questionIndex} of ${STEPS.length - 1}`}
+        eyebrow={step === "welcome" ? "New Runner Setup" : `Step ${questionIndex} of ${Math.max(steps.length - 1, 1)}`}
         title={screen.title}
         subtitle={screen.subtitle}
       />
@@ -372,10 +431,12 @@ export default function Onboarding() {
               onPress={() => handleOptionSelect(option.value)}
               disabled={loading}
               style={{
-                backgroundColor: colors.card,
+                backgroundColor:
+                  answers[step as keyof OnboardingSurveyAnswers] === option.value ? colors.primarySoft : colors.card,
                 borderRadius: 28,
                 borderWidth: 1,
-                borderColor: colors.border,
+                borderColor:
+                  answers[step as keyof OnboardingSurveyAnswers] === option.value ? colors.primary : colors.border,
                 padding: 22,
                 opacity: loading ? 0.7 : 1,
               }}
@@ -476,9 +537,9 @@ export default function Onboarding() {
             </InfoCard>
           ) : null}
 
-          {screen.kind === "form" ? (
+          {screen.kind === "form" || step === "accountType" ? (
             <PrimaryButton
-              label={stepIndex === STEPS.length - 1 ? "Finish Setup" : "Continue"}
+              label={stepIndex === steps.length - 1 ? "Finish Setup" : "Continue"}
               onPress={() => void handleContinue()}
             />
           ) : null}
@@ -496,6 +557,13 @@ function getScreenConfig(step: QuestionStep): StepConfig {
         kind: "welcome",
         title: "Welcome to NextStride",
         subtitle: "Let's build your personalized training plan",
+      };
+    case "accountType":
+      return {
+        kind: "options",
+        title: "Which account type best matches what you need?",
+        subtitle: "You can keep the solo runner experience or set up a coach or team runner account shell.",
+        options: ACCOUNT_TYPE_OPTIONS,
       };
     case "runningExperience":
       return {

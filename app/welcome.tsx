@@ -41,7 +41,7 @@ const WEEK_PREVIEW = [
 ];
 
 export default function Welcome() {
-  const { isAuthenticated } = useProfile();
+  const { isAuthenticated, profile, appHomeRoute } = useProfile();
   const scrollRef = useRef<ScrollView>(null);
   const sectionOffsets = useRef<Partial<Record<SectionKey, number>>>({});
   const { width } = useWindowDimensions();
@@ -49,6 +49,8 @@ export default function Welcome() {
   const isTablet = width >= 780;
   const padding = isDesktop ? 64 : isTablet ? 32 : 20;
   const heroTitleSize = isDesktop ? 72 : isTablet ? 54 : 40;
+  const openAppRoute =
+    isAuthenticated && profile.accountType === "solo_runner" && !profile.onboardingComplete ? "/onboarding" : appHomeRoute;
 
   const setSectionOffset = (key: SectionKey) => (event: LayoutChangeEvent) => {
     sectionOffsets.current[key] = event.nativeEvent.layout.y;
@@ -78,7 +80,7 @@ export default function Welcome() {
           isAuthenticated={isAuthenticated}
           onLogin={() => router.push("/login")}
           onSignup={() => router.push("/signup")}
-          onOpenApp={() => router.push("/(tabs)")}
+          onOpenApp={() => router.push(openAppRoute)}
         />
 
         <View
@@ -103,7 +105,7 @@ export default function Welcome() {
             <View style={{ flexDirection: isTablet ? "row" : "column", gap: 12, marginTop: 28 }}>
               <SiteButton
                 label={isAuthenticated ? "Open App" : "Get Started"}
-                onPress={() => router.push(isAuthenticated ? "/(tabs)" : "/signup")}
+                onPress={() => router.push(isAuthenticated ? openAppRoute : "/signup")}
               />
               <SiteButton label="View Demo" variant="secondary" onPress={() => scrollToSection("week")} />
             </View>
@@ -317,7 +319,7 @@ export default function Welcome() {
         isAuthenticated={isAuthenticated}
         onLogin={() => router.push("/login")}
         onSignup={() => router.push("/signup")}
-        onOpenApp={() => router.push("/(tabs)")}
+        onOpenApp={() => router.push(openAppRoute)}
       />
     </ScrollView>
   );

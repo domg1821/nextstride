@@ -4,14 +4,18 @@ import { ActivityIndicator, Text, View } from "react-native";
 import { useProfile } from "@/contexts/profile-context";
 
 export default function Index() {
-  const { authReady, isAuthenticated, sessionRestored, sessionStatusMessage } = useProfile();
+  const { authReady, isAuthenticated, profile, sessionRestored, sessionStatusMessage, appHomeRoute } = useProfile();
 
   useEffect(() => {
     if (!authReady) {
       return;
     }
 
-    const targetRoute = isAuthenticated ? "/(tabs)" : "/welcome";
+    const targetRoute = isAuthenticated
+      ? profile.accountType === "solo_runner" && !profile.onboardingComplete
+        ? "/onboarding"
+        : appHomeRoute
+      : "/welcome";
     const timeout = setTimeout(
       () => {
         router.replace(targetRoute as never);
@@ -20,7 +24,7 @@ export default function Index() {
     );
 
     return () => clearTimeout(timeout);
-  }, [authReady, isAuthenticated, sessionRestored]);
+  }, [appHomeRoute, authReady, isAuthenticated, profile.accountType, profile.onboardingComplete, sessionRestored]);
 
   if (!authReady || (isAuthenticated && sessionRestored)) {
     return (

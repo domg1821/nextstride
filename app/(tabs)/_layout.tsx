@@ -30,7 +30,7 @@ const TAB_CONFIGS: TabConfig[] = [
 ];
 
 export default function TabLayout() {
-  const { authReady, isAuthenticated } = useProfile();
+  const { authReady, isAuthenticated, profile, appHomeRoute } = useProfile();
   const { colors, isDark } = useThemeColors();
   const { width } = useWindowDimensions();
   const segments = useSegments();
@@ -48,7 +48,16 @@ export default function TabLayout() {
       router.replace("/login");
       return;
     }
-  }, [authReady, isAuthenticated]);
+
+    if (profile.accountType === "solo_runner" && !profile.onboardingComplete) {
+      router.replace("/onboarding");
+      return;
+    }
+
+    if (profile.accountType !== "solo_runner") {
+      router.replace(appHomeRoute);
+    }
+  }, [appHomeRoute, authReady, isAuthenticated, profile.accountType, profile.onboardingComplete]);
 
   useEffect(() => {
     const targetValue = -Math.max(activeIndex, 0) * width;
@@ -120,7 +129,12 @@ export default function TabLayout() {
     [activeTab, colors, isDark]
   );
 
-  if (!authReady || !isAuthenticated) {
+  if (
+    !authReady ||
+    !isAuthenticated ||
+    (profile.accountType === "solo_runner" && !profile.onboardingComplete) ||
+    profile.accountType !== "solo_runner"
+  ) {
     return (
       <View
         style={{

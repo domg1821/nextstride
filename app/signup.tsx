@@ -1,13 +1,32 @@
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
-import { useProfile } from "@/contexts/profile-context";
+import { type AccountType, useProfile } from "@/contexts/profile-context";
+
+const ACCOUNT_TYPE_OPTIONS: { value: AccountType; title: string; detail: string }[] = [
+  {
+    value: "solo_runner",
+    title: "Solo Runner",
+    detail: "Build your own personalized training plan and use the current solo app experience.",
+  },
+  {
+    value: "coach",
+    title: "Coach",
+    detail: "Set up a coach account and land in the new coach dashboard shell.",
+  },
+  {
+    value: "team_runner",
+    title: "Runner Joining a Team",
+    detail: "Set up a runner account that will connect to team experiences in a later phase.",
+  },
+];
 
 export default function SignUp() {
   const { signUp } = useProfile();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [accountType, setAccountType] = useState<AccountType>("solo_runner");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -40,6 +59,7 @@ export default function SignUp() {
         name,
         email,
         password,
+        accountType,
       });
 
       if (!result.ok) {
@@ -47,7 +67,7 @@ export default function SignUp() {
         return;
       }
 
-      router.replace(result.nextStep === "onboarding" ? "/onboarding" : "/(tabs)");
+      router.replace(result.nextStep === "onboarding" ? "/onboarding" : result.appRoute || "/(tabs)");
     } catch {
       setError("Unable to create account.");
     } finally {
@@ -105,6 +125,31 @@ export default function SignUp() {
         >
           Create your account to start training right away.
         </Text>
+
+        <View style={{ marginTop: 20, gap: 10 }}>
+          {ACCOUNT_TYPE_OPTIONS.map((option) => {
+            const selected = option.value === accountType;
+
+            return (
+              <Pressable
+                key={option.value}
+                onPress={() => setAccountType(option.value)}
+                style={{
+                  backgroundColor: selected ? "#152a46" : "#122033",
+                  borderRadius: 18,
+                  borderWidth: 1,
+                  borderColor: selected ? "#60a5fa" : "#22344b",
+                  padding: 16,
+                }}
+              >
+                <Text style={{ color: "#f8fbff", fontSize: 16, fontWeight: "800" }}>{option.title}</Text>
+                <Text style={{ color: "#9db2ca", fontSize: 13, lineHeight: 20, marginTop: 6 }}>
+                  {option.detail}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
         <TextInput
           placeholder="Name"
