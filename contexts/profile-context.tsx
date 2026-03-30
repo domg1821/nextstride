@@ -6,6 +6,8 @@ import { formatDuration, parseDistance, parseTimeToSeconds } from "@/utils/worko
 
 const AUTH_ACCOUNTS_STORAGE_KEY = "nextstride.auth.accounts.v3";
 const SUPABASE_PROFILES_TABLE = "profiles";
+const SUPABASE_TEAMS_TABLE = "teams";
+const SUPABASE_TEAM_MEMBERS_TABLE = "team_members";
 
 export type RunnerLevel = "total_beginner" | "beginner" | "intermediate" | "advanced";
 export type AccountType = "solo_runner" | "coach" | "team_runner";
@@ -106,6 +108,16 @@ export type HeartRateZone = {
   max: number;
 };
 
+export type TeamRole = "coach" | "runner";
+
+export type TeamType = {
+  id: string;
+  name: string;
+  coachId: string;
+  inviteCode: string;
+  createdAt: string;
+};
+
 type StoredAccount = {
   email: string;
   profile: ProfileType;
@@ -122,6 +134,11 @@ type AuthResult = {
 };
 
 type OnboardingResult = {
+  ok: boolean;
+  error?: string;
+};
+
+type TeamActionResult = {
   ok: boolean;
   error?: string;
 };
@@ -145,12 +162,17 @@ type ProfileContextType = {
   requiresOnboarding: boolean;
   sessionRestored: boolean;
   sessionStatusMessage: string;
+  currentTeam: TeamType | null;
+  currentTeamRole: TeamRole | null;
+  teamReady: boolean;
   appHomeRoute: AppRoute;
   resolvedMaxHeartRate: number | null;
   heartRateZones: HeartRateZone[];
   signUp: (input: { name?: string; email: string; password: string; accountType: AccountType }) => Promise<AuthResult>;
   logIn: (input: { email: string; password: string }) => Promise<AuthResult>;
   completeOnboarding: (answers: OnboardingSurveyAnswers) => Promise<OnboardingResult>;
+  createTeam: (input: { name: string }) => Promise<TeamActionResult>;
+  joinTeamByCode: (input: { inviteCode: string }) => Promise<TeamActionResult>;
   signOut: () => void;
 };
 
@@ -172,6 +194,22 @@ type SupabaseProfileRow = {
   runner_level?: RunnerLevel | null;
   onboarding_answers?: Partial<OnboardingSurveyAnswers> | null;
   training_days_per_week?: number | null;
+};
+
+type SupabaseTeamRow = {
+  id: string;
+  name?: string | null;
+  coach_id?: string | null;
+  invite_code?: string | null;
+  created_at?: string | null;
+};
+
+type SupabaseTeamMemberRow = {
+  id?: string;
+  team_id?: string | null;
+  user_id?: string | null;
+  role?: TeamRole | null;
+  created_at?: string | null;
 };
 
 const ProfileContext = createContext<ProfileContextType | null>(null);
@@ -265,6 +303,26 @@ function normalizeAccountType(accountType: AccountType | "" | null | undefined):
     default:
       return "solo_runner";
   }
+}
+
+function normalizeTeam(row: SupabaseTeamRow | null | undefined): TeamType | null {
+  if (!row?.id) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    name: row.name?.trim() || "Untitled Team",
+    coachId: row.coach_id?.trim() || "",
+    inviteCode: row.invite_code?.trim().toUpperCase() || "",
+    createdAt: row.created_at || "",
+  };
+}
+
+function generateInviteCode(length = 6) {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+  return Array.from({ length }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
 }
 
 function shouldRequireOnboarding(
@@ -667,6 +725,9 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
   const [authReady, setAuthReady] = useState(false);
   const [sessionRestored, setSessionRestored] = useState(false);
   const [sessionStatusMessage, setSessionStatusMessage] = useState("");
+  const [currentTeam, setCurrentTeam] = useState<TeamType | null>(null);
+  const [currentTeamRole, setCurrentTeamRole] = useState<TeamRole | null>(null);
+  const [teamReady, setTeamReady] = useState(false);
   const accountsByEmailRef = useRef<Record<string, StoredAccount>>({});
   const authRequestInFlightRef = useRef(false);
   const authHydratedRef = useRef(false);
@@ -740,6 +801,54 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
     throw lastError ?? new Error("Unable to save profile.");
   }, []);
 
+  const fetchTeamForUser = useCallback(async (userId: string, accountType: AccountType) => {
+    if (accountType === "coach") {
+      const { data, error } = await supabase
+        .from(SUPABASE_TEAMS_TABLE)
+        .select("*")
+        .eq("coach_id", userId)
+        .maybeSingle();
+
+      if (error) {
+        return { team: null, role: null as TeamRole | null };
+      }
+
+      return {
+        team: normalizeTeam(data as SupabaseTeamRow | null),
+        role: data ? ("coach" as TeamRole) : null,
+      };
+    }
+
+    if (accountType === "team_runner") {
+      const membershipQuery = await supabase
+        .from(SUPABASE_TEAM_MEMBERS_TABLE)
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (membershipQuery.error || !membershipQuery.data?.team_id) {
+        return { team: null, role: null as TeamRole | null };
+      }
+
+      const teamQuery = await supabase
+        .from(SUPABASE_TEAMS_TABLE)
+        .select("*")
+        .eq("id", membershipQuery.data.team_id)
+        .maybeSingle();
+
+      if (teamQuery.error) {
+        return { team: null, role: null as TeamRole | null };
+      }
+
+      return {
+        team: normalizeTeam(teamQuery.data as SupabaseTeamRow | null),
+        role: (membershipQuery.data.role as TeamRole | null) ?? "runner",
+      };
+    }
+
+    return { team: null, role: null as TeamRole | null };
+  }, []);
+
   const syncUserState = useCallback(
     async (user: User | null, options?: { restored?: boolean; statusMessage?: string }) => {
       setCurrentUser(user);
@@ -748,6 +857,9 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
       if (!user) {
         setProfileState(EMPTY_PROFILE);
         setNotificationPreferences(DEFAULT_NOTIFICATIONS);
+        setCurrentTeam(null);
+        setCurrentTeamRole(null);
+        setTeamReady(true);
         setSessionStatusMessage(options?.statusMessage ?? "");
         return null;
       }
@@ -757,12 +869,16 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
       if (!email) {
         setProfileState(EMPTY_PROFILE);
         setNotificationPreferences(DEFAULT_NOTIFICATIONS);
+        setCurrentTeam(null);
+        setCurrentTeamRole(null);
+        setTeamReady(true);
         setSessionStatusMessage(options?.statusMessage ?? "");
         return null;
       }
 
       const remoteProfile = await fetchProfileFromSupabase(user.id);
       const storedAccount = buildStoredAccount(email, user, accountsByEmailRef.current[email], remoteProfile);
+      const teamState = await fetchTeamForUser(user.id, storedAccount.profile.accountType);
 
       setAccountsByEmail((currentAccounts) => ({
         ...currentAccounts,
@@ -770,6 +886,9 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
       }));
       setProfileState(storedAccount.profile);
       setNotificationPreferences(storedAccount.notifications);
+      setCurrentTeam(teamState.team);
+      setCurrentTeamRole(teamState.role);
+      setTeamReady(true);
       setSessionStatusMessage(
         options?.statusMessage ??
           (storedAccount.profile.onboardingComplete
@@ -779,7 +898,7 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
 
       return storedAccount;
     },
-    [fetchProfileFromSupabase]
+    [fetchProfileFromSupabase, fetchTeamForUser]
   );
 
   const runExclusiveAuthAction = useCallback(async <T,>(action: () => Promise<T>, fallback: T) => {
@@ -801,6 +920,7 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
 
     const hydrateAuthState = async () => {
       authHydratedRef.current = false;
+      setTeamReady(false);
 
       const storedAccounts = await readStoredJson<Record<string, Partial<StoredAccount>>>(
         AUTH_ACCOUNTS_STORAGE_KEY,
@@ -845,6 +965,9 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
         setProfileState(EMPTY_PROFILE);
         setNotificationPreferences(DEFAULT_NOTIFICATIONS);
         setSessionRestored(false);
+        setCurrentTeam(null);
+        setCurrentTeamRole(null);
+        setTeamReady(true);
         setSessionStatusMessage("");
       }
 
@@ -1307,11 +1430,149 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
     [currentUser, persistAccountUpdate, profile, runExclusiveAuthAction, upsertProfileToSupabase]
   );
 
+  const createTeam = useCallback(
+    async ({ name }: { name: string }): Promise<TeamActionResult> =>
+      runExclusiveAuthAction(
+        async () => {
+          if (!currentUser) {
+            return { ok: false, error: "Sign in before creating a team." };
+          }
+
+          if (profile.accountType !== "coach") {
+            return { ok: false, error: "Only coach accounts can create a team." };
+          }
+
+          if (currentTeam) {
+            return { ok: false, error: "You already have a team." };
+          }
+
+          const teamName = name.trim();
+
+          if (!teamName) {
+            return { ok: false, error: "Enter a team name." };
+          }
+
+          let createdTeam: TeamType | null = null;
+          let lastError: unknown = null;
+
+          for (let attempt = 0; attempt < 5; attempt += 1) {
+            const inviteCode = generateInviteCode();
+            const insertResult = await supabase
+              .from(SUPABASE_TEAMS_TABLE)
+              .insert({
+                name: teamName,
+                coach_id: currentUser.id,
+                invite_code: inviteCode,
+              })
+              .select("*")
+              .single();
+
+            if (!insertResult.error) {
+              createdTeam = normalizeTeam(insertResult.data as SupabaseTeamRow | null);
+              break;
+            }
+
+            lastError = insertResult.error;
+          }
+
+          if (!createdTeam) {
+            return { ok: false, error: `Unable to create team: ${getErrorMessage(lastError)}` };
+          }
+
+          const membershipResult = await supabase.from(SUPABASE_TEAM_MEMBERS_TABLE).insert({
+            team_id: createdTeam.id,
+            user_id: currentUser.id,
+            role: "coach",
+          });
+
+          if (membershipResult.error) {
+            return { ok: false, error: `Team created but membership failed: ${getErrorMessage(membershipResult.error)}` };
+          }
+
+          setCurrentTeam(createdTeam);
+          setCurrentTeamRole("coach");
+          setSessionStatusMessage(`Team ${createdTeam.name} is ready.`);
+
+          return { ok: true };
+        },
+        {
+          ok: false,
+          error: "Please wait for the current request to finish.",
+        }
+      ),
+    [currentTeam, currentUser, profile.accountType, runExclusiveAuthAction]
+  );
+
+  const joinTeamByCode = useCallback(
+    async ({ inviteCode }: { inviteCode: string }): Promise<TeamActionResult> =>
+      runExclusiveAuthAction(
+        async () => {
+          if (!currentUser) {
+            return { ok: false, error: "Sign in before joining a team." };
+          }
+
+          if (profile.accountType !== "team_runner") {
+            return { ok: false, error: "Only team runner accounts can join a team." };
+          }
+
+          if (currentTeam) {
+            return { ok: false, error: "You are already linked to a team." };
+          }
+
+          const normalizedCode = inviteCode.trim().toUpperCase();
+
+          if (!normalizedCode) {
+            return { ok: false, error: "Enter an invite code." };
+          }
+
+          const teamQuery = await supabase
+            .from(SUPABASE_TEAMS_TABLE)
+            .select("*")
+            .eq("invite_code", normalizedCode)
+            .maybeSingle();
+
+          if (teamQuery.error || !teamQuery.data) {
+            return { ok: false, error: "Invite code not found." };
+          }
+
+          const linkedTeam = normalizeTeam(teamQuery.data as SupabaseTeamRow | null);
+
+          if (!linkedTeam) {
+            return { ok: false, error: "Invite code not found." };
+          }
+
+          const membershipResult = await supabase.from(SUPABASE_TEAM_MEMBERS_TABLE).insert({
+            team_id: linkedTeam.id,
+            user_id: currentUser.id,
+            role: "runner",
+          });
+
+          if (membershipResult.error) {
+            return { ok: false, error: `Unable to join team: ${getErrorMessage(membershipResult.error)}` };
+          }
+
+          setCurrentTeam(linkedTeam);
+          setCurrentTeamRole("runner");
+          setSessionStatusMessage(`You joined ${linkedTeam.name}.`);
+
+          return { ok: true };
+        },
+        {
+          ok: false,
+          error: "Please wait for the current request to finish.",
+        }
+      ),
+    [currentTeam, currentUser, profile.accountType, runExclusiveAuthAction]
+  );
+
   const signOut = useCallback(() => {
     setCurrentUser(null);
     setProfileState(EMPTY_PROFILE);
     setNotificationPreferences(DEFAULT_NOTIFICATIONS);
     setSessionRestored(false);
+    setCurrentTeam(null);
+    setCurrentTeamRole(null);
+    setTeamReady(true);
     setSessionStatusMessage("");
     void supabase.auth.signOut();
   }, []);
@@ -1331,12 +1592,17 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
       requiresOnboarding: Boolean(currentUser && shouldRequireOnboarding(profile)),
       sessionRestored,
       sessionStatusMessage,
+      currentTeam,
+      currentTeamRole,
+      teamReady,
       appHomeRoute,
       resolvedMaxHeartRate,
       heartRateZones,
       signUp,
       logIn,
       completeOnboarding,
+      createTeam,
+      joinTeamByCode,
       signOut,
     }),
     [
@@ -1344,8 +1610,12 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
       applyAutomaticPr,
       authReady,
       completeOnboarding,
+      createTeam,
       currentUser,
+      currentTeam,
+      currentTeamRole,
       heartRateZones,
+      joinTeamByCode,
       logIn,
       notificationPreferences,
       profile,
@@ -1356,6 +1626,7 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
       setProfile,
       signOut,
       signUp,
+      teamReady,
       updateNotificationPreferences,
       updateProfile,
     ]
