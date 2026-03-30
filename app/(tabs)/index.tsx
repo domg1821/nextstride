@@ -39,6 +39,10 @@ export default function Home() {
         likedWorkoutCategories,
         planCycle,
         {
+          runnerLevel: profile.runnerLevel,
+          preferredTrainingDays: profile.preferredTrainingDays,
+        },
+        {
           workouts: workouts.map((workout) => ({
             date: workout.date,
             effort: workout.effort,
@@ -54,6 +58,8 @@ export default function Home() {
       mileageGoal,
       planCycle,
       profile.goalEvent,
+      profile.runnerLevel,
+      profile.preferredTrainingDays,
       profile.pr5k,
       workouts,
     ]

@@ -47,7 +47,7 @@ export default function SignUp() {
         return;
       }
 
-      router.replace("/(tabs)");
+      router.replace(result.nextStep === "onboarding" ? "/onboarding" : "/(tabs)");
     } catch {
       setError("Unable to create account.");
     } finally {

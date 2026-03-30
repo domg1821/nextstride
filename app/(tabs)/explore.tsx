@@ -82,6 +82,10 @@ export default function Plan() {
         likedWorkoutCategories,
         planCycle,
         {
+          runnerLevel: profile.runnerLevel,
+          preferredTrainingDays: profile.preferredTrainingDays,
+        },
+        {
           workouts: workouts.map((workout) => ({
             date: workout.date,
             effort: workout.effort,
@@ -91,7 +95,17 @@ export default function Plan() {
           completedWorkoutIds,
         }
       ),
-    [completedWorkoutIds, likedWorkoutCategories, planCycle, profile.goalEvent, profile.mileage, profile.pr5k, workouts]
+    [
+      completedWorkoutIds,
+      likedWorkoutCategories,
+      planCycle,
+      profile.goalEvent,
+      profile.mileage,
+      profile.pr5k,
+      profile.runnerLevel,
+      profile.preferredTrainingDays,
+      workouts,
+    ]
   );
 
   const planDays = useMemo(

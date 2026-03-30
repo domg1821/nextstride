@@ -4,7 +4,41 @@ import { supabase } from "@/lib/supabase";
 import { readStoredJson, writeStoredJson } from "@/utils/local-storage";
 import { formatDuration, parseDistance, parseTimeToSeconds } from "@/utils/workout-utils";
 
-const AUTH_ACCOUNTS_STORAGE_KEY = "nextstride.auth.accounts.v2";
+const AUTH_ACCOUNTS_STORAGE_KEY = "nextstride.auth.accounts.v3";
+const SUPABASE_PROFILES_TABLE = "profiles";
+
+export type RunnerLevel = "total_beginner" | "beginner" | "intermediate" | "advanced";
+
+export type RunningExperienceOption =
+  | "completely_new"
+  | "inconsistent"
+  | "somewhat_consistent"
+  | "very_consistent";
+
+export type AbilityOption = "no" | "barely" | "yes";
+export type FrequencyOption = "0" | "1-2" | "3-4" | "5-6" | "7";
+export type MileageOption = "0" | "1-10" | "11-20" | "21-35" | "36+";
+export type LongestRunOption = "less_than_2" | "3-5" | "6-8" | "9+";
+export type GoalOption =
+  | "start_running"
+  | "get_fitter"
+  | "run_5k"
+  | "run_10k"
+  | "run_half"
+  | "run_marathon"
+  | "get_faster";
+
+export type TrainingPreferenceOption = 3 | 4 | 5 | 6 | 7;
+
+export type OnboardingSurveyAnswers = {
+  runningExperience: RunningExperienceOption | "";
+  canRunTwentyMinutes: AbilityOption | "";
+  currentFrequency: FrequencyOption | "";
+  weeklyMileageRange: MileageOption | "";
+  longestRecentRun: LongestRunOption | "";
+  mainGoal: GoalOption | "";
+  preferredTrainingDays: TrainingPreferenceOption | 0;
+};
 
 export type PRsType = {
   "400": string;
@@ -35,6 +69,10 @@ export type ProfileType = {
   restingHeartRate: string;
   maxHeartRate: string;
   image?: string;
+  onboardingComplete: boolean;
+  runnerLevel: RunnerLevel | null;
+  onboardingAnswers: OnboardingSurveyAnswers;
+  preferredTrainingDays: number;
 };
 
 export type NotificationPreferences = {
@@ -63,7 +101,12 @@ type StoredAccount = {
 type AuthResult = {
   ok: boolean;
   error?: string;
-  nextStep?: "app";
+  nextStep?: "onboarding" | "app";
+};
+
+type OnboardingResult = {
+  ok: boolean;
+  error?: string;
 };
 
 type ProfileContextType = {
@@ -82,13 +125,34 @@ type ProfileContextType = {
   displayName: string;
   isAuthenticated: boolean;
   authReady: boolean;
+  requiresOnboarding: boolean;
   sessionRestored: boolean;
   sessionStatusMessage: string;
   resolvedMaxHeartRate: number | null;
   heartRateZones: HeartRateZone[];
   signUp: (input: { name?: string; email: string; password: string }) => Promise<AuthResult>;
   logIn: (input: { email: string; password: string }) => Promise<AuthResult>;
+  completeOnboarding: (answers: OnboardingSurveyAnswers) => Promise<OnboardingResult>;
   signOut: () => void;
+};
+
+type SupabaseProfileRow = {
+  user_id?: string;
+  email?: string;
+  name?: string;
+  mileage?: string | number | null;
+  goal_event?: string | null;
+  pr5k?: string | null;
+  prs?: PRsType | null;
+  race_goals?: RaceGoalType[] | null;
+  age?: string | number | null;
+  resting_heart_rate?: string | number | null;
+  max_heart_rate?: string | number | null;
+  image?: string | null;
+  onboarding_complete?: boolean | null;
+  runner_level?: RunnerLevel | null;
+  onboarding_answers?: Partial<OnboardingSurveyAnswers> | null;
+  training_days_per_week?: number | null;
 };
 
 const ProfileContext = createContext<ProfileContextType | null>(null);
@@ -120,6 +184,16 @@ const EMPTY_PRS: PRsType = {
   marathon: "",
 };
 
+const EMPTY_ONBOARDING_ANSWERS: OnboardingSurveyAnswers = {
+  runningExperience: "",
+  canRunTwentyMinutes: "",
+  currentFrequency: "",
+  weeklyMileageRange: "",
+  longestRecentRun: "",
+  mainGoal: "",
+  preferredTrainingDays: 0,
+};
+
 const DEFAULT_NOTIFICATIONS: NotificationPreferences = {
   workoutReminders: true,
   longRunReminders: true,
@@ -138,6 +212,10 @@ const EMPTY_PROFILE: ProfileType = {
   age: "",
   restingHeartRate: "",
   maxHeartRate: "",
+  onboardingComplete: false,
+  runnerLevel: null,
+  onboardingAnswers: EMPTY_ONBOARDING_ANSWERS,
+  preferredTrainingDays: 4,
 };
 
 function normalizeProfile(profile: ProfileType): ProfileType {
@@ -155,6 +233,14 @@ function normalizeProfile(profile: ProfileType): ProfileType {
       ...prs,
       "5k": pr5k,
     },
+    onboardingAnswers: {
+      ...EMPTY_ONBOARDING_ANSWERS,
+      ...(profile.onboardingAnswers ?? {}),
+    },
+    preferredTrainingDays:
+      Number.isFinite(profile.preferredTrainingDays) && profile.preferredTrainingDays >= 3
+        ? profile.preferredTrainingDays
+        : profile.onboardingAnswers?.preferredTrainingDays || 4,
   };
 }
 
@@ -193,10 +279,16 @@ function normalizeStoredAccount(email: string, account?: Partial<StoredAccount> 
   };
 }
 
-function buildStoredAccount(email: string, user?: User | null, existing?: StoredAccount | null): StoredAccount {
+function buildStoredAccount(
+  email: string,
+  user?: User | null,
+  existing?: StoredAccount | null,
+  profileOverride?: Partial<ProfileType> | null
+): StoredAccount {
   const normalizedEmail = email.trim().toLowerCase();
   const fallbackName =
     formatDisplayName((user?.user_metadata?.name as string | undefined) || "") ||
+    profileOverride?.name ||
     existing?.profile.name ||
     deriveNameFromEmail(normalizedEmail);
   const now = new Date().toISOString();
@@ -206,6 +298,7 @@ function buildStoredAccount(email: string, user?: User | null, existing?: Stored
     profile: normalizeProfile({
       ...EMPTY_PROFILE,
       ...existing?.profile,
+      ...profileOverride,
       name: fallbackName,
     }),
     notifications: {
@@ -235,6 +328,181 @@ function getFriendlyAuthError(message: string) {
   return message;
 }
 
+function classifyRunner(answers: OnboardingSurveyAnswers): RunnerLevel {
+  if (
+    answers.canRunTwentyMinutes === "no" &&
+    (answers.currentFrequency === "0" || answers.currentFrequency === "1-2") &&
+    (answers.weeklyMileageRange === "0" || answers.weeklyMileageRange === "1-10")
+  ) {
+    return "total_beginner";
+  }
+
+  let score = 0;
+
+  switch (answers.runningExperience) {
+    case "inconsistent":
+      score += 1;
+      break;
+    case "somewhat_consistent":
+      score += 2;
+      break;
+    case "very_consistent":
+      score += 3;
+      break;
+  }
+
+  switch (answers.canRunTwentyMinutes) {
+    case "barely":
+      score += 1;
+      break;
+    case "yes":
+      score += 3;
+      break;
+  }
+
+  switch (answers.currentFrequency) {
+    case "1-2":
+      score += 1;
+      break;
+    case "3-4":
+      score += 2;
+      break;
+    case "5-6":
+      score += 3;
+      break;
+    case "7":
+      score += 4;
+      break;
+  }
+
+  switch (answers.weeklyMileageRange) {
+    case "1-10":
+      score += 1;
+      break;
+    case "11-20":
+      score += 2;
+      break;
+    case "21-35":
+      score += 3;
+      break;
+    case "36+":
+      score += 4;
+      break;
+  }
+
+  switch (answers.longestRecentRun) {
+    case "3-5":
+      score += 1;
+      break;
+    case "6-8":
+      score += 2;
+      break;
+    case "9+":
+      score += 3;
+      break;
+  }
+
+  if (score <= 3) {
+    return "total_beginner";
+  }
+
+  if (score <= 7) {
+    return "beginner";
+  }
+
+  if (score <= 11) {
+    return "intermediate";
+  }
+
+  return "advanced";
+}
+
+function mileageFromSurvey(range: MileageOption | "") {
+  switch (range) {
+    case "0":
+      return "6";
+    case "1-10":
+      return "10";
+    case "11-20":
+      return "18";
+    case "21-35":
+      return "30";
+    case "36+":
+      return "42";
+    default:
+      return "12";
+  }
+}
+
+function goalEventFromSurvey(goal: GoalOption | "") {
+  switch (goal) {
+    case "run_10k":
+      return "10k";
+    case "run_half":
+      return "half marathon";
+    case "run_marathon":
+      return "marathon";
+    case "get_faster":
+      return "5k";
+    case "run_5k":
+      return "5k";
+    case "start_running":
+      return "5k";
+    case "get_fitter":
+      return "5k";
+    default:
+      return "5k";
+  }
+}
+
+function mapSupabaseProfileRow(row: SupabaseProfileRow | null | undefined): Partial<ProfileType> | null {
+  if (!row) {
+    return null;
+  }
+
+  return {
+    name: row.name ?? "",
+    mileage: row.mileage ? String(row.mileage) : "",
+    goalEvent: row.goal_event ?? "",
+    pr5k: row.pr5k ?? "",
+    prs: row.prs ?? EMPTY_PRS,
+    raceGoals: row.race_goals ?? [],
+    age: row.age ? String(row.age) : "",
+    restingHeartRate: row.resting_heart_rate ? String(row.resting_heart_rate) : "",
+    maxHeartRate: row.max_heart_rate ? String(row.max_heart_rate) : "",
+    image: row.image ?? undefined,
+    onboardingComplete: Boolean(row.onboarding_complete),
+    runnerLevel: row.runner_level ?? null,
+    onboardingAnswers: {
+      ...EMPTY_ONBOARDING_ANSWERS,
+      ...(row.onboarding_answers ?? {}),
+    },
+    preferredTrainingDays: row.training_days_per_week ?? row.onboarding_answers?.preferredTrainingDays ?? 4,
+  };
+}
+
+function toSupabaseProfilePayload(user: User, profile: ProfileType) {
+  return {
+    user_id: user.id,
+    email: user.email?.trim().toLowerCase() || "",
+    name: profile.name,
+    mileage: profile.mileage,
+    goal_event: profile.goalEvent,
+    pr5k: profile.pr5k,
+    prs: profile.prs,
+    race_goals: profile.raceGoals,
+    age: profile.age,
+    resting_heart_rate: profile.restingHeartRate,
+    max_heart_rate: profile.maxHeartRate,
+    image: profile.image ?? null,
+    onboarding_complete: profile.onboardingComplete,
+    runner_level: profile.runnerLevel,
+    onboarding_answers: profile.onboardingAnswers,
+    training_days_per_week: profile.preferredTrainingDays,
+    updated_at: new Date().toISOString(),
+  };
+}
+
 export const ProfileProvider = ({ children }: { children: React.ReactNode }) => {
   const [accountsByEmail, setAccountsByEmail] = useState<Record<string, StoredAccount>>({});
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -251,38 +519,71 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
     accountsByEmailRef.current = accountsByEmail;
   }, [accountsByEmail]);
 
-  const syncUserState = useCallback((user: User | null, options?: { restored?: boolean; statusMessage?: string }) => {
-    setCurrentUser(user);
-    setSessionRestored(Boolean(options?.restored && user));
+  const fetchProfileFromSupabase = useCallback(async (userId: string) => {
+    const { data, error } = await supabase
+      .from(SUPABASE_PROFILES_TABLE)
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
 
-    if (!user) {
-      setProfileState(EMPTY_PROFILE);
-      setNotificationPreferences(DEFAULT_NOTIFICATIONS);
-      setSessionStatusMessage(options?.statusMessage ?? "");
-      return;
+    if (error) {
+      return null;
     }
 
-    const email = user.email?.trim().toLowerCase();
-
-    if (!email) {
-      setProfileState(EMPTY_PROFILE);
-      setNotificationPreferences(DEFAULT_NOTIFICATIONS);
-      setSessionStatusMessage(options?.statusMessage ?? "");
-      return;
-    }
-
-    const storedAccount = buildStoredAccount(email, user, accountsByEmailRef.current[email]);
-
-    setAccountsByEmail((currentAccounts) => ({
-      ...currentAccounts,
-      [email]: storedAccount,
-    }));
-    setProfileState(storedAccount.profile);
-    setNotificationPreferences(storedAccount.notifications);
-    setSessionStatusMessage(
-      options?.statusMessage ?? `Welcome back, ${storedAccount.profile.name || "Runner"}.`
-    );
+    return mapSupabaseProfileRow(data as SupabaseProfileRow | null);
   }, []);
+
+  const upsertProfileToSupabase = useCallback(async (user: User, nextProfile: ProfileType) => {
+    const { error } = await supabase
+      .from(SUPABASE_PROFILES_TABLE)
+      .upsert(toSupabaseProfilePayload(user, nextProfile), { onConflict: "user_id" });
+
+    if (error) {
+      throw error;
+    }
+  }, []);
+
+  const syncUserState = useCallback(
+    async (user: User | null, options?: { restored?: boolean; statusMessage?: string }) => {
+      setCurrentUser(user);
+      setSessionRestored(Boolean(options?.restored && user));
+
+      if (!user) {
+        setProfileState(EMPTY_PROFILE);
+        setNotificationPreferences(DEFAULT_NOTIFICATIONS);
+        setSessionStatusMessage(options?.statusMessage ?? "");
+        return null;
+      }
+
+      const email = user.email?.trim().toLowerCase();
+
+      if (!email) {
+        setProfileState(EMPTY_PROFILE);
+        setNotificationPreferences(DEFAULT_NOTIFICATIONS);
+        setSessionStatusMessage(options?.statusMessage ?? "");
+        return null;
+      }
+
+      const remoteProfile = await fetchProfileFromSupabase(user.id);
+      const storedAccount = buildStoredAccount(email, user, accountsByEmailRef.current[email], remoteProfile);
+
+      setAccountsByEmail((currentAccounts) => ({
+        ...currentAccounts,
+        [email]: storedAccount,
+      }));
+      setProfileState(storedAccount.profile);
+      setNotificationPreferences(storedAccount.notifications);
+      setSessionStatusMessage(
+        options?.statusMessage ??
+          (storedAccount.profile.onboardingComplete
+            ? `Welcome back, ${storedAccount.profile.name || "Runner"}.`
+            : "Finish onboarding to build your personalized training plan.")
+      );
+
+      return storedAccount;
+    },
+    [fetchProfileFromSupabase]
+  );
 
   const runExclusiveAuthAction = useCallback(async <T,>(action: () => Promise<T>, fallback: T) => {
     if (authRequestInFlightRef.current) {
@@ -328,18 +629,18 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
       }
 
       if (session?.user) {
-        const email = session.user.email?.trim().toLowerCase() || "";
-        const storedAccount = buildStoredAccount(email, session.user, normalizedAccounts[email]);
+        const syncedAccount = await syncUserState(session.user, {
+          restored: true,
+          statusMessage: `Session restored for ${session.user.email?.trim().toLowerCase() || "your account"}.`,
+        });
 
-        setAccountsByEmail((currentAccounts) => ({
-          ...currentAccounts,
-          [email]: storedAccount,
-        }));
-        setCurrentUser(session.user);
-        setProfileState(storedAccount.profile);
-        setNotificationPreferences(storedAccount.notifications);
-        setSessionRestored(true);
-        setSessionStatusMessage(`Session restored for ${email}.`);
+        if (!isMounted) {
+          return;
+        }
+
+        if (syncedAccount) {
+          setSessionRestored(true);
+        }
       } else {
         setCurrentUser(null);
         setProfileState(EMPTY_PROFILE);
@@ -356,7 +657,7 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      syncUserState(session?.user ?? null, {
+      void syncUserState(session?.user ?? null, {
         restored: event === "INITIAL_SESSION",
         statusMessage: event === "SIGNED_OUT" ? "" : undefined,
       });
@@ -454,6 +755,10 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
           prs: {
             ...current.prs,
             ...(updates.prs ?? {}),
+          },
+          onboardingAnswers: {
+            ...current.onboardingAnswers,
+            ...(updates.onboardingAnswers ?? {}),
           },
         })
       );
@@ -583,28 +888,21 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
             };
           }
 
-          if (!data.user) {
+          if (!data.user || !data.session) {
             return {
               ok: false,
-              error: "Unable to create account.",
+              error: "Unable to create an active session. Confirm email signup is configured correctly in Supabase.",
             };
           }
 
-          if (!data.session) {
-            return {
-              ok: false,
-              error: "Signup succeeded, but no session was returned. Disable email confirmation in Supabase Auth settings for immediate login.",
-            };
-          }
-
-          syncUserState(data.user, {
+          const syncedAccount = await syncUserState(data.user, {
             restored: false,
-            statusMessage: "Welcome to NextStride. Your account is ready.",
+            statusMessage: "Welcome to NextStride. Let's build your personalized training plan.",
           });
 
           return {
             ok: true,
-            nextStep: "app",
+            nextStep: syncedAccount?.profile.onboardingComplete ? "app" : "onboarding",
           };
         },
         {
@@ -648,14 +946,14 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
             };
           }
 
-          syncUserState(data.user, {
+          const syncedAccount = await syncUserState(data.user, {
             restored: false,
             statusMessage: "Welcome back. Your account is ready.",
           });
 
           return {
             ok: true,
-            nextStep: "app",
+            nextStep: syncedAccount?.profile.onboardingComplete ? "app" : "onboarding",
           };
         },
         {
@@ -664,6 +962,56 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
         }
       ),
     [runExclusiveAuthAction, syncUserState]
+  );
+
+  const completeOnboarding = useCallback(
+    async (answers: OnboardingSurveyAnswers): Promise<OnboardingResult> =>
+      runExclusiveAuthAction(
+        async () => {
+          if (!currentUser?.email) {
+            return {
+              ok: false,
+              error: "Sign in before completing onboarding.",
+            };
+          }
+
+          const nextProfile = normalizeProfile({
+            ...profile,
+            name: profile.name || deriveNameFromEmail(currentUser.email),
+            mileage: mileageFromSurvey(answers.weeklyMileageRange),
+            goalEvent: goalEventFromSurvey(answers.mainGoal),
+            onboardingComplete: true,
+            runnerLevel: classifyRunner(answers),
+            onboardingAnswers: answers,
+            preferredTrainingDays: answers.preferredTrainingDays || 4,
+          });
+
+          try {
+            await upsertProfileToSupabase(currentUser, nextProfile);
+          } catch {
+            return {
+              ok: false,
+              error:
+                "Unable to save onboarding to Supabase. Confirm the profiles table exists and allows authenticated upserts.",
+            };
+          }
+
+          const normalizedEmail = currentUser.email.trim().toLowerCase();
+
+          setProfileState(nextProfile);
+          persistAccountUpdate(normalizedEmail, {
+            profile: nextProfile,
+          });
+          setSessionStatusMessage("Your personalized training plan is ready.");
+
+          return { ok: true };
+        },
+        {
+          ok: false,
+          error: "Please wait for the current auth request to finish.",
+        }
+      ),
+    [currentUser, persistAccountUpdate, profile, runExclusiveAuthAction, upsertProfileToSupabase]
   );
 
   const signOut = useCallback(() => {
@@ -687,18 +1035,21 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
       displayName: formatDisplayName(profile.name) || deriveNameFromEmail(account?.email || ""),
       isAuthenticated: Boolean(currentUser),
       authReady,
+      requiresOnboarding: Boolean(currentUser && !profile.onboardingComplete),
       sessionRestored,
       sessionStatusMessage,
       resolvedMaxHeartRate,
       heartRateZones,
       signUp,
       logIn,
+      completeOnboarding,
       signOut,
     }),
     [
       account,
       applyAutomaticPr,
       authReady,
+      completeOnboarding,
       currentUser,
       heartRateZones,
       logIn,

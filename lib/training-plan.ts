@@ -4,6 +4,7 @@ import {
   getDayKey,
   getRecentMileageTrend,
 } from "@/utils/workout-utils";
+import type { RunnerLevel } from "@/contexts/profile-context";
 
 export type SupportedGoalEvent =
   | "800"
@@ -40,6 +41,11 @@ export type AdaptivePlanContext = {
 export type AdaptivePlanResult = {
   plan: PlanDay[];
   feedback: string[];
+};
+
+export type RunnerPlanPreferences = {
+  runnerLevel?: RunnerLevel | null;
+  preferredTrainingDays?: number;
 };
 
 export type WorkoutPreferenceCategory =
@@ -116,10 +122,10 @@ export function parseWeeklyMileage(mileage: string) {
   const parsed = Number.parseFloat(mileage);
 
   if (!Number.isFinite(parsed) || parsed <= 0) {
-    return 30;
+    return 20;
   }
 
-  return Math.min(Math.max(parsed, 12), 90);
+  return Math.min(Math.max(parsed, 4), 90);
 }
 
 export function buildWeeklyPlan(
@@ -127,8 +133,18 @@ export function buildWeeklyPlan(
   mileage: string,
   pr5k = "",
   likedCategories: WorkoutPreferenceCategory[] = [],
-  planCycle = 0
+  planCycle = 0,
+  preferences: RunnerPlanPreferences = {}
 ): PlanDay[] {
+  if (preferences.runnerLevel === "total_beginner" || preferences.runnerLevel === "beginner") {
+    return buildFoundationWeeklyPlan({
+      runnerLevel: preferences.runnerLevel,
+      weeklyMileage: parseWeeklyMileage(mileage),
+      preferredTrainingDays: preferences.preferredTrainingDays ?? 4,
+      planCycle,
+    });
+  }
+
   const goal = normalizeGoalEvent(goalEvent);
   const weeklyMileage = parseWeeklyMileage(mileage);
   const paceProfile = buildPaceProfile(pr5k, goal);
@@ -169,9 +185,10 @@ export function buildAdaptiveWeeklyPlan(
   pr5k = "",
   likedCategories: WorkoutPreferenceCategory[] = [],
   planCycle = 0,
+  preferences?: RunnerPlanPreferences,
   context?: AdaptivePlanContext
 ): AdaptivePlanResult {
-  const basePlan = buildWeeklyPlan(goalEvent, mileage, pr5k, likedCategories, planCycle);
+  const basePlan = buildWeeklyPlan(goalEvent, mileage, pr5k, likedCategories, planCycle, preferences);
 
   if (!context) {
     return {
@@ -689,6 +706,177 @@ function selectSundayRole(
   }
 
   return weeklyMileage <= 24 ? "rest" : "recovery";
+}
+
+function buildFoundationWeeklyPlan(input: {
+  runnerLevel: "total_beginner" | "beginner";
+  weeklyMileage: number;
+  preferredTrainingDays: number;
+  planCycle: number;
+}): PlanDay[] {
+  const activeDays = getActiveTrainingDays(input.preferredTrainingDays);
+  const activeCount = activeDays.length;
+  const distanceTargets =
+    input.runnerLevel === "total_beginner"
+      ? [1.5, 2, 2.5, 2.5, 3, 3.5, 4]
+      : [2.5, 3, 3.5, 4, 4.5, 5.5, 6.5];
+  const targetWeeklyMileage = Math.max(
+    input.runnerLevel === "total_beginner" ? 5 : 8,
+    Math.min(input.weeklyMileage, input.runnerLevel === "total_beginner" ? 16 : 28)
+  );
+  const baseDistance = targetWeeklyMileage / activeCount;
+  const scaledDistance = distanceTargets[Math.max(0, Math.min(activeCount - 1, distanceTargets.length - 1))];
+  const sessionDistance = roundToHalf(Math.max(baseDistance, scaledDistance - (input.planCycle % 3 === 2 ? 0.5 : 0)));
+  const longDistance = roundToHalf(
+    Math.min(
+      input.runnerLevel === "total_beginner" ? 4.5 : 8,
+      sessionDistance + (input.runnerLevel === "total_beginner" ? 1 : 1.5)
+    )
+  );
+  const easyDistance = roundToHalf(Math.max(input.runnerLevel === "total_beginner" ? 1.5 : 2.5, sessionDistance));
+  const recoveryDistance = roundToHalf(Math.max(1.5, easyDistance - 0.5));
+
+  return DAY_ORDER.map((dayName, index) => {
+    const activeIndex = activeDays.indexOf(index);
+
+    if (activeIndex === -1) {
+      return createFoundationRestDay(dayName, input.planCycle, index);
+    }
+
+    const isLongestDay = activeIndex === activeDays.length - 1;
+
+    if (input.runnerLevel === "total_beginner") {
+      const day = createFoundationDay(dayName, {
+        kind: isLongestDay ? "long" : activeIndex === 1 ? "steady" : "easy",
+        category: isLongestDay ? "long" : activeIndex === activeDays.length - 2 ? "recovery" : "easy",
+        title: isLongestDay ? "Long Walk / Run" : activeIndex === 0 ? "Walk / Run Builder" : "Easy Run-Walk",
+        logType: isLongestDay ? "Long Run" : "Easy Run",
+        distance: isLongestDay ? longDistance : activeIndex === activeDays.length - 2 ? recoveryDistance : easyDistance,
+        details: buildTotalBeginnerDetails(activeIndex, isLongestDay, input.planCycle),
+        planCycle: input.planCycle,
+      });
+
+      return day;
+    }
+
+    return createFoundationDay(dayName, {
+      kind: isLongestDay ? "long" : activeIndex === activeDays.length - 2 ? "recovery" : activeIndex === 1 ? "steady" : "easy",
+      category: isLongestDay ? "long" : activeIndex === activeDays.length - 2 ? "recovery" : activeIndex === 1 ? "steady" : "easy",
+      title: isLongestDay ? "Long Easy Run" : activeIndex === 1 ? "Aerobic Builder" : "Easy Run",
+      logType: isLongestDay ? "Long Run" : "Easy Run",
+      distance: isLongestDay ? longDistance : activeIndex === activeDays.length - 2 ? recoveryDistance : easyDistance,
+      details: buildBeginnerDetails(activeIndex, isLongestDay, input.planCycle),
+      planCycle: input.planCycle,
+    });
+  });
+}
+
+const DAY_ORDER: DayName[] = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
+
+function getActiveTrainingDays(preferredTrainingDays: number) {
+  switch (Math.max(3, Math.min(preferredTrainingDays || 4, 7))) {
+    case 3:
+      return [1, 3, 5];
+    case 4:
+      return [0, 2, 4, 5];
+    case 5:
+      return [0, 1, 3, 5, 6];
+    case 6:
+      return [0, 1, 2, 4, 5, 6];
+    default:
+      return [0, 1, 2, 3, 4, 5, 6];
+  }
+}
+
+function createFoundationRestDay(day: DayName, planCycle: number, index: number): PlanDay {
+  const options = [
+    "Rest completely or take a relaxed 20-minute walk and light mobility.",
+    "Keep movement light today with mobility or a short walk.",
+    "Full recovery day. Easy stretching or drills only if that feels good.",
+  ];
+
+  return {
+    id: `${planCycle}-${day.toLowerCase()}-rest`,
+    day,
+    kind: "rest",
+    category: "rest",
+    title: "Recovery Day",
+    details: options[(planCycle + index) % options.length],
+    distance: 0,
+    logType: "Rest",
+  };
+}
+
+function createFoundationDay(
+  day: DayName,
+  input: Omit<PlanDay, "id" | "day">
+  & { planCycle: number }
+): PlanDay {
+  return {
+    id: `${input.planCycle}-${day.toLowerCase()}-${input.category}`,
+    day,
+    kind: input.kind,
+    category: input.category,
+    title: input.title,
+    details: input.details,
+    distance: input.distance,
+    logType: input.logType,
+  };
+}
+
+function buildTotalBeginnerDetails(activeIndex: number, isLongestDay: boolean, planCycle: number) {
+  if (isLongestDay) {
+    const options = [
+      "30-40 minutes total: alternate 4 minutes easy running with 1 minute walking. Keep the whole session conversational.",
+      "32-38 minutes total: 5 minutes easy running, 1 minute walking, repeated. Finish feeling like you could do one more round.",
+      "28-36 minutes total: steady run-walk rhythm with relaxed breathing from start to finish.",
+    ];
+    return options[planCycle % options.length];
+  }
+
+  if (activeIndex === 0) {
+    const options = [
+      "20-24 minutes total: 2 minutes easy running, 1 minute walking, repeated. The goal is comfort and rhythm.",
+      "22-26 minutes total: 3 minutes easy running, 1 minute walking. Stay patient and smooth.",
+      "20-25 minutes total: short run-walk intervals with a gentle warm-up walk before you start.",
+    ];
+    return options[planCycle % options.length];
+  }
+
+  if (activeIndex === 1) {
+    return "24-28 minutes total at easy effort. Run what feels comfortable, walk briefly whenever your breathing gets too high.";
+  }
+
+  return "20-30 minutes relaxed with optional walk breaks. Keep this easier than you think you need.";
+}
+
+function buildBeginnerDetails(activeIndex: number, isLongestDay: boolean, planCycle: number) {
+  if (isLongestDay) {
+    const options = [
+      "Long easy run on relaxed effort. Optional 30-60 second walk break every 10-15 minutes if needed.",
+      "Steady long run with patient pacing early and a calm finish.",
+      "Long aerobic run. Stay conversational the whole way and avoid turning it into a hard effort.",
+    ];
+    return options[planCycle % options.length];
+  }
+
+  if (activeIndex === 1) {
+    return "Easy aerobic running with the final 5-8 minutes a touch steadier. Finish smooth, not hard.";
+  }
+
+  if (activeIndex >= 2) {
+    return "Relaxed running with soft effort and optional short walk breaks if your legs need them.";
+  }
+
+  return "Easy conversational running. Focus on rhythm, posture, and keeping the effort under control.";
 }
 
 function getLikedCategoryOffset(likedCategories: WorkoutPreferenceCategory[]) {

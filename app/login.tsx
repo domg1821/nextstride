@@ -4,15 +4,20 @@ import { Pressable, Text, TextInput, View } from "react-native";
 import { useProfile } from "@/contexts/profile-context";
 
 export default function Login() {
-  const { logIn, isAuthenticated, sessionStatusMessage } = useProfile();
+  const { logIn, isAuthenticated, requiresOnboarding, sessionStatusMessage } = useProfile();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleLogIn = async () => {
+    if (loading) {
+      return;
+    }
+
+    setError("");
     setLoading(true);
-    let nextRoute: "/(tabs)" | null = null;
+    let nextRoute: "/(tabs)" | "/onboarding" | null = null;
 
     try {
       const result = await logIn({ email, password });
@@ -23,7 +28,7 @@ export default function Login() {
       }
 
       setError("");
-      nextRoute = "/(tabs)";
+      nextRoute = result.nextStep === "onboarding" ? "/onboarding" : "/(tabs)";
     } finally {
       setLoading(false);
 
@@ -146,7 +151,7 @@ export default function Login() {
 
         {isAuthenticated ? (
           <Pressable
-            onPress={() => router.replace("/(tabs)")}
+            onPress={() => router.replace(requiresOnboarding ? "/onboarding" : "/(tabs)")}
             style={{ marginTop: 16 }}
           >
             <Text style={{ color: "#9db2ca", textAlign: "center", fontSize: 14, fontWeight: "600" }}>

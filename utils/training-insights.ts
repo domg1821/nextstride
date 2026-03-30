@@ -238,7 +238,7 @@ export function getMonthlyTrend(workouts: WorkoutType[], referenceDate = new Dat
 }
 
 export function buildLongRangePlan(params: {
-  profile: Pick<ProfileType, "goalEvent" | "mileage" | "pr5k">;
+  profile: Pick<ProfileType, "goalEvent" | "mileage" | "pr5k" | "runnerLevel" | "preferredTrainingDays">;
   workouts: WorkoutType[];
   likedWorkoutCategories: WorkoutPreferenceCategory[];
   completedWorkoutIds: string[];
@@ -269,6 +269,10 @@ export function buildLongRangePlan(params: {
             params.likedWorkoutCategories,
             cycle,
             {
+              runnerLevel: params.profile.runnerLevel,
+              preferredTrainingDays: params.profile.preferredTrainingDays,
+            },
+            {
               workouts: params.workouts.map((workout) => ({
                 date: workout.date,
                 effort: workout.effort,
@@ -284,7 +288,11 @@ export function buildLongRangePlan(params: {
             params.profile.mileage || "30",
             params.profile.pr5k || "",
             params.likedWorkoutCategories,
-            cycle
+            cycle,
+            {
+              runnerLevel: params.profile.runnerLevel,
+              preferredTrainingDays: params.profile.preferredTrainingDays,
+            }
           );
 
     for (const day of weeklyPlan) {
