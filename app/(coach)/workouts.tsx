@@ -1,19 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Text, TextInput, View } from "react-native";
 import TopProfileBar from "@/components/TopProfileBar";
 import { InfoCard, PageHeader, PrimaryButton } from "@/components/ui-kit";
 import { ScreenScroll } from "@/components/ui-shell";
+import { TeamWorkoutThread } from "@/components/team-workout-thread";
 import { useProfile } from "@/contexts/profile-context";
 import { useThemeColors } from "@/contexts/theme-context";
 import { supabase } from "@/lib/supabase";
-
-type TeamWorkout = {
-  id: string;
-  title: string;
-  description: string;
-  workout_date: string;
-  created_at: string;
-};
 
 export default function CoachWorkouts() {
   const { colors } = useThemeColors();
@@ -21,41 +14,9 @@ export default function CoachWorkouts() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [workoutDate, setWorkoutDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [workouts, setWorkouts] = useState<TeamWorkout[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const loadWorkouts = useCallback(async () => {
-    if (!currentTeam?.id) {
-      setWorkouts([]);
-      return;
-    }
-
-    setRefreshing(true);
-
-    try {
-      const { data, error: queryError } = await supabase
-        .from("team_workouts")
-        .select("*")
-        .eq("team_id", currentTeam.id)
-        .order("workout_date", { ascending: false })
-        .order("created_at", { ascending: false });
-
-      if (queryError) {
-        setError(`Unable to load team workouts: ${queryError.message}`);
-        return;
-      }
-
-      setWorkouts((data as TeamWorkout[] | null) ?? []);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [currentTeam?.id]);
-
-  useEffect(() => {
-    void loadWorkouts();
-  }, [loadWorkouts]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const handleCreateWorkout = async () => {
     if (loading) {
@@ -110,7 +71,7 @@ export default function CoachWorkouts() {
       setTitle("");
       setDescription("");
       setWorkoutDate(new Date().toISOString().slice(0, 10));
-      await loadWorkouts();
+      setRefreshKey((current) => current + 1);
     } finally {
       setLoading(false);
     }
@@ -165,40 +126,11 @@ export default function CoachWorkouts() {
               <PrimaryButton label={loading ? "Posting Workout..." : "Post Workout"} onPress={() => void handleCreateWorkout()} />
             </View>
           </InfoCard>
-
-          <InfoCard
-            title="Posted Workouts"
-            subtitle={refreshing ? "Refreshing workouts..." : "Newest first. Team runners only see workouts posted to their own team."}
-          >
-            <View style={{ gap: 12 }}>
-              {workouts.length > 0 ? (
-                workouts.map((workout) => (
-                  <View
-                    key={workout.id}
-                    style={{
-                      backgroundColor: colors.cardAlt,
-                      borderRadius: 18,
-                      borderWidth: 1,
-                      borderColor: colors.border,
-                      padding: 16,
-                    }}
-                  >
-                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: "800" }}>{workout.title}</Text>
-                    <Text style={{ color: colors.primary, fontSize: 13, fontWeight: "700", marginTop: 6 }}>
-                      {formatDate(workout.workout_date)}
-                    </Text>
-                    <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 21, marginTop: 8 }}>
-                      {workout.description || "No description added."}
-                    </Text>
-                  </View>
-                ))
-              ) : (
-                <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 21 }}>
-                  No team workouts posted yet. Create the first one above.
-                </Text>
-              )}
-            </View>
-          </InfoCard>
+          <TeamWorkoutThread
+            teamId={currentTeam.id}
+            refreshKey={refreshKey}
+            emptyMessage="No team workouts posted yet. Create the first one above."
+          />
         </>
       )}
     </ScreenScroll>
@@ -216,18 +148,4 @@ function inputStyle(colors: ReturnType<typeof useThemeColors>["colors"]) {
     paddingVertical: 15,
     fontSize: 15,
   } as const;
-}
-
-function formatDate(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }
