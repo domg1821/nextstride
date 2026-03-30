@@ -135,7 +135,7 @@ export default function Settings() {
       return;
     }
 
-    router.replace("/(tabs)/profile");
+    router.replace("/(solo)/profile");
   };
 
   return (

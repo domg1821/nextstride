@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
-import { useProfile } from "@/contexts/profile-context";
+import { type AppRoute, useProfile } from "@/contexts/profile-context";
 
 export default function Login() {
   const { logIn, isAuthenticated, profile, sessionStatusMessage, appHomeRoute } = useProfile();
@@ -17,7 +17,7 @@ export default function Login() {
 
     setError("");
     setLoading(true);
-    let nextRoute: "/(tabs)" | "/coach-app" | "/team-app" | "/onboarding" | null = null;
+    let nextRoute: AppRoute | "/onboarding" | null = null;
 
     try {
       const result = await logIn({ email, password });

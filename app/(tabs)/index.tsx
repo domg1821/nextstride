@@ -180,13 +180,13 @@ export default function Home() {
               <View style={{ flex: 1 }}>
                 <PrimaryButton
                   label={todaysWorkout ? "View Workout" : "View Plan"}
-                  onPress={() => router.push("/(tabs)/explore")}
+                  onPress={() => router.push("/(solo)/explore")}
                 />
               </View>
               <View style={{ flex: 1 }}>
                 <SecondaryButton
                   label="Complete"
-                  onPress={() => router.push("/(tabs)/explore")}
+                  onPress={() => router.push("/(solo)/explore")}
                 />
               </View>
             </View>
@@ -216,7 +216,7 @@ export default function Home() {
         </View>
 
         <Pressable
-          onPress={() => router.push("/(tabs)/coach")}
+          onPress={() => router.push("/(solo)/coach")}
           style={{
             backgroundColor: colors.card,
             borderRadius: 28,

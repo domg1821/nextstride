@@ -22,11 +22,11 @@ type TabConfig = {
 };
 
 const TAB_CONFIGS: TabConfig[] = [
-  { key: "index", title: "Home", icon: "home", href: "/(tabs)", component: Home },
-  { key: "explore", title: "Plan", icon: "calendar", href: "/(tabs)/explore", component: Plan },
-  { key: "coach", title: "Coach", icon: "chatbubble-ellipses", href: "/(tabs)/coach", component: CoachTab },
-  { key: "progress", title: "Progress", icon: "stats-chart", href: "/(tabs)/progress", component: Progress },
-  { key: "profile", title: "Profile", icon: "person", href: "/(tabs)/profile", component: Profile },
+  { key: "index", title: "Home", icon: "home", href: "/(solo)", component: Home },
+  { key: "explore", title: "Plan", icon: "calendar", href: "/(solo)/explore", component: Plan },
+  { key: "coach", title: "Coach", icon: "chatbubble-ellipses", href: "/(solo)/coach", component: CoachTab },
+  { key: "progress", title: "Progress", icon: "stats-chart", href: "/(solo)/progress", component: Progress },
+  { key: "profile", title: "Profile", icon: "person", href: "/(solo)/profile", component: Profile },
 ];
 
 export default function TabLayout() {

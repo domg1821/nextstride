@@ -244,16 +244,16 @@ const EMPTY_PROFILE: ProfileType = {
   preferredTrainingDays: 4,
 };
 
-type AppRoute = "/(tabs)" | "/coach-app" | "/team-app";
+export type AppRoute = "/(solo)" | "/(coach)" | "/(team)";
 
 export function getAppRouteForAccountType(accountType: AccountType | "" | null | undefined): AppRoute {
   switch (accountType) {
     case "coach":
-      return "/coach-app";
+      return "/(coach)";
     case "team_runner":
-      return "/team-app";
+      return "/(team)";
     default:
-      return "/(tabs)";
+      return "/(solo)";
   }
 }
 

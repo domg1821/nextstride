@@ -20,7 +20,7 @@ type QuickDrawerContextValue = {
 const QuickDrawerContext = createContext<QuickDrawerContextValue | null>(null);
 const DRAWER_ITEMS = [
   { label: "Settings", href: "/settings" },
-  { label: "Profile", href: "/(tabs)/profile" },
+  { label: "Profile", href: "/(solo)/profile" },
   { label: "Race Predictor", href: "/race-predictor" },
 ];
 
