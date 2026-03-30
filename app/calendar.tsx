@@ -1,13 +1,13 @@
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
-import { InfoCard, PageHeader, PrimaryButton, SecondaryButton } from "./components/ui-kit";
-import { ScreenScroll, SectionTitle } from "./components/ui-shell";
-import { useProfile } from "./profile-context";
-import { buildLongRangePlan, buildMonthGrid, type CalendarPlanDay } from "./training-insights";
-import { useThemeColors } from "./theme-context";
-import { useWorkouts } from "./workout-context";
-import { formatFeedDate, formatMonthLabel } from "./workout-utils";
+import { InfoCard, PageHeader, PrimaryButton, SecondaryButton } from "@/components/ui-kit";
+import { ScreenScroll, SectionTitle } from "@/components/ui-shell";
+import { useProfile } from "@/contexts/profile-context";
+import { useThemeColors } from "@/contexts/theme-context";
+import { useWorkouts } from "@/contexts/workout-context";
+import { buildLongRangePlan, buildMonthGrid, type CalendarPlanDay } from "@/utils/training-insights";
+import { formatFeedDate, formatMonthLabel } from "@/utils/workout-utils";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 

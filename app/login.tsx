@@ -1,107 +1,174 @@
-import { router } from "expo-router";
-import { useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import { useMemo, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
-import { useProfile } from "./profile-context";
+import { useProfile } from "@/contexts/profile-context";
 
 export default function Login() {
-  const { logIn, isAuthenticated } = useProfile();
+  const { logIn, isAuthenticated, requiresEmailVerification, sessionStatusMessage } = useProfile();
+  const params = useLocalSearchParams<{ verified?: string }>();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogIn = () => {
-    const result = logIn({ email, password });
-
-    if (!result.ok) {
-      setError(result.error || "Unable to log in.");
-      return;
+  const helperMessage = useMemo(() => {
+    if (params.verified === "1") {
+      return "Email verified. You can log in now.";
     }
 
-    setError("");
-    router.replace("/(tabs)");
+    return sessionStatusMessage;
+  }, [params.verified, sessionStatusMessage]);
+
+  const handleLogIn = async () => {
+    setLoading(true);
+    let nextRoute: "/verify-email" | "/(tabs)" | null = null;
+
+    try {
+      const result = await logIn({ email, password });
+
+      if (!result.ok) {
+        setError(result.error || "Unable to log in.");
+
+        if (result.nextStep === "verify") {
+          nextRoute = "/verify-email";
+        }
+
+        return;
+      }
+
+      setError("");
+      nextRoute = result.nextStep === "verify" ? "/verify-email" : "/(tabs)";
+    } finally {
+      setLoading(false);
+
+      if (nextRoute) {
+        router.replace(nextRoute);
+      }
+    }
   };
 
   return (
     <View
       style={{
         flex: 1,
-        backgroundColor: "#0f172a",
-        padding: 24,
+        backgroundColor: "#08111d",
         justifyContent: "center",
+        padding: 24,
       }}
     >
-      <Text style={{ color: "white", fontSize: 32, fontWeight: "bold" }}>
-        Log In
-      </Text>
-
-      <Text style={{ color: "#94a3b8", marginTop: 8, marginBottom: 24 }}>
-        Welcome back to NextStride
-      </Text>
-
-      <TextInput
-        placeholder="Email"
-        placeholderTextColor="#64748b"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
+      <View
         style={{
-          backgroundColor: "#1e293b",
-          color: "white",
-          padding: 16,
-          borderRadius: 14,
-          marginBottom: 14,
-        }}
-      />
-
-      <TextInput
-        placeholder="Password"
-        placeholderTextColor="#64748b"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        style={{
-          backgroundColor: "#1e293b",
-          color: "white",
-          padding: 16,
-          borderRadius: 14,
-          marginBottom: 20,
-        }}
-      />
-
-      {!!error && (
-        <Text style={{ color: "#f87171", marginTop: -6, marginBottom: 18, fontSize: 14 }}>
-          {error}
-        </Text>
-      )}
-
-      <Pressable
-        onPress={handleLogIn}
-        style={{
-          backgroundColor: "#2563eb",
-          paddingVertical: 16,
-          borderRadius: 14,
-          alignItems: "center",
+          backgroundColor: "#0f1b2d",
+          borderRadius: 28,
+          borderWidth: 1,
+          borderColor: "#22344b",
+          padding: 24,
         }}
       >
-        <Text style={{ color: "white", fontSize: 16, fontWeight: "600" }}>
-          Log In
+        <Text style={{ color: "#7dd3fc", fontSize: 12, fontWeight: "800", letterSpacing: 1.2 }}>
+          NEXTSTRIDE ACCOUNT
         </Text>
-      </Pressable>
-
-      <Pressable onPress={() => router.push("/signup")} style={{ marginTop: 18 }}>
-        <Text style={{ color: "#93c5fd", textAlign: "center", fontSize: 15, fontWeight: "600" }}>
-          Need an account? Create one
+        <Text style={{ color: "#f8fbff", fontSize: 32, fontWeight: "800", marginTop: 12 }}>
+          Log in
         </Text>
-      </Pressable>
+        <Text style={{ color: "#9db2ca", fontSize: 15, lineHeight: 23, marginTop: 10 }}>
+          Welcome back. Your account, training profile, and session memory now stay tied together.
+        </Text>
 
-      {isAuthenticated ? (
-        <Pressable onPress={() => router.replace("/(tabs)")} style={{ marginTop: 12 }}>
-          <Text style={{ color: "#cbd5e1", textAlign: "center", fontSize: 14 }}>
-            Continue to the app
+        <TextInput
+          placeholder="Email"
+          placeholderTextColor="#64748b"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          style={{
+            backgroundColor: "#122033",
+            color: "#f8fbff",
+            paddingHorizontal: 16,
+            paddingVertical: 16,
+            borderRadius: 18,
+            marginTop: 20,
+            borderWidth: 1,
+            borderColor: "#22344b",
+          }}
+        />
+
+        <TextInput
+          placeholder="Password"
+          placeholderTextColor="#64748b"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          style={{
+            backgroundColor: "#122033",
+            color: "#f8fbff",
+            paddingHorizontal: 16,
+            paddingVertical: 16,
+            borderRadius: 18,
+            marginTop: 14,
+            borderWidth: 1,
+            borderColor: "#22344b",
+          }}
+        />
+
+        {!!error ? (
+          <Text style={{ color: "#f87171", marginTop: 14, fontSize: 14, fontWeight: "600" }}>
+            {error}
+          </Text>
+        ) : null}
+
+        {!error && !!helperMessage ? (
+          <Text style={{ color: "#93c5fd", marginTop: 14, fontSize: 14, fontWeight: "600" }}>
+            {helperMessage}
+          </Text>
+        ) : null}
+
+        <Pressable
+          onPress={handleLogIn}
+          style={{
+            backgroundColor: "#2563eb",
+            paddingVertical: 16,
+            borderRadius: 18,
+            alignItems: "center",
+            marginTop: 18,
+            opacity: loading ? 0.7 : 1,
+          }}
+          disabled={loading}
+        >
+          <Text style={{ color: "#ffffff", fontSize: 16, fontWeight: "700" }}>
+            {loading ? "Logging In..." : "Log In"}
           </Text>
         </Pressable>
-      ) : null}
+
+        <Pressable
+          onPress={() => router.push("/signup")}
+          style={{
+            backgroundColor: "#132339",
+            paddingVertical: 15,
+            borderRadius: 18,
+            borderWidth: 1,
+            borderColor: "#22344b",
+            alignItems: "center",
+            marginTop: 12,
+          }}
+        >
+          <Text style={{ color: "#dbeafe", fontSize: 15, fontWeight: "700" }}>
+            Need an account? Create one
+          </Text>
+        </Pressable>
+
+        {isAuthenticated ? (
+          <Pressable
+            onPress={() => router.replace(requiresEmailVerification ? "/verify-email" : "/(tabs)")}
+            style={{ marginTop: 16 }}
+          >
+            <Text style={{ color: "#9db2ca", textAlign: "center", fontSize: 14, fontWeight: "600" }}>
+              Continue with remembered account
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }

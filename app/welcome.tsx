@@ -1,7 +1,8 @@
 import { router } from "expo-router";
 import { useRef } from "react";
 import { LayoutChangeEvent, Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
-import { FeatureCard, FooterLink, SiteButton, SiteSection, WeeklyPlanPreview } from "./components/marketing-site";
+import { FeatureCard, FooterLink, SiteButton, SiteSection, WeeklyPlanPreview } from "@/components/marketing-site";
+import { PREMIUM_COMPARISON_ROWS, PREMIUM_FEATURES, PREMIUM_PRODUCT } from "@/lib/premium-products";
 
 type SectionKey = "hero" | "why" | "week" | "premium" | "faq" | "cta";
 
@@ -78,34 +79,30 @@ export default function Welcome() {
 
         <View
           style={{
-            marginTop: 36,
+            marginTop: isDesktop ? 56 : 36,
             flexDirection: isDesktop ? "row" : "column",
             alignItems: "center",
-            gap: isDesktop ? 56 : 28,
+            gap: isDesktop ? 72 : 32,
           }}
         >
-          <View style={{ flex: 1, maxWidth: 620 }}>
+          <View style={{ flex: 1, maxWidth: 600 }}>
             <Text style={{ color: "#7dd3fc", fontSize: 12, fontWeight: "800", letterSpacing: 1.4, textTransform: "uppercase" }}>
               NextStride
             </Text>
             <Text style={{ color: "#f8fbff", fontSize: heroTitleSize, fontWeight: "800", lineHeight: heroTitleSize + 4, marginTop: 18 }}>
               Train smarter. Run faster.
             </Text>
-            <Text style={{ color: "#a9bed4", fontSize: 18, lineHeight: 29, marginTop: 16, maxWidth: 560 }}>
-              Personalized plans, daily guidance, workout logging, and progress tracking built around real running goals.
+            <Text style={{ color: "#a9bed4", fontSize: 18, lineHeight: 29, marginTop: 18, maxWidth: 520 }}>
+              Personalized training plans, coaching, and progress tracking.
             </Text>
 
             <View style={{ flexDirection: isTablet ? "row" : "column", gap: 12, marginTop: 28 }}>
               <SiteButton label="Get Started" onPress={() => router.push("/signup")} />
               <SiteButton label="View Demo" variant="secondary" onPress={() => scrollToSection("week")} />
             </View>
-
-            <Text style={{ color: "#8fa8c4", fontSize: 13, lineHeight: 20, marginTop: 16, maxWidth: 520 }}>
-              More than a run tracker. NextStride helps runners train with structure, feedback, and better decisions.
-            </Text>
           </View>
 
-          <View style={{ flex: 1, width: "100%", maxWidth: 500 }}>
+          <View style={{ flex: 1, width: "100%", maxWidth: 430 }}>
             <HeroShowcase />
           </View>
         </View>
@@ -115,33 +112,33 @@ export default function Welcome() {
         <SiteSection
           eyebrow="Why NextStride"
           title="Most apps track your runs. NextStride trains you."
-          subtitle="The product is built to help runners improve with better weekly structure, clearer feedback, and training intelligence that goes beyond logging."
+          subtitle="NextStride is built to guide better training decisions with clearer structure, stronger feedback, and coaching that stays connected to the goal."
           padding={padding}
         >
           <ResponsiveGrid isDesktop={isDesktop}>
             <FeatureCard
-              badge="Structure"
-              icon="W"
-              title="Personalized weekly structure"
-              body="Your training week is organized around real runner rhythms so the plan feels usable, motivating, and easy to follow."
+              badge="Structured training"
+              icon="S"
+              title="Structured training"
+              body="Your week is organized like a real training schedule, so hard days, easy days, and long runs all have a clear place."
             />
             <FeatureCard
-              badge="Feedback"
-              icon="F"
-              title="Real training feedback"
-              body="Effort, consistency, missed days, and recent workouts all feed back into smarter guidance instead of sitting idle in a history list."
-            />
-            <FeatureCard
-              badge="Race Prep"
+              badge="Real feedback"
               icon="R"
-              title="Smarter race preparation"
-              body="Plans, predictions, and coaching stay connected to your goals so the product helps you train toward something specific."
+              title="Real feedback"
+              body="Completed runs, missed sessions, effort, and consistency all feed back into guidance instead of sitting quietly in a log."
             />
             <FeatureCard
-              badge="Built for runners"
-              icon="N"
-              title="Built for runners, not just tracking"
-              body="NextStride is designed around what runners revisit every week: what is next, how the plan is going, and what to do now."
+              badge="Goal-based progress"
+              icon="G"
+              title="Goal-based progress"
+              body="Training, predictions, and progress all stay tied to your race goal so improvement feels directional, not random."
+            />
+            <FeatureCard
+              badge="Smarter coaching"
+              icon="C"
+              title="Smarter coaching"
+              body="NextStride surfaces more useful coaching context so runners can make better day-to-day decisions with more confidence."
             />
           </ResponsiveGrid>
         </SiteSection>
@@ -178,8 +175,8 @@ export default function Welcome() {
       <View onLayout={setSectionOffset("premium")}>
         <SiteSection
           eyebrow="Premium"
-          title="Train better. Race better. For $2.50/month."
-          subtitle="Premium is positioned around smarter decisions and more useful guidance, not generic feature stuffing."
+          title={`Train better. Race better. For ${PREMIUM_PRODUCT.monthlyPriceLabel}.`}
+          subtitle="Premium is positioned around sharper execution, stronger context, and better training decisions instead of generic feature stuffing."
           padding={padding}
         >
           <View
@@ -194,9 +191,11 @@ export default function Welcome() {
           >
             <View style={{ flexDirection: isDesktop ? "row" : "column", justifyContent: "space-between", gap: 18 }}>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: "#f8fbff", fontSize: 32, fontWeight: "800" }}>Smarter training guidance for serious improvement</Text>
+                <Text style={{ color: "#f8fbff", fontSize: 32, fontWeight: "800" }}>
+                  A focused upgrade for runners who want more useful guidance
+                </Text>
                 <Text style={{ color: "#9fb2cb", fontSize: 15, lineHeight: 24, marginTop: 12, maxWidth: 620 }}>
-                  Heart rate control, fueling support, adaptive adjustments, stronger insights, deeper coach feedback, and better readiness context.
+                  Premium gives you better workout control, stronger recovery awareness, deeper coaching context, and more actionable race preparation.
                 </Text>
               </View>
               <View
@@ -212,25 +211,47 @@ export default function Welcome() {
                 }}
               >
                 <Text style={{ color: "#7dd3fc", fontSize: 12, fontWeight: "800", letterSpacing: 1 }}>PREMIUM</Text>
-                <Text style={{ color: "#f8fbff", fontSize: 34, fontWeight: "800", marginTop: 8 }}>$2.50</Text>
+                <Text style={{ color: "#f8fbff", fontSize: 34, fontWeight: "800", marginTop: 8 }}>
+                  {PREMIUM_PRODUCT.monthlyPrice}
+                </Text>
                 <Text style={{ color: "#9fb2cb", fontSize: 14, marginTop: 4 }}>per month</Text>
               </View>
             </View>
 
             <ResponsiveGrid isDesktop={isDesktop}>
-              <FeatureCard badge="HR" icon="H" title="Heart Rate Guided Training" body="Target zones make it easier to hold the right aerobic, tempo, and harder-day effort." />
-              <FeatureCard badge="Fuel" icon="F" title="Fueling Guidance" body="Practical pre-run, long-run, and recovery fueling advice that feels runner-specific." />
-              <FeatureCard badge="Adaptive" icon="A" title="Adaptive Training Adjustments" body="Plans respond to completed workouts, missed days, effort levels, and consistency." />
-              <FeatureCard badge="Insights" icon="I" title="Race Predictor + Insights" body="Updated predictions, clearer confidence signals, and trend-based explanations from your recent training." />
-              <FeatureCard badge="Coach" icon="C" title="Advanced Coach Features" body="Deeper coach feedback, more personalized answers, and sharper suggestions from your profile and training history." />
-              <FeatureCard badge="Recovery" icon="R" title="Recovery & Readiness" body="High-effort follow-up suggestions, recovery recommendations, and warnings when training load starts looking high." />
+              {PREMIUM_FEATURES.map((feature) => (
+                <FeatureCard
+                  key={feature.title}
+                  badge={feature.badge}
+                  icon={feature.badge.charAt(0)}
+                  title={feature.title}
+                  body={feature.benefit}
+                />
+              ))}
             </ResponsiveGrid>
 
             <FreePremiumComparison />
 
-            <View style={{ flexDirection: isTablet ? "row" : "column", gap: 12 }}>
-              <SiteButton label="Unlock Premium" onPress={() => router.push("/premium")} />
-              <SiteButton label="See Premium Details" variant="secondary" onPress={() => router.push("/premium")} />
+            <View
+              style={{
+                backgroundColor: "#081220",
+                borderRadius: 26,
+                borderWidth: 1,
+                borderColor: "rgba(96, 165, 250, 0.12)",
+                padding: 20,
+                gap: 14,
+              }}
+            >
+              <Text style={{ color: "#f8fbff", fontSize: 22, fontWeight: "800" }}>
+                Explore the full Premium page before billing goes live
+              </Text>
+              <Text style={{ color: "#9fb2cb", fontSize: 14, lineHeight: 22, maxWidth: 700 }}>
+                The dedicated Premium page already includes plan details, subscription state handling, and the placeholder purchase foundation for future App Store and Google Play billing.
+              </Text>
+              <View style={{ flexDirection: isTablet ? "row" : "column", gap: 12 }}>
+                <SiteButton label="Upgrade to Premium" onPress={() => router.push("/premium")} />
+                <SiteButton label="See Premium Details" variant="secondary" onPress={() => router.push("/premium")} />
+              </View>
             </View>
           </View>
         </SiteSection>
@@ -363,24 +384,22 @@ function HeroShowcase() {
   return (
     <View
       style={{
-        backgroundColor: "rgba(10, 21, 37, 0.92)",
-        borderRadius: 36,
+        backgroundColor: "rgba(10, 21, 37, 0.96)",
+        borderRadius: 34,
         borderWidth: 1,
         borderColor: "rgba(96, 165, 250, 0.14)",
-        padding: 18,
+        padding: 20,
       }}
     >
-      <View style={{ backgroundColor: "#09131f", borderRadius: 30, borderWidth: 1, borderColor: "rgba(96, 165, 250, 0.1)", padding: 18 }}>
-        <View style={{ width: 84, height: 6, borderRadius: 999, backgroundColor: "rgba(148, 163, 184, 0.22)", alignSelf: "center" }} />
+      <View style={{ backgroundColor: "#09131f", borderRadius: 28, borderWidth: 1, borderColor: "rgba(96, 165, 250, 0.1)", padding: 18 }}>
         <Text style={{ color: "#7dd3fc", fontSize: 12, fontWeight: "800", marginTop: 18 }}>NEXTSTRIDE</Text>
-        <Text style={{ color: "#f8fbff", fontSize: 28, fontWeight: "800", marginTop: 10 }}>Your week at a glance</Text>
+        <Text style={{ color: "#f8fbff", fontSize: 28, fontWeight: "800", marginTop: 10 }}>Your plan at a glance</Text>
         <Text style={{ color: "#9db2ca", fontSize: 14, lineHeight: 22, marginTop: 8 }}>
-          A cleaner way to see what today is for, where the week is headed, and how training is trending.
+          One clear view of what today is for and how the week is structured.
         </Text>
 
-        <View style={{ marginTop: 18, gap: 10 }}>
-          <ShowcaseRow label="Monday" value="Track / intervals" accent="#60a5fa" />
-          <ShowcaseRow label="Wednesday" value="Tempo workout" accent="#38bdf8" />
+        <View style={{ marginTop: 22, gap: 12 }}>
+          <ShowcaseRow label="Today" value="Tempo workout" accent="#38bdf8" />
           <ShowcaseRow label="Saturday" value="Long run" accent="#22c55e" />
         </View>
       </View>
@@ -423,18 +442,6 @@ function WeekHighlight({ title, body }: { title: string; body: string }) {
 }
 
 function FreePremiumComparison() {
-  const rows = [
-    ["Basic training plan", "Included", "Included"],
-    ["Workout logging", "Included", "Included"],
-    ["Progress tracking", "Included", "Included"],
-    ["AI coach basics", "Included", "Included"],
-    ["Heart rate guidance", "-", "Included"],
-    ["Fueling guidance", "-", "Included"],
-    ["Adaptive plan adjustments", "Basic", "Advanced"],
-    ["Race predictor", "Basic", "Deeper insights"],
-    ["Advanced insights", "-", "Included"],
-  ];
-
   return (
     <View
       style={{
@@ -450,9 +457,9 @@ function FreePremiumComparison() {
         <ComparisonHeader title="Free" />
         <ComparisonHeader title="Premium" />
       </View>
-      {rows.map((row, index) => (
+      {PREMIUM_COMPARISON_ROWS.map((row, index) => (
         <View
-          key={row[0]}
+          key={row.feature}
           style={{
             flexDirection: "row",
             padding: 16,
@@ -460,9 +467,9 @@ function FreePremiumComparison() {
             borderTopColor: "rgba(96, 165, 250, 0.08)",
           }}
         >
-          <ComparisonCell value={row[0]} flex={1.4} strong={true} />
-          <ComparisonCell value={row[1]} />
-          <ComparisonCell value={row[2]} premium={true} />
+          <ComparisonCell value={row.feature} flex={1.4} strong={true} />
+          <ComparisonCell value={row.free} />
+          <ComparisonCell value={row.premium} premium={true} />
         </View>
       ))}
     </View>

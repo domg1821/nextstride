@@ -2,11 +2,11 @@ import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useRef } from "react";
 import { Animated, Easing, Image, Pressable, Text, View } from "react-native";
-import { InfoCard, PageHeader, PrimaryButton, StatCard } from "../components/ui-kit";
-import { AnimatedTabScene, ScreenScroll, SectionTitle } from "../components/ui-shell";
-import { useProfile } from "../profile-context";
-import { useThemeColors } from "../theme-context";
-import { useWorkouts } from "../workout-context";
+import { InfoCard, PageHeader, PrimaryButton, StatCard } from "@/components/ui-kit";
+import { AnimatedTabScene, ScreenScroll, SectionTitle } from "@/components/ui-shell";
+import { useProfile } from "@/contexts/profile-context";
+import { useThemeColors } from "@/contexts/theme-context";
+import { useWorkouts } from "@/contexts/workout-context";
 
 export default function Profile() {
   const { profile, setProfile } = useProfile();

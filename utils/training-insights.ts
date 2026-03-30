@@ -1,11 +1,11 @@
-import type { ProfileType, RaceGoalType } from "./profile-context";
+import type { ProfileType, RaceGoalType } from "@/contexts/profile-context";
 import {
   buildAdaptiveWeeklyPlan,
   buildWeeklyPlan,
   type PlanDay,
   type WorkoutPreferenceCategory,
-} from "./training-plan";
-import type { PlannedWorkoutOverride, WorkoutType } from "./workout-context";
+} from "@/lib/training-plan";
+import type { PlannedWorkoutOverride, WorkoutType } from "@/contexts/workout-context";
 import {
   formatDuration,
   formatPace,
@@ -20,7 +20,7 @@ import {
   parseTimeToSeconds,
   startOfMonth,
   startOfWeek,
-} from "./workout-utils";
+} from "@/utils/workout-utils";
 
 export type CalendarPlanDay = PlanDay & {
   date: Date;

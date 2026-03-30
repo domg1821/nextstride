@@ -5,21 +5,22 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   Text,
   TextInput,
   UIManager,
   View,
 } from "react-native";
-import TopProfileBar from "../components/TopProfileBar";
-import { useQuickDrawer } from "../components/quick-drawer";
-import { InfoCard, PageHeader, PrimaryButton, SecondaryButton, StatCard } from "../components/ui-kit";
-import { AnimatedTabScene, ScreenScroll, SectionTitle } from "../components/ui-shell";
-import { useProfile } from "../profile-context";
-import { buildLongRangePlan, buildMonthGrid, getWorkoutFeedback, type CalendarPlanDay } from "../training-insights";
-import { buildAdaptiveWeeklyPlan, type PlanDay } from "../training-plan";
-import { useThemeColors } from "../theme-context";
-import { useWorkouts } from "../workout-context";
-import { formatFeedDate, formatMonthLabel, startOfWeek } from "../workout-utils";
+import TopProfileBar from "@/components/TopProfileBar";
+import { useQuickDrawer } from "@/components/quick-drawer";
+import { InfoCard, PageHeader, PrimaryButton, SecondaryButton, StatCard } from "@/components/ui-kit";
+import { AnimatedTabScene, ScreenScroll, SectionTitle } from "@/components/ui-shell";
+import { useProfile } from "@/contexts/profile-context";
+import { useThemeColors } from "@/contexts/theme-context";
+import { useWorkouts } from "@/contexts/workout-context";
+import { buildAdaptiveWeeklyPlan, type PlanDay } from "@/lib/training-plan";
+import { buildLongRangePlan, buildMonthGrid, getWorkoutFeedback, type CalendarPlanDay } from "@/utils/training-insights";
+import { formatFeedDate, formatMonthLabel, startOfWeek } from "@/utils/workout-utils";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -219,7 +220,7 @@ export default function Plan() {
         <PageHeader
           eyebrow="Plan"
           title={profile.goalEvent || "Build Your Block"}
-          subtitle={`Plan is now your central workout hub with logging, completion, notes, and skipping built into the calendar.`}
+          subtitle="A cleaner weekly training schedule with today easy to spot and each day easier to scan."
         />
 
         {savedFeedback ? (
@@ -241,19 +242,19 @@ export default function Plan() {
         <InfoCard>
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
             <View style={{ flex: 1 }}>
-              <SectionTitle colors={colors} title="Training Calendar" subtitle="Every day is clickable and can be logged from here." />
+              <SectionTitle colors={colors} title="Training Calendar" subtitle="A quick overview of the broader schedule." />
             </View>
             <SecondaryButton label="Full Calendar" onPress={() => router.push("/calendar")} />
           </View>
 
-          <View style={{ flexDirection: "row", gap: 10, flexWrap: "wrap", marginTop: 16 }}>
+          <View style={{ flexDirection: "row", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
             <Legend colors={colors} label="Today" background={colors.primarySoft} border={colors.primary} />
             <Legend colors={colors} label="Completed" background={colors.primary} border={colors.primary} textColor={colors.background} />
             <Legend colors={colors} label="Skipped" background={colors.card} border={colors.danger} />
             <Legend colors={colors} label="Planned" background={colors.cardAlt} border={colors.border} />
           </View>
 
-          <View style={{ marginTop: 18, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+          <View style={{ marginTop: 20, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
             <MonthButton colors={colors} label="Prev" onPress={() => setVisibleMonth((current) => addMonths(current, -1))} />
             <Text style={{ color: colors.text, fontSize: 22, fontWeight: "800" }}>{formatMonthLabel(visibleMonth)}</Text>
             <MonthButton colors={colors} label="Next" onPress={() => setVisibleMonth((current) => addMonths(current, 1))} />
@@ -274,11 +275,11 @@ export default function Plan() {
                 onPress={() => openEntry({ date: entry.date, dateKey: entry.dateKey, planDay: entry.planDay })}
                 style={{
                   width: "13.2%",
-                  minHeight: 92,
+                  minHeight: 90,
                   borderRadius: 18,
                   padding: 10,
                   backgroundColor: cellBackground(entry.planDay, colors),
-                  borderWidth: 1,
+                  borderWidth: entry.planDay?.isToday ? 2 : 1,
                   borderColor: cellBorder(entry.planDay, colors),
                   opacity: entry.isCurrentMonth ? 1 : 0.45,
                 }}
@@ -297,10 +298,19 @@ export default function Plan() {
 
         {adaptiveWeek.feedback.length > 0 ? (
           <InfoCard>
-            <SectionTitle colors={colors} title="Adaptive Feedback" subtitle="Simple rule-based plan adjustments from your recent training." />
+            <SectionTitle colors={colors} title="Adaptive Feedback" subtitle="Simple plan adjustments from your recent training." />
             <View style={{ marginTop: 14, gap: 10 }}>
               {adaptiveWeek.feedback.map((message) => (
-                <View key={message} style={{ backgroundColor: colors.cardAlt, borderRadius: 18, borderWidth: 1, borderColor: colors.border, padding: 14 }}>
+                <View
+                  key={message}
+                  style={{
+                    backgroundColor: colors.cardAlt,
+                    borderRadius: 18,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    padding: 14,
+                  }}
+                >
                   <Text style={{ color: colors.text, fontSize: 14, lineHeight: 20 }}>{message}</Text>
                 </View>
               ))}
@@ -308,90 +318,242 @@ export default function Plan() {
           </InfoCard>
         ) : null}
 
-        <SectionTitle colors={colors} title="Current Week" subtitle="Tap any day to complete, log differently, skip, or add notes." />
+        <View style={{ gap: 8, marginTop: 4 }}>
+          <Text style={{ color: colors.text, fontSize: 24, fontWeight: "800" }}>Current Week</Text>
+          <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 21 }}>
+            A more schedule-like view of the week. Tap any day to complete, log differently, skip, or add notes.
+          </Text>
+        </View>
 
-        {currentWeekPlan.map((day, index) => (
-          <InfoCard key={day.id}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 14 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.subtext, fontSize: 12, fontWeight: "700" }}>DAY {index + 1} • {formatFeedDate(day.date.toISOString())}</Text>
-                <Text style={{ color: colors.text, fontSize: 20, fontWeight: "800", marginTop: 8 }}>{day.title}</Text>
-                <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 21, marginTop: 8 }}>{day.details}</Text>
-                {day.dayNote ? <Text style={{ color: colors.primary, fontSize: 13, fontWeight: "700", marginTop: 10 }}>Note: {day.dayNote}</Text> : null}
+        <View
+          style={{
+            backgroundColor: colors.card,
+            borderRadius: 30,
+            borderWidth: 1,
+            borderColor: colors.border,
+            paddingHorizontal: 18,
+            paddingVertical: 8,
+          }}
+        >
+          {currentWeekPlan.map((day, index) => (
+            <Pressable
+              key={day.id}
+              onPress={() => openEntry({ date: day.date, dateKey: day.dateKey, planDay: day })}
+              style={{
+                paddingVertical: 18,
+                borderTopWidth: index === 0 ? 0 : 1,
+                borderTopColor: colors.border,
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 14 }}>
+                <View
+                  style={{
+                    width: 74,
+                    alignItems: "flex-start",
+                    paddingTop: 2,
+                  }}
+                >
+                  <Text style={{ color: day.isToday ? colors.primary : colors.subtext, fontSize: 12, fontWeight: "800", letterSpacing: 0.8 }}>
+                    {day.isToday ? "TODAY" : day.day.toUpperCase()}
+                  </Text>
+                  <Text style={{ color: colors.subtext, fontSize: 12, marginTop: 6 }}>
+                    {formatFeedDate(day.date.toISOString())}
+                  </Text>
+                </View>
+
+                <View
+                  style={{
+                    width: 10,
+                    alignItems: "center",
+                    paddingTop: 6,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 999,
+                      backgroundColor: day.completed ? colors.primary : day.skipped ? colors.danger : day.isToday ? colors.primary : colors.border,
+                    }}
+                  />
+                  {index < currentWeekPlan.length - 1 ? (
+                    <View
+                      style={{
+                        width: 2,
+                        flex: 1,
+                        marginTop: 6,
+                        backgroundColor: colors.border,
+                        minHeight: 52,
+                      }}
+                    />
+                  ) : null}
+                </View>
+
+                <View style={{ flex: 1, gap: 8 }}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={{
+                          color: colors.text,
+                          fontSize: day.isToday ? 24 : 20,
+                          fontWeight: "800",
+                          lineHeight: day.isToday ? 30 : 26,
+                        }}
+                      >
+                        {day.title}
+                      </Text>
+                      <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 21, marginTop: 6 }}>
+                        {day.details}
+                      </Text>
+                    </View>
+
+                    <View
+                      style={{
+                        alignSelf: "flex-start",
+                        backgroundColor: day.completed ? colors.primarySoft : colors.cardAlt,
+                        borderRadius: 999,
+                        borderWidth: 1,
+                        borderColor: day.completed ? colors.primary : day.skipped ? colors.danger : colors.border,
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                      }}
+                    >
+                      <Text style={{ color: colors.text, fontSize: 11, fontWeight: "800" }}>
+                        {day.completed ? "DONE" : day.skipped ? "SKIPPED" : `${day.distance} MI`}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {day.dayNote ? (
+                    <Text style={{ color: colors.primary, fontSize: 13, fontWeight: "700" }}>
+                      Note: {day.dayNote}
+                    </Text>
+                  ) : null}
+
+                  <View style={{ flexDirection: "row", gap: 10, marginTop: 2 }}>
+                    <InlineChip
+                      colors={colors}
+                      label={isWorkoutLiked(day.id) ? "Liked" : "Like"}
+                      active={isWorkoutLiked(day.id)}
+                      onPress={() => toggleLikedWorkout(day.id, day.category)}
+                    />
+                    <InlineOpenLink colors={colors} label="Open Day" />
+                  </View>
+                </View>
               </View>
-              <View style={{ alignItems: "flex-end", gap: 10 }}>
-                <Pressable onPress={() => toggleLikedWorkout(day.id, day.category)} style={{ borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: isWorkoutLiked(day.id) ? colors.primary : colors.border, backgroundColor: isWorkoutLiked(day.id) ? colors.primarySoft : colors.cardAlt }}>
-                  <Text style={{ color: colors.text, fontSize: 12, fontWeight: "700" }}>{isWorkoutLiked(day.id) ? "Liked" : "Like"}</Text>
-                </Pressable>
-                <Pressable onPress={() => openEntry({ date: day.date, dateKey: day.dateKey, planDay: day })} style={{ borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: colors.primary }}>
-                  <Text style={{ color: colors.background, fontSize: 12, fontWeight: "700" }}>Open Day</Text>
-                </Pressable>
-              </View>
-            </View>
-          </InfoCard>
-        ))}
+            </Pressable>
+          ))}
+        </View>
 
         <Modal visible={Boolean(selectedEntry)} transparent animationType="fade" onRequestClose={closeModal}>
           <View style={{ flex: 1, backgroundColor: "rgba(3, 8, 18, 0.72)", justifyContent: "center", padding: 20 }}>
-            <View style={{ backgroundColor: colors.card, borderRadius: 28, borderWidth: 1, borderColor: colors.border, padding: 20, gap: 14 }}>
-              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "800", letterSpacing: 0.8 }}>PLAN DAY</Text>
-              <Text style={{ color: colors.text, fontSize: 26, fontWeight: "800" }}>{selectedEntry ? formatFeedDate(selectedEntry.date.toISOString()) : ""}</Text>
-              <View style={{ backgroundColor: colors.cardAlt, borderRadius: 22, borderWidth: 1, borderColor: colors.border, padding: 16, gap: 8 }}>
-                <Text style={{ color: colors.text, fontSize: 20, fontWeight: "700" }}>{selectedEntry?.planDay?.title || "Open training day"}</Text>
-                <Text style={{ color: colors.subtext, fontSize: 14 }}>{selectedEntry?.planDay ? `${selectedEntry.planDay.distance} mi planned` : "No assigned workout yet. You can still log one."}</Text>
-                <Text style={{ color: colors.text, fontSize: 14, lineHeight: 20 }}>{selectedEntry?.planDay?.details || "Use this day for whatever you actually ran, or save notes for later."}</Text>
-              </View>
-              {selectedEntry?.planDay ? (
-                <View style={{ backgroundColor: colors.cardAlt, borderRadius: 18, borderWidth: 1, borderColor: colors.border, padding: 14 }}>
-                  <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "800" }}>PREMIUM LOCKED</Text>
-                  <Text style={{ color: colors.text, fontSize: 14, fontWeight: "700", marginTop: 8 }}>HR and fueling guidance</Text>
-                  <Text style={{ color: colors.subtext, fontSize: 13, lineHeight: 19, marginTop: 6 }}>
-                    Unlock heart rate targets, fueling suggestions, and recovery prompts for this workout day.
+            <View
+              style={{
+                backgroundColor: colors.card,
+                borderRadius: 30,
+                borderWidth: 1,
+                borderColor: colors.border,
+                padding: 22,
+                maxHeight: "88%",
+              }}
+            >
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 18 }}>
+                <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "800", letterSpacing: 1 }}>
+                  PLAN DAY
+                </Text>
+
+                <View style={{ gap: 10 }}>
+                  <Text style={{ color: colors.text, fontSize: 30, fontWeight: "800", lineHeight: 36 }}>
+                    {selectedEntry?.planDay?.title || "Open training day"}
+                  </Text>
+                  <Text style={{ color: colors.subtext, fontSize: 15, lineHeight: 22 }}>
+                    {selectedEntry ? formatFeedDate(selectedEntry.date.toISOString()) : ""}
                   </Text>
                 </View>
-              ) : null}
 
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
-                {selectedEntry?.planDay && !selectedEntry.planDay.completed && !selectedEntry.planDay.skipped ? <ActionChip colors={colors} label="Complete workout" active={mode === "complete"} onPress={() => setMode("complete")} /> : null}
-                <ActionChip colors={colors} label="Log different workout" active={mode === "manual"} onPress={() => setMode("manual")} />
-                {selectedEntry?.planDay ? <ActionChip colors={colors} label="Skip day" active={mode === "skip"} onPress={() => setMode("skip")} /> : null}
-                <ActionChip colors={colors} label="Add notes" active={mode === "notes"} onPress={() => setMode("notes")} />
-              </View>
+                <View
+                  style={{
+                    backgroundColor: colors.cardAlt,
+                    borderRadius: 22,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    padding: 18,
+                    gap: 10,
+                  }}
+                >
+                  <Text style={{ color: colors.text, fontSize: 17, fontWeight: "700" }}>
+                    {selectedEntry?.planDay ? `${selectedEntry.planDay.distance} mi planned` : "No assigned workout yet"}
+                  </Text>
+                  <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 21 }}>
+                    {selectedEntry?.planDay?.details || "Use this day for whatever you actually ran, or save notes for later."}
+                  </Text>
+                </View>
 
-              {mode === "complete" ? (
-                <>
-                  <EffortRow colors={colors} selected={completeEffort} onSelect={setCompleteEffort} />
-                  <NoteBox colors={colors} value={completeNotes} onChangeText={setCompleteNotes} placeholder="Optional notes" />
-                  <PrimaryButton label="Save Completed Workout" onPress={handleComplete} />
-                </>
-              ) : null}
+                {selectedEntry?.planDay ? (
+                  <View
+                    style={{
+                      backgroundColor: colors.cardAlt,
+                      borderRadius: 18,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      padding: 14,
+                      gap: 6,
+                    }}
+                  >
+                    <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "800" }}>PREMIUM LOCKED</Text>
+                    <Text style={{ color: colors.text, fontSize: 14, fontWeight: "700" }}>HR and fueling guidance</Text>
+                    <Text style={{ color: colors.subtext, fontSize: 13, lineHeight: 19 }}>
+                      Unlock heart rate targets, fueling suggestions, and recovery prompts for this workout day.
+                    </Text>
+                  </View>
+                ) : null}
 
-              {mode === "manual" ? (
-                <>
-                  <Field colors={colors} value={manualType} onChangeText={setManualType} placeholder="Workout type" />
-                  <Field colors={colors} value={manualDistance} onChangeText={setManualDistance} placeholder="Distance (miles)" keyboardType="numeric" />
-                  <Field colors={colors} value={manualTime} onChangeText={setManualTime} placeholder="Time (e.g. 24:18)" />
-                  <EffortRow colors={colors} selected={manualEffort} onSelect={setManualEffort} />
-                  <NoteBox colors={colors} value={manualNotes} onChangeText={setManualNotes} placeholder="Notes" />
-                  <PrimaryButton label="Save Logged Workout" onPress={handleManualLog} />
-                </>
-              ) : null}
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+                  {selectedEntry?.planDay && !selectedEntry.planDay.completed && !selectedEntry.planDay.skipped ? (
+                    <ActionChip colors={colors} label="Complete workout" active={mode === "complete"} onPress={() => setMode("complete")} />
+                  ) : null}
+                  <ActionChip colors={colors} label="Log different workout" active={mode === "manual"} onPress={() => setMode("manual")} />
+                  {selectedEntry?.planDay ? (
+                    <ActionChip colors={colors} label="Skip day" active={mode === "skip"} onPress={() => setMode("skip")} />
+                  ) : null}
+                  <ActionChip colors={colors} label="Add notes" active={mode === "notes"} onPress={() => setMode("notes")} />
+                </View>
 
-              {mode === "skip" ? (
-                <>
-                  <NoteBox colors={colors} value={skipNotes} onChangeText={setSkipNotes} placeholder="Optional reason or note" />
-                  <PrimaryButton label="Confirm Skip" onPress={handleSkip} />
-                </>
-              ) : null}
+                {mode === "complete" ? (
+                  <View style={{ gap: 14 }}>
+                    <EffortRow colors={colors} selected={completeEffort} onSelect={setCompleteEffort} />
+                    <NoteBox colors={colors} value={completeNotes} onChangeText={setCompleteNotes} placeholder="Optional notes" />
+                    <PrimaryButton label="Save Completed Workout" onPress={handleComplete} />
+                  </View>
+                ) : null}
 
-              {mode === "notes" ? (
-                <>
-                  <NoteBox colors={colors} value={completeNotes} onChangeText={setCompleteNotes} placeholder="Save a note for this day" />
-                  <PrimaryButton label="Save Note" onPress={handleSaveNotes} />
-                </>
-              ) : null}
+                {mode === "manual" ? (
+                  <View style={{ gap: 14 }}>
+                    <Field colors={colors} value={manualType} onChangeText={setManualType} placeholder="Workout type" />
+                    <Field colors={colors} value={manualDistance} onChangeText={setManualDistance} placeholder="Distance (miles)" keyboardType="numeric" />
+                    <Field colors={colors} value={manualTime} onChangeText={setManualTime} placeholder="Time (e.g. 24:18)" />
+                    <EffortRow colors={colors} selected={manualEffort} onSelect={setManualEffort} />
+                    <NoteBox colors={colors} value={manualNotes} onChangeText={setManualNotes} placeholder="Notes" />
+                    <PrimaryButton label="Save Logged Workout" onPress={handleManualLog} />
+                  </View>
+                ) : null}
 
-              <SecondaryButton label="Close" onPress={closeModal} />
+                {mode === "skip" ? (
+                  <View style={{ gap: 14 }}>
+                    <NoteBox colors={colors} value={skipNotes} onChangeText={setSkipNotes} placeholder="Optional reason or note" />
+                    <PrimaryButton label="Confirm Skip" onPress={handleSkip} />
+                  </View>
+                ) : null}
+
+                {mode === "notes" ? (
+                  <View style={{ gap: 14 }}>
+                    <NoteBox colors={colors} value={completeNotes} onChangeText={setCompleteNotes} placeholder="Save a note for this day" />
+                    <PrimaryButton label="Save Note" onPress={handleSaveNotes} />
+                  </View>
+                ) : null}
+
+                <SecondaryButton label="Close" onPress={closeModal} />
+              </ScrollView>
             </View>
           </View>
         </Modal>
@@ -400,28 +562,234 @@ export default function Plan() {
   );
 }
 
-function EffortRow({ colors, selected, onSelect }: { colors: ReturnType<typeof useThemeColors>["colors"]; selected: number; onSelect: (value: number) => void; }) {
-  return <View style={{ flexDirection: "row", gap: 10, flexWrap: "wrap" }}>{EFFORT_OPTIONS.map((value) => <Pressable key={value} onPress={() => onSelect(value)} style={{ backgroundColor: selected === value ? colors.primarySoft : colors.cardAlt, borderRadius: 16, borderWidth: 1, borderColor: selected === value ? colors.primary : colors.border, paddingHorizontal: 12, paddingVertical: 10 }}><Text style={{ color: colors.text, fontSize: 13, fontWeight: "700" }}>Effort {value}/10</Text></Pressable>)}</View>;
+function EffortRow({
+  colors,
+  selected,
+  onSelect,
+}: {
+  colors: ReturnType<typeof useThemeColors>["colors"];
+  selected: number;
+  onSelect: (value: number) => void;
+}) {
+  return (
+    <View style={{ flexDirection: "row", gap: 10, flexWrap: "wrap" }}>
+      {EFFORT_OPTIONS.map((value) => (
+        <Pressable
+          key={value}
+          onPress={() => onSelect(value)}
+          style={{
+            backgroundColor: selected === value ? colors.primarySoft : colors.cardAlt,
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: selected === value ? colors.primary : colors.border,
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+          }}
+        >
+          <Text style={{ color: colors.text, fontSize: 13, fontWeight: "700" }}>Effort {value}/10</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
 }
 
-function Field({ colors, value, onChangeText, placeholder, keyboardType }: { colors: ReturnType<typeof useThemeColors>["colors"]; value: string; onChangeText: (value: string) => void; placeholder: string; keyboardType?: "default" | "numeric"; }) {
-  return <TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={colors.subtext} keyboardType={keyboardType} style={{ backgroundColor: colors.background, color: colors.text, borderRadius: 16, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14, paddingVertical: 13, fontSize: 15 }} />;
+function Field({
+  colors,
+  value,
+  onChangeText,
+  placeholder,
+  keyboardType,
+}: {
+  colors: ReturnType<typeof useThemeColors>["colors"];
+  value: string;
+  onChangeText: (value: string) => void;
+  placeholder: string;
+  keyboardType?: "default" | "numeric";
+}) {
+  return (
+    <TextInput
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      placeholderTextColor={colors.subtext}
+      keyboardType={keyboardType}
+      style={{
+        backgroundColor: colors.background,
+        color: colors.text,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: colors.border,
+        paddingHorizontal: 14,
+        paddingVertical: 13,
+        fontSize: 15,
+      }}
+    />
+  );
 }
 
-function NoteBox({ colors, value, onChangeText, placeholder }: { colors: ReturnType<typeof useThemeColors>["colors"]; value: string; onChangeText: (value: string) => void; placeholder: string; }) {
-  return <TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={colors.subtext} multiline style={{ backgroundColor: colors.background, color: colors.text, borderRadius: 16, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14, paddingVertical: 13, minHeight: 90, textAlignVertical: "top", fontSize: 15 }} />;
+function NoteBox({
+  colors,
+  value,
+  onChangeText,
+  placeholder,
+}: {
+  colors: ReturnType<typeof useThemeColors>["colors"];
+  value: string;
+  onChangeText: (value: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <TextInput
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      placeholderTextColor={colors.subtext}
+      multiline
+      style={{
+        backgroundColor: colors.background,
+        color: colors.text,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: colors.border,
+        paddingHorizontal: 14,
+        paddingVertical: 13,
+        minHeight: 90,
+        textAlignVertical: "top",
+        fontSize: 15,
+      }}
+    />
+  );
 }
 
-function ActionChip({ colors, label, active, onPress }: { colors: ReturnType<typeof useThemeColors>["colors"]; label: string; active: boolean; onPress: () => void; }) {
-  return <Pressable onPress={onPress} style={{ backgroundColor: active ? colors.primarySoft : colors.cardAlt, borderRadius: 999, borderWidth: 1, borderColor: active ? colors.primary : colors.border, paddingHorizontal: 12, paddingVertical: 8 }}><Text style={{ color: colors.text, fontSize: 12, fontWeight: "700" }}>{label}</Text></Pressable>;
+function ActionChip({
+  colors,
+  label,
+  active,
+  onPress,
+}: {
+  colors: ReturnType<typeof useThemeColors>["colors"];
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        backgroundColor: active ? colors.primarySoft : colors.cardAlt,
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor: active ? colors.primary : colors.border,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+      }}
+    >
+      <Text style={{ color: colors.text, fontSize: 12, fontWeight: "700" }}>{label}</Text>
+    </Pressable>
+  );
 }
 
-function Legend({ colors, label, background, border, textColor }: { colors: ReturnType<typeof useThemeColors>["colors"]; label: string; background: string; border: string; textColor?: string; }) {
-  return <View style={{ backgroundColor: background, borderRadius: 999, borderWidth: 1, borderColor: border, paddingHorizontal: 12, paddingVertical: 8 }}><Text style={{ color: textColor ?? colors.text, fontSize: 12, fontWeight: "700" }}>{label}</Text></View>;
+function Legend({
+  colors,
+  label,
+  background,
+  border,
+  textColor,
+}: {
+  colors: ReturnType<typeof useThemeColors>["colors"];
+  label: string;
+  background: string;
+  border: string;
+  textColor?: string;
+}) {
+  return (
+    <View
+      style={{
+        backgroundColor: background,
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor: border,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+      }}
+    >
+      <Text style={{ color: textColor ?? colors.text, fontSize: 12, fontWeight: "700" }}>{label}</Text>
+    </View>
+  );
 }
 
-function MonthButton({ colors, label, onPress }: { colors: ReturnType<typeof useThemeColors>["colors"]; label: string; onPress: () => void; }) {
-  return <Pressable onPress={onPress} style={{ backgroundColor: colors.cardAlt, borderRadius: 14, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 9 }}><Text style={{ color: colors.text, fontSize: 13, fontWeight: "700" }}>{label}</Text></Pressable>;
+function MonthButton({
+  colors,
+  label,
+  onPress,
+}: {
+  colors: ReturnType<typeof useThemeColors>["colors"];
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        backgroundColor: colors.cardAlt,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: colors.border,
+        paddingHorizontal: 12,
+        paddingVertical: 9,
+      }}
+    >
+      <Text style={{ color: colors.text, fontSize: 13, fontWeight: "700" }}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function InlineChip({
+  colors,
+  label,
+  active,
+  onPress,
+}: {
+  colors: ReturnType<typeof useThemeColors>["colors"];
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        borderRadius: 999,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderWidth: 1,
+        borderColor: active ? colors.primary : colors.border,
+        backgroundColor: active ? colors.primarySoft : colors.cardAlt,
+      }}
+    >
+      <Text style={{ color: colors.text, fontSize: 12, fontWeight: "700" }}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function InlineOpenLink({
+  colors,
+  label,
+}: {
+  colors: ReturnType<typeof useThemeColors>["colors"];
+  label: string;
+}) {
+  return (
+    <View
+      style={{
+        borderRadius: 999,
+        paddingHorizontal: 2,
+        paddingVertical: 8,
+      }}
+    >
+      <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "800" }}>{label}</Text>
+    </View>
+  );
 }
 
 function cellBackground(day: CalendarPlanDay | null, colors: ReturnType<typeof useThemeColors>["colors"]) {
@@ -440,13 +808,19 @@ function cellBorder(day: CalendarPlanDay | null, colors: ReturnType<typeof useTh
 
 function defaultEffort(day: PlanDay | CalendarPlanDay | null) {
   switch (day?.category) {
-    case "intervals": return 8;
-    case "threshold": return 7;
+    case "intervals":
+      return 8;
+    case "threshold":
+      return 7;
     case "steady":
-    case "long": return 6;
-    case "easy": return 4;
-    case "recovery": return 3;
-    default: return 5;
+    case "long":
+      return 6;
+    case "easy":
+      return 4;
+    case "recovery":
+      return 3;
+    default:
+      return 5;
   }
 }
 

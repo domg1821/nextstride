@@ -1,8 +1,9 @@
 import { router } from "expo-router";
 import { useEffect, useRef } from "react";
 import { Animated, Pressable, ScrollView, Switch, Text, TextInput, View } from "react-native";
-import { useProfile } from "./profile-context";
-import { useThemeColors } from "./theme-context";
+import { usePremium } from "@/contexts/premium-context";
+import { useProfile } from "@/contexts/profile-context";
+import { useThemeColors } from "@/contexts/theme-context";
 
 type SettingsRowProps = {
   title: string;
@@ -100,6 +101,7 @@ function SettingsRow({
 
 export default function Settings() {
   const { profile, updateProfile, heartRateZones, resolvedMaxHeartRate, signOut } = useProfile();
+  const { status, statusTitle } = usePremium();
   const { mode, isDark, colors, toggleTheme } = useThemeColors();
   const heroOpacity = useRef(new Animated.Value(0)).current;
   const heroTranslate = useRef(new Animated.Value(20)).current;
@@ -231,10 +233,37 @@ export default function Settings() {
 
         <SettingsRow
           title="Premium"
-          subtitle="See premium features, pricing, and the upgrade placeholder."
-          accent={colors.primary}
+          subtitle={
+            status === "premium_active"
+              ? "Your Premium plan is active. Review features, status, and future billing details."
+              : status === "upgrade_pending"
+                ? "Upgrade started. Open Premium to review pending status and next billing steps."
+                : "Unlock heart rate guidance, fueling support, adaptive adjustments, and deeper training insights."
+          }
+          accent="#d97706"
           delay={240}
           onPress={() => router.push("/premium")}
+          trailing={
+            <View
+              style={{
+                backgroundColor: status === "premium_active" ? colors.success : status === "upgrade_pending" ? "#f59e0b" : colors.primarySoft,
+                borderRadius: 999,
+                paddingHorizontal: 12,
+                paddingVertical: 7,
+                marginLeft: 12,
+              }}
+            >
+              <Text
+                style={{
+                  color: status === "not_premium" ? colors.primary : "#ffffff",
+                  fontSize: 12,
+                  fontWeight: "800",
+                }}
+              >
+                {statusTitle}
+              </Text>
+            </View>
+          }
         />
 
         <SettingsRow

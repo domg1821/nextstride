@@ -1,11 +1,11 @@
 import { router } from "expo-router";
 import { Pressable, Text, View } from "react-native";
-import { InfoCard, PageHeader } from "./components/ui-kit";
-import { ScreenScroll, SectionTitle } from "./components/ui-shell";
-import { getWeeklyGoalProgress } from "./training-insights";
-import { useThemeColors } from "./theme-context";
-import { useWorkouts } from "./workout-context";
-import { formatFeedDate, getWorkoutPace } from "./workout-utils";
+import { InfoCard, PageHeader } from "@/components/ui-kit";
+import { ScreenScroll, SectionTitle } from "@/components/ui-shell";
+import { useThemeColors } from "@/contexts/theme-context";
+import { useWorkouts } from "@/contexts/workout-context";
+import { getWeeklyGoalProgress } from "@/utils/training-insights";
+import { formatFeedDate, getWorkoutPace } from "@/utils/workout-utils";
 
 export default function Activities() {
   const { workouts, shoes } = useWorkouts();

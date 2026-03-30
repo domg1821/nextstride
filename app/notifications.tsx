@@ -1,9 +1,9 @@
 import { router } from "expo-router";
 import { Pressable, Switch, Text, View } from "react-native";
-import { InfoCard, PageHeader } from "./components/ui-kit";
-import { ScreenScroll } from "./components/ui-shell";
-import { useProfile } from "./profile-context";
-import { useThemeColors } from "./theme-context";
+import { InfoCard, PageHeader } from "@/components/ui-kit";
+import { ScreenScroll } from "@/components/ui-shell";
+import { useProfile } from "@/contexts/profile-context";
+import { useThemeColors } from "@/contexts/theme-context";
 
 export default function Notifications() {
   const { notificationPreferences, updateNotificationPreferences } = useProfile();

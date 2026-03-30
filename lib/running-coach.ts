@@ -1,6 +1,6 @@
-import type { ProfileType } from "./profile-context";
-import type { WorkoutType } from "./workout-context";
-import { formatDuration, parseDistance, parseTimeToSeconds } from "./workout-utils";
+import type { ProfileType } from "@/contexts/profile-context";
+import type { WorkoutType } from "@/contexts/workout-context";
+import { formatDuration, parseDistance, parseTimeToSeconds } from "@/utils/workout-utils";
 
 export type RunningCoachContext = {
   profile: Pick<ProfileType, "goalEvent" | "mileage" | "pr5k" | "prs">;

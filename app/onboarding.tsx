@@ -1,22 +1,31 @@
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
-import { useProfile } from "./profile-context";
+import { useProfile } from "@/contexts/profile-context";
 
 export default function Onboarding() {
-  const { setProfile } = useProfile();
-
+  const { updateProfile } = useProfile();
   const [name, setName] = useState("");
   const [mileage, setMileage] = useState("");
   const [goalEvent, setGoalEvent] = useState("");
   const [pr5k, setPr5k] = useState("");
 
   const handleContinue = () => {
-    setProfile({
+    updateProfile({
       name,
       mileage,
       goalEvent,
       pr5k,
+      prs: {
+        "400": "",
+        "800": "",
+        "1600": "",
+        "3200": "",
+        "5k": pr5k,
+        "10k": "",
+        half: "",
+        marathon: "",
+      },
     });
 
     router.replace("/(tabs)");
@@ -36,7 +45,7 @@ export default function Onboarding() {
       </Text>
 
       <Text style={{ color: "#94a3b8", marginTop: 8, marginBottom: 24 }}>
-        Let’s build your training profile
+        Let&apos;s build your training profile
       </Text>
 
       <TextInput
@@ -58,6 +67,7 @@ export default function Onboarding() {
         placeholderTextColor="#64748b"
         value={mileage}
         onChangeText={setMileage}
+        keyboardType="numeric"
         style={{
           backgroundColor: "#1e293b",
           color: "white",

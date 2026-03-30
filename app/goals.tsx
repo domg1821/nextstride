@@ -1,13 +1,13 @@
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
-import { InfoCard, PageHeader, PrimaryButton } from "./components/ui-kit";
-import { ScreenScroll, SectionTitle } from "./components/ui-shell";
-import { useProfile } from "./profile-context";
-import { getPredictionForEvent, normalizePredictorEvent } from "./race-predictor-engine";
-import { summarizeRaceGoal } from "./training-insights";
-import { useThemeColors } from "./theme-context";
-import { useWorkouts } from "./workout-context";
+import { InfoCard, PageHeader, PrimaryButton } from "@/components/ui-kit";
+import { ScreenScroll, SectionTitle } from "@/components/ui-shell";
+import { useProfile } from "@/contexts/profile-context";
+import { useThemeColors } from "@/contexts/theme-context";
+import { useWorkouts } from "@/contexts/workout-context";
+import { getPredictionForEvent, normalizePredictorEvent } from "@/utils/race-predictor-engine";
+import { summarizeRaceGoal } from "@/utils/training-insights";
 
 export default function GoalsScreen() {
   const { profile, updateProfile } = useProfile();

@@ -1,18 +1,18 @@
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
-import { InfoCard, PageHeader, PrimaryButton } from "./components/ui-kit";
-import { ScreenScroll, SectionTitle } from "./components/ui-shell";
-import { useProfile } from "./profile-context";
+import { InfoCard, PageHeader, PrimaryButton } from "@/components/ui-kit";
+import { ScreenScroll, SectionTitle } from "@/components/ui-shell";
+import { useProfile } from "@/contexts/profile-context";
 import {
   getPredictionForEvent,
   getRacePredictions,
   listPredictorEvents,
   normalizePredictorEvent,
   PredictorEventKey,
-} from "./race-predictor-engine";
-import { useThemeColors } from "./theme-context";
-import { useWorkouts } from "./workout-context";
+} from "@/utils/race-predictor-engine";
+import { useThemeColors } from "@/contexts/theme-context";
+import { useWorkouts } from "@/contexts/workout-context";
 
 export default function RacePredictorScreen() {
   const { profile } = useProfile();

@@ -1,10 +1,10 @@
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
-import { InfoCard, PageHeader, PrimaryButton } from "./components/ui-kit";
-import { ScreenScroll, SectionTitle } from "./components/ui-shell";
-import { useThemeColors } from "./theme-context";
-import { useWorkouts } from "./workout-context";
+import { InfoCard, PageHeader, PrimaryButton } from "@/components/ui-kit";
+import { ScreenScroll, SectionTitle } from "@/components/ui-shell";
+import { useThemeColors } from "@/contexts/theme-context";
+import { useWorkouts } from "@/contexts/workout-context";
 
 export default function GearScreen() {
   const { shoes, addShoe, getShoeMileage } = useWorkouts();

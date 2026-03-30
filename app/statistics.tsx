@@ -1,17 +1,17 @@
 import { router } from "expo-router";
 import { Pressable, Text, View } from "react-native";
-import { InfoCard, PageHeader, StatCard } from "./components/ui-kit";
-import { ScreenScroll, SectionTitle } from "./components/ui-shell";
-import { useProfile } from "./profile-context";
-import { useThemeColors } from "./theme-context";
-import { useWorkouts } from "./workout-context";
+import { InfoCard, PageHeader, StatCard } from "@/components/ui-kit";
+import { ScreenScroll, SectionTitle } from "@/components/ui-shell";
+import { useProfile } from "@/contexts/profile-context";
+import { useThemeColors } from "@/contexts/theme-context";
+import { useWorkouts } from "@/contexts/workout-context";
 import {
   getAverageEffort,
   getAveragePace,
   getDashboardStats,
   getRecentMileageTrend,
   parseDistance,
-} from "./workout-utils";
+} from "@/utils/workout-utils";
 
 type EventTarget = {
   label: string;

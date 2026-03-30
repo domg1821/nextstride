@@ -1,15 +1,18 @@
 import { Stack } from "expo-router";
-import { ProfileProvider } from "./profile-context";
-import { ThemeProvider } from "./theme-context";
-import { WorkoutProvider } from "./workout-context";
+import { PremiumProvider } from "@/contexts/premium-context";
+import { ProfileProvider } from "@/contexts/profile-context";
+import { ThemeProvider } from "@/contexts/theme-context";
+import { WorkoutProvider } from "@/contexts/workout-context";
 
 export default function RootLayout() {
   return (
     <ThemeProvider>
       <ProfileProvider>
-        <WorkoutProvider>
-          <Stack screenOptions={{ headerShown: false }} />
-        </WorkoutProvider>
+        <PremiumProvider>
+          <WorkoutProvider>
+            <Stack screenOptions={{ headerShown: false }} />
+          </WorkoutProvider>
+        </PremiumProvider>
       </ProfileProvider>
     </ThemeProvider>
   );

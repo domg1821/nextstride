@@ -1,10 +1,10 @@
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
-import { InfoCard, PageHeader, PrimaryButton } from "./components/ui-kit";
-import { ScreenScroll } from "./components/ui-shell";
-import { PRsType, useProfile } from "./profile-context";
-import { useThemeColors } from "./theme-context";
+import { InfoCard, PageHeader, PrimaryButton } from "@/components/ui-kit";
+import { ScreenScroll } from "@/components/ui-shell";
+import { PRsType, useProfile } from "@/contexts/profile-context";
+import { useThemeColors } from "@/contexts/theme-context";
 
 export default function EditProfile() {
   const { profile, updateProfile } = useProfile();

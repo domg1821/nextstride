@@ -1,6 +1,6 @@
 import React from "react";
 import { Pressable, Text, View } from "react-native";
-import { useThemeColors } from "../theme-context";
+import { useThemeColors } from "@/contexts/theme-context";
 
 export function PageHeader({
   eyebrow,

@@ -1,13 +1,13 @@
 import { router } from "expo-router";
 import { Text, View } from "react-native";
-import TopProfileBar from "../components/TopProfileBar";
-import { useQuickDrawer } from "../components/quick-drawer";
-import { InfoCard, PageHeader, SecondaryButton, StatCard } from "../components/ui-kit";
-import { AnimatedTabScene, ScreenScroll, SectionTitle } from "../components/ui-shell";
-import { useProfile } from "../profile-context";
-import { getStatsSummary, getWeeklyGoalProgress } from "../training-insights";
-import { useThemeColors } from "../theme-context";
-import { useWorkouts } from "../workout-context";
+import TopProfileBar from "@/components/TopProfileBar";
+import { useQuickDrawer } from "@/components/quick-drawer";
+import { InfoCard, PageHeader, SecondaryButton, StatCard } from "@/components/ui-kit";
+import { AnimatedTabScene, ScreenScroll, SectionTitle } from "@/components/ui-shell";
+import { useProfile } from "@/contexts/profile-context";
+import { useThemeColors } from "@/contexts/theme-context";
+import { useWorkouts } from "@/contexts/workout-context";
+import { getStatsSummary, getWeeklyGoalProgress } from "@/utils/training-insights";
 
 export default function Progress() {
   const { profile } = useProfile();

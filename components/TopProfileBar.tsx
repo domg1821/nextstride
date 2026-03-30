@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { Image, Pressable, Text, View } from "react-native";
-import { useThemeColors } from "../theme-context";
+import { useThemeColors } from "@/contexts/theme-context";
 
 type Props = {
   imageUri?: string;

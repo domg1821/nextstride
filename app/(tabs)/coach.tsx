@@ -1,13 +1,13 @@
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
-import TopProfileBar from "../components/TopProfileBar";
-import { useQuickDrawer } from "../components/quick-drawer";
-import { AnimatedTabScene, ScreenScroll } from "../components/ui-shell";
-import { PageHeader } from "../components/ui-kit";
-import { useProfile } from "../profile-context";
-import { getRunningCoachReply, RUNNING_COACH_SUGGESTIONS } from "../running-coach";
-import { useThemeColors } from "../theme-context";
-import { useWorkouts } from "../workout-context";
+import TopProfileBar from "@/components/TopProfileBar";
+import { useQuickDrawer } from "@/components/quick-drawer";
+import { PageHeader } from "@/components/ui-kit";
+import { AnimatedTabScene, ScreenScroll } from "@/components/ui-shell";
+import { useProfile } from "@/contexts/profile-context";
+import { useThemeColors } from "@/contexts/theme-context";
+import { useWorkouts } from "@/contexts/workout-context";
+import { getRunningCoachReply, RUNNING_COACH_SUGGESTIONS } from "@/lib/running-coach";
 
 type ChatMessage = {
   role: "assistant" | "user";

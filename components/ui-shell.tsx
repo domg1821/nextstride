@@ -1,6 +1,6 @@
 import React from "react";
 import { ScrollView, Text, View } from "react-native";
-import { ThemeColors } from "../theme-context";
+import { ThemeColors } from "@/contexts/theme-context";
 
 export function AnimatedTabScene({
   tabKey,

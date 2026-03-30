@@ -9,7 +9,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { useThemeColors } from "../theme-context";
+import { useThemeColors } from "@/contexts/theme-context";
 
 type QuickDrawerContextValue = {
   openDrawer: () => void;

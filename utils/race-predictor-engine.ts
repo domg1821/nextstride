@@ -1,6 +1,6 @@
-import type { PRsType, ProfileType } from "./profile-context";
-import type { WorkoutType } from "./workout-context";
-import { formatDuration, getRecentMileageTrend, parseDistance, parseTimeToSeconds } from "./workout-utils";
+import type { PRsType, ProfileType } from "@/contexts/profile-context";
+import type { WorkoutType } from "@/contexts/workout-context";
+import { formatDuration, getRecentMileageTrend, parseDistance, parseTimeToSeconds } from "@/utils/workout-utils";
 
 export type PredictorEventKey = keyof PRsType;
 

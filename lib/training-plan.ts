@@ -3,7 +3,7 @@ import {
   getDateForPlanDay,
   getDayKey,
   getRecentMileageTrend,
-} from "./workout-utils";
+} from "@/utils/workout-utils";
 
 export type SupportedGoalEvent =
   | "800"

@@ -1,14 +1,15 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useSegments } from "expo-router";
 import { useEffect, useMemo, useRef } from "react";
-import { Animated, Easing, Pressable, Text, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Animated, Easing, Pressable, Text, View, useWindowDimensions } from "react-native";
 import CoachTab from "./coach";
 import Plan from "./explore";
 import Home from "./index";
 import Profile from "./profile";
 import Progress from "./progress";
-import { QuickDrawerProvider } from "../components/quick-drawer";
-import { useThemeColors } from "../theme-context";
+import { QuickDrawerProvider } from "@/components/quick-drawer";
+import { useProfile } from "@/contexts/profile-context";
+import { useThemeColors } from "@/contexts/theme-context";
 
 type TabKey = "index" | "explore" | "coach" | "progress" | "profile";
 
@@ -29,6 +30,7 @@ const TAB_CONFIGS: TabConfig[] = [
 ];
 
 export default function TabLayout() {
+  const { authReady, isAuthenticated, requiresEmailVerification } = useProfile();
   const { colors, isDark } = useThemeColors();
   const { width } = useWindowDimensions();
   const segments = useSegments();
@@ -36,6 +38,21 @@ export default function TabLayout() {
   const activeIndex = TAB_CONFIGS.findIndex((tab) => tab.key === activeTab);
   const translateX = useRef(new Animated.Value(-Math.max(activeIndex, 0) * width)).current;
   const hasMounted = useRef(false);
+
+  useEffect(() => {
+    if (!authReady) {
+      return;
+    }
+
+    if (!isAuthenticated) {
+      router.replace("/login");
+      return;
+    }
+
+    if (requiresEmailVerification) {
+      router.replace("/verify-email");
+    }
+  }, [authReady, isAuthenticated, requiresEmailVerification]);
 
   useEffect(() => {
     const targetValue = -Math.max(activeIndex, 0) * width;
@@ -106,6 +123,30 @@ export default function TabLayout() {
     ),
     [activeTab, colors, isDark]
   );
+
+  if (!authReady || !isAuthenticated || requiresEmailVerification) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: colors.background,
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 24,
+        }}
+      >
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ color: colors.text, fontSize: 22, fontWeight: "800", marginTop: 18 }}>
+          Preparing your account
+        </Text>
+        <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 22, marginTop: 8, textAlign: "center" }}>
+          {requiresEmailVerification
+            ? "Checking your verification flow before opening the app."
+            : "Checking your remembered session and account access."}
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <QuickDrawerProvider>
