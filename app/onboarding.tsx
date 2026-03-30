@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
 import { InfoCard, PageHeader, PrimaryButton, SecondaryButton } from "@/components/ui-kit";
 import { ScreenScroll } from "@/components/ui-shell";
 import {
@@ -10,6 +10,7 @@ import {
   type LongestRunOption,
   type MileageOption,
   type OnboardingSurveyAnswers,
+  type RaceDistanceOption,
   type RunningExperienceOption,
   type TrainingPreferenceOption,
   useProfile,
@@ -24,13 +25,35 @@ type QuestionStep =
   | "weeklyMileageRange"
   | "longestRecentRun"
   | "mainGoal"
-  | "preferredTrainingDays";
+  | "preferredTrainingDays"
+  | "recentResult"
+  | "goalRaceDistance"
+  | "goalTime"
+  | "goalRaceDate";
 
 type Option<T extends string | number> = {
   value: T;
   title: string;
   detail: string;
 };
+
+type StepConfig =
+  | {
+      kind: "welcome";
+      title: string;
+      subtitle: string;
+    }
+  | {
+      kind: "options";
+      title: string;
+      subtitle: string;
+      options: Option<string | number>[];
+    }
+  | {
+      kind: "form";
+      title: string;
+      subtitle: string;
+    };
 
 const STEPS: QuestionStep[] = [
   "welcome",
@@ -41,6 +64,10 @@ const STEPS: QuestionStep[] = [
   "longestRecentRun",
   "mainGoal",
   "preferredTrainingDays",
+  "recentResult",
+  "goalRaceDistance",
+  "goalTime",
+  "goalRaceDate",
 ];
 
 const EXPERIENCE_OPTIONS: Option<RunningExperienceOption>[] = [
@@ -97,6 +124,25 @@ const TRAINING_PREFERENCE_OPTIONS: Option<TrainingPreferenceOption>[] = [
   { value: 7, title: "7 days", detail: "You want a full-week routine." },
 ];
 
+const RACE_DISTANCE_OPTIONS: Option<RaceDistanceOption>[] = [
+  { value: "none", title: "No recent result", detail: "Skip this if you do not have a recent race or time trial." },
+  { value: "800", title: "800m", detail: "Short race or time trial result." },
+  { value: "1600/mile", title: "1600 / Mile", detail: "Mile-style recent effort." },
+  { value: "5k", title: "5K", detail: "A recent 5K result or hard time trial." },
+  { value: "10k", title: "10K", detail: "A recent 10K race result." },
+  { value: "half marathon", title: "Half marathon", detail: "A recent half-marathon result." },
+  { value: "marathon", title: "Marathon", detail: "A recent marathon result." },
+];
+
+const GOAL_RACE_OPTIONS: Option<Exclude<RaceDistanceOption, "none">>[] = [
+  { value: "800", title: "800m", detail: "Speed-focused race prep." },
+  { value: "1600/mile", title: "1600 / Mile", detail: "Middle-distance style goal." },
+  { value: "5k", title: "5K", detail: "Short road or track focus." },
+  { value: "10k", title: "10K", detail: "Longer aerobic race focus." },
+  { value: "half marathon", title: "Half marathon", detail: "Build toward steady endurance." },
+  { value: "marathon", title: "Marathon", detail: "Long-range endurance build." },
+];
+
 const EMPTY_ANSWERS: OnboardingSurveyAnswers = {
   runningExperience: "",
   canRunTwentyMinutes: "",
@@ -105,6 +151,11 @@ const EMPTY_ANSWERS: OnboardingSurveyAnswers = {
   longestRecentRun: "",
   mainGoal: "",
   preferredTrainingDays: 0,
+  recentResultDistance: "",
+  recentResultTime: "",
+  goalRaceDistance: "",
+  goalTime: "",
+  goalRaceDate: "",
 };
 
 export default function Onboarding() {
@@ -138,24 +189,70 @@ export default function Onboarding() {
   const progressPercent = (questionIndex / (STEPS.length - 2)) * 100;
   const screen = useMemo(() => getScreenConfig(step), [step]);
 
-  const handleSelect = async (value: string | number) => {
-    if (loading || step === "welcome") {
+  const updateAnswer = (key: keyof OnboardingSurveyAnswers, value: string | number) => {
+    setAnswers((current) => ({
+      ...current,
+      [key]: value,
+    }));
+    setError("");
+  };
+
+  const handleOptionSelect = (value: string | number) => {
+    if (loading || screen.kind !== "options") {
       return;
     }
 
-    const nextAnswers = {
-      ...answers,
-      [step]: value,
-    } as OnboardingSurveyAnswers;
+    updateAnswer(step as keyof OnboardingSurveyAnswers, value);
+    setStepIndex((current) => Math.min(current + 1, STEPS.length - 1));
+  };
 
-    setAnswers(nextAnswers);
-    setError("");
+  const validateCurrentStep = () => {
+    switch (step) {
+      case "recentResult":
+        if (!answers.recentResultDistance) {
+          return "Please choose a recent result distance.";
+        }
+        if (answers.recentResultDistance !== "none" && !answers.recentResultTime.trim()) {
+          return "Please enter your recent result time.";
+        }
+        return "";
+      case "goalRaceDistance":
+        if (!answers.goalRaceDistance) {
+          return "Please choose your goal race distance.";
+        }
+        return "";
+      case "goalTime":
+        if (!answers.goalTime.trim()) {
+          return "Please enter your goal time.";
+        }
+        return "";
+      default:
+        return "";
+    }
+  };
+
+  const handleContinue = async () => {
+    if (loading) {
+      return;
+    }
+
+    if (step === "welcome") {
+      setStepIndex(1);
+      return;
+    }
+
+    const validationError = validateCurrentStep();
+
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
 
     if (stepIndex === STEPS.length - 1) {
       setLoading(true);
 
       try {
-        const result = await completeOnboarding(nextAnswers);
+        const result = await completeOnboarding(answers);
 
         if (!result.ok) {
           setError(result.error || "Unable to save onboarding.");
@@ -170,6 +267,7 @@ export default function Onboarding() {
       return;
     }
 
+    setError("");
     setStepIndex((current) => current + 1);
   };
 
@@ -224,7 +322,7 @@ export default function Onboarding() {
           >
             <View
               style={{
-                width: `${Math.max(12, progressPercent)}%`,
+                width: `${Math.max(10, progressPercent)}%`,
                 height: "100%",
                 backgroundColor: colors.primary,
                 borderRadius: 999,
@@ -232,12 +330,12 @@ export default function Onboarding() {
             />
           </View>
           <Text style={{ color: colors.subtext, fontSize: 13, marginTop: 12 }}>
-            We&apos;ll use these answers to tailor your training level and your first week of workouts.
+            We&apos;ll use these answers to tailor your training level, workout style, and pace guidance.
           </Text>
         </InfoCard>
       ) : null}
 
-      {step === "welcome" ? (
+      {screen.kind === "welcome" ? (
         <InfoCard>
           <View style={{ gap: 18 }}>
             <View
@@ -261,15 +359,17 @@ export default function Onboarding() {
               </Text>
             </View>
 
-            <PrimaryButton label="Get Started" onPress={() => setStepIndex(1)} />
+            <PrimaryButton label="Get Started" onPress={handleContinue} />
           </View>
         </InfoCard>
-      ) : (
+      ) : null}
+
+      {screen.kind === "options" ? (
         <View style={{ gap: 12 }}>
           {screen.options.map((option) => (
             <Pressable
               key={String(option.value)}
-              onPress={() => void handleSelect(option.value)}
+              onPress={() => handleOptionSelect(option.value)}
               disabled={loading}
               style={{
                 backgroundColor: colors.card,
@@ -289,7 +389,73 @@ export default function Onboarding() {
             </Pressable>
           ))}
         </View>
-      )}
+      ) : null}
+
+      {screen.kind === "form" && step === "recentResult" ? (
+        <InfoCard>
+          <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700" }}>Recent race or time trial</Text>
+          <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 21, marginTop: 8 }}>
+            We&apos;ll use this to estimate training paces when possible.
+          </Text>
+
+          <View style={{ gap: 10, marginTop: 18 }}>
+            {RACE_DISTANCE_OPTIONS.map((option) => {
+              const selected = answers.recentResultDistance === option.value;
+
+              return (
+                <Pressable
+                  key={option.value}
+                  onPress={() => updateAnswer("recentResultDistance", option.value)}
+                  style={{
+                    backgroundColor: selected ? colors.primarySoft : colors.cardAlt,
+                    borderRadius: 18,
+                    borderWidth: 1,
+                    borderColor: selected ? colors.primary : colors.border,
+                    padding: 16,
+                  }}
+                >
+                  <Text style={{ color: colors.text, fontSize: 15, fontWeight: "700" }}>{option.title}</Text>
+                  <Text style={{ color: colors.subtext, fontSize: 13, lineHeight: 19, marginTop: 6 }}>
+                    {option.detail}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <TextInput
+            value={answers.recentResultTime}
+            onChangeText={(value) => updateAnswer("recentResultTime", value)}
+            placeholder="Recent time (example: 24:18)"
+            placeholderTextColor={colors.subtext}
+            style={inputStyle(colors)}
+          />
+        </InfoCard>
+      ) : null}
+
+      {screen.kind === "form" && step === "goalTime" ? (
+        <InfoCard>
+          <TextInput
+            value={answers.goalTime}
+            onChangeText={(value) => updateAnswer("goalTime", value)}
+            placeholder="Goal time (example: 21:30)"
+            placeholderTextColor={colors.subtext}
+            style={inputStyle(colors)}
+          />
+        </InfoCard>
+      ) : null}
+
+      {screen.kind === "form" && step === "goalRaceDate" ? (
+        <InfoCard>
+          <TextInput
+            value={answers.goalRaceDate}
+            onChangeText={(value) => updateAnswer("goalRaceDate", value)}
+            placeholder="Goal race date, optional (YYYY-MM-DD)"
+            placeholderTextColor={colors.subtext}
+            style={inputStyle(colors)}
+          />
+        </InfoCard>
+      ) : null}
 
       {!!error ? (
         <InfoCard>
@@ -310,6 +476,12 @@ export default function Onboarding() {
             </InfoCard>
           ) : null}
 
+          {screen.kind === "form" ? (
+            <PrimaryButton
+              label={stepIndex === STEPS.length - 1 ? "Finish Setup" : "Continue"}
+              onPress={() => void handleContinue()}
+            />
+          ) : null}
           <SecondaryButton label="Back" onPress={handleBack} />
         </View>
       ) : null}
@@ -317,55 +489,101 @@ export default function Onboarding() {
   );
 }
 
-function getScreenConfig(step: QuestionStep) {
+function getScreenConfig(step: QuestionStep): StepConfig {
   switch (step) {
     case "welcome":
       return {
+        kind: "welcome",
         title: "Welcome to NextStride",
         subtitle: "Let's build your personalized training plan",
-        options: [] as Option<string>[],
       };
     case "runningExperience":
       return {
+        kind: "options",
         title: "How would you describe your running experience?",
         subtitle: "We'll start at the right level instead of guessing.",
         options: EXPERIENCE_OPTIONS,
       };
     case "canRunTwentyMinutes":
       return {
+        kind: "options",
         title: "Can you run 20 minutes continuously without stopping?",
-        subtitle: "This helps us separate walk/run plans from steady running plans.",
+        subtitle: "This separates walk/run plans from steady running plans.",
         options: ABILITY_OPTIONS,
       };
     case "currentFrequency":
       return {
+        kind: "options",
         title: "How many days per week do you currently run?",
         subtitle: "Your current routine matters as much as your goal.",
         options: FREQUENCY_OPTIONS,
       };
     case "weeklyMileageRange":
       return {
+        kind: "options",
         title: "What is your weekly mileage?",
         subtitle: "A quick volume estimate helps shape your starting workload.",
         options: MILEAGE_OPTIONS,
       };
     case "longestRecentRun":
       return {
+        kind: "options",
         title: "What's your longest recent run?",
         subtitle: "This shows how much endurance you already have in the tank.",
         options: LONGEST_RUN_OPTIONS,
       };
     case "mainGoal":
       return {
+        kind: "options",
         title: "What is your main goal?",
         subtitle: "We'll tune your plan around the outcome you care about most.",
         options: GOAL_OPTIONS,
       };
     case "preferredTrainingDays":
       return {
+        kind: "options",
         title: "How many days per week do you want to train?",
         subtitle: "We'll match your plan to the schedule you actually want to keep.",
         options: TRAINING_PREFERENCE_OPTIONS,
       };
+    case "recentResult":
+      return {
+        kind: "form",
+        title: "Do you have a recent race or time trial result?",
+        subtitle: "Add the distance and time if you have one.",
+      };
+    case "goalRaceDistance":
+      return {
+        kind: "options",
+        title: "What is your goal race distance?",
+        subtitle: "This helps shape your long-term training focus.",
+        options: GOAL_RACE_OPTIONS,
+      };
+    case "goalTime":
+      return {
+        kind: "form",
+        title: "What is your goal time?",
+        subtitle: "This gives the plan a sharper target.",
+      };
+    case "goalRaceDate":
+      return {
+        kind: "form",
+        title: "What is your goal race date?",
+        subtitle: "Optional, but helpful for timing future progress.",
+      };
   }
+}
+
+function inputStyle(colors: ReturnType<typeof useThemeColors>["colors"]) {
+  return {
+    backgroundColor: colors.background,
+    color: colors.text,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+    fontSize: 15,
+    marginTop: 18,
+  } as const;
 }

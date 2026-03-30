@@ -29,6 +29,14 @@ export type GoalOption =
   | "get_faster";
 
 export type TrainingPreferenceOption = 3 | 4 | 5 | 6 | 7;
+export type RaceDistanceOption =
+  | "none"
+  | "800"
+  | "1600/mile"
+  | "5k"
+  | "10k"
+  | "half marathon"
+  | "marathon";
 
 export type OnboardingSurveyAnswers = {
   runningExperience: RunningExperienceOption | "";
@@ -38,6 +46,11 @@ export type OnboardingSurveyAnswers = {
   longestRecentRun: LongestRunOption | "";
   mainGoal: GoalOption | "";
   preferredTrainingDays: TrainingPreferenceOption | 0;
+  recentResultDistance: RaceDistanceOption | "";
+  recentResultTime: string;
+  goalRaceDistance: Exclude<RaceDistanceOption, "none"> | "";
+  goalTime: string;
+  goalRaceDate: string;
 };
 
 export type PRsType = {
@@ -192,6 +205,11 @@ const EMPTY_ONBOARDING_ANSWERS: OnboardingSurveyAnswers = {
   longestRecentRun: "",
   mainGoal: "",
   preferredTrainingDays: 0,
+  recentResultDistance: "",
+  recentResultTime: "",
+  goalRaceDistance: "",
+  goalTime: "",
+  goalRaceDate: "",
 };
 
 const DEFAULT_NOTIFICATIONS: NotificationPreferences = {
@@ -455,6 +473,87 @@ function goalEventFromSurvey(goal: GoalOption | "") {
   }
 }
 
+function goalEventFromGoalDistance(goalRaceDistance: OnboardingSurveyAnswers["goalRaceDistance"]) {
+  return goalRaceDistance || "5k";
+}
+
+function mapRaceDistanceToPrKey(distance: RaceDistanceOption | ""): keyof PRsType | null {
+  switch (distance) {
+    case "800":
+      return "800";
+    case "1600/mile":
+      return "1600";
+    case "5k":
+      return "5k";
+    case "10k":
+      return "10k";
+    case "half marathon":
+      return "half";
+    case "marathon":
+      return "marathon";
+    default:
+      return null;
+  }
+}
+
+function getRaceDistanceMiles(distance: RaceDistanceOption | "") {
+  switch (distance) {
+    case "800":
+      return 0.4971;
+    case "1600/mile":
+      return 1;
+    case "5k":
+      return 3.1069;
+    case "10k":
+      return 6.2137;
+    case "half marathon":
+      return 13.1094;
+    case "marathon":
+      return 26.2188;
+    default:
+      return null;
+  }
+}
+
+function estimateEquivalent5k(recentDistance: RaceDistanceOption | "", recentTime: string) {
+  const seconds = parseTimeToSeconds(recentTime);
+  const miles = getRaceDistanceMiles(recentDistance);
+
+  if (!seconds || !miles) {
+    return "";
+  }
+
+  const estimated5kSeconds = seconds * Math.pow(3.1069 / miles, 1.06);
+  return formatDuration(Math.round(estimated5kSeconds));
+}
+
+function buildRaceGoalsFromAnswers(
+  answers: OnboardingSurveyAnswers,
+  existingGoals: RaceGoalType[]
+) {
+  if (!answers.goalRaceDistance) {
+    return existingGoals;
+  }
+
+  const nextGoal: RaceGoalType = {
+    id: existingGoals[0]?.id ?? `goal-${Date.now()}`,
+    event: answers.goalRaceDistance,
+    goalTime: answers.goalTime.trim(),
+    raceDate: answers.goalRaceDate.trim(),
+  };
+
+  const remainingGoals = existingGoals.filter((goal) => goal.id !== nextGoal.id);
+  return [nextGoal, ...remainingGoals].slice(0, 4);
+}
+
+function getErrorMessage(error: unknown) {
+  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
+    return error.message;
+  }
+
+  return "Unknown Supabase error.";
+}
+
 function mapSupabaseProfileRow(row: SupabaseProfileRow | null | undefined): Partial<ProfileType> | null {
   if (!row) {
     return null;
@@ -515,33 +614,74 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
   const accountsByEmailRef = useRef<Record<string, StoredAccount>>({});
   const authRequestInFlightRef = useRef(false);
   const authHydratedRef = useRef(false);
+  const profileKeyRef = useRef<"user_id" | "id" | null>(null);
 
   useEffect(() => {
     accountsByEmailRef.current = accountsByEmail;
   }, [accountsByEmail]);
 
   const fetchProfileFromSupabase = useCallback(async (userId: string) => {
-    const { data, error } = await supabase
+    const userIdQuery = await supabase
       .from(SUPABASE_PROFILES_TABLE)
       .select("*")
       .eq("user_id", userId)
       .maybeSingle();
 
-    if (error) {
+    if (!userIdQuery.error) {
+      if (userIdQuery.data) {
+        profileKeyRef.current = "user_id";
+      }
+
+      return mapSupabaseProfileRow(userIdQuery.data as SupabaseProfileRow | null);
+    }
+
+    const idQuery = await supabase
+      .from(SUPABASE_PROFILES_TABLE)
+      .select("*")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (idQuery.error) {
+      profileKeyRef.current = null;
       return null;
     }
 
-    return mapSupabaseProfileRow(data as SupabaseProfileRow | null);
+    if (idQuery.data) {
+      profileKeyRef.current = "id";
+    }
+
+    return mapSupabaseProfileRow(idQuery.data as SupabaseProfileRow | null);
   }, []);
 
   const upsertProfileToSupabase = useCallback(async (user: User, nextProfile: ProfileType) => {
-    const { error } = await supabase
-      .from(SUPABASE_PROFILES_TABLE)
-      .upsert(toSupabaseProfilePayload(user, nextProfile), { onConflict: "user_id" });
+    const payload = toSupabaseProfilePayload(user, nextProfile);
+    const { user_id: _userId, ...payloadWithoutUserId } = payload;
+    const candidates: { key: "user_id" | "id"; payload: Record<string, unknown> }[] =
+      profileKeyRef.current === "id"
+        ? [{ key: "id", payload: { ...payloadWithoutUserId, id: user.id } }]
+        : profileKeyRef.current === "user_id"
+          ? [{ key: "user_id", payload }]
+          : [
+              { key: "user_id", payload },
+              { key: "id", payload: { ...payloadWithoutUserId, id: user.id } },
+            ];
 
-    if (error) {
-      throw error;
+    let lastError: unknown = null;
+
+    for (const candidate of candidates) {
+      const { error } = await supabase
+        .from(SUPABASE_PROFILES_TABLE)
+        .upsert(candidate.payload, { onConflict: candidate.key });
+
+      if (!error) {
+        profileKeyRef.current = candidate.key;
+        return;
+      }
+
+      lastError = error;
     }
+
+    throw lastError ?? new Error("Unable to save profile.");
   }, []);
 
   const syncUserState = useCallback(
@@ -983,11 +1123,21 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
             };
           }
 
+          const recentResultTime = answers.recentResultTime.trim();
+          const recentPrKey = mapRaceDistanceToPrKey(answers.recentResultDistance);
+          const equivalent5k = estimateEquivalent5k(answers.recentResultDistance, recentResultTime);
+          const nextPrs = {
+            ...profile.prs,
+            ...(recentPrKey && recentResultTime ? { [recentPrKey]: recentResultTime } : {}),
+          };
           const nextProfile = normalizeProfile({
             ...profile,
             name: profile.name || deriveNameFromEmail(currentUser.email),
             mileage: mileageFromSurvey(answers.weeklyMileageRange),
-            goalEvent: goalEventFromSurvey(answers.mainGoal),
+            goalEvent: goalEventFromGoalDistance(answers.goalRaceDistance) || goalEventFromSurvey(answers.mainGoal),
+            pr5k: equivalent5k || profile.pr5k,
+            prs: nextPrs,
+            raceGoals: buildRaceGoalsFromAnswers(answers, profile.raceGoals),
             onboardingComplete: true,
             runnerLevel: classifyRunner(answers),
             onboardingAnswers: answers,
@@ -996,11 +1146,10 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
 
           try {
             await upsertProfileToSupabase(currentUser, nextProfile);
-          } catch {
+          } catch (error) {
             return {
               ok: false,
-              error:
-                "Unable to save onboarding to Supabase. Confirm the profiles table exists and allows authenticated upserts.",
+              error: `Unable to save onboarding to Supabase: ${getErrorMessage(error)}`,
             };
           }
 
