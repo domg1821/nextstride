@@ -51,3 +51,67 @@ export const Fonts = Platform.select({
     mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
   },
 });
+
+// Design tokens for spacing, radii, shadows and a small accent palette.
+export const Spacing = {
+  xs: 4,
+  s: 8,
+  m: 16,
+  l: 24,
+  xl: 32,
+};
+
+export const Radii = {
+  sm: 6,
+  md: 12,
+  lg: 20,
+  round: 9999,
+};
+
+// Simple shadow presets for iOS / Android (React Native style)
+export const Shadows = {
+  low: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  medium: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+};
+
+export const Palette = {
+  primary: '#00B8B3', // teal
+  accent: '#FF6B6B', // coral
+  secondary: '#4B6BFF', // indigo
+  backgroundSoft: '#F7FBFC',
+  surface: '#FFFFFF',
+  borderSubtle: '#E6EEF0',
+  textPrimary: '#0F1720',
+  textMuted: '#6B7280',
+};
+
+export const Typography = {
+  h1: { fontSize: 32, lineHeight: 40, fontWeight: '800' },
+  h2: { fontSize: 24, lineHeight: 32, fontWeight: '700' },
+  h3: { fontSize: 18, lineHeight: 26, fontWeight: '700' },
+  body: { fontSize: 16, lineHeight: 24, fontWeight: '400' },
+  bodyStrong: { fontSize: 16, lineHeight: 24, fontWeight: '600' },
+  small: { fontSize: 13, lineHeight: 20, fontWeight: '400' },
+  link: { fontSize: 16, lineHeight: 24, fontWeight: '700', color: '#00B8B3' },
+};
+
+// Export a minimal ThemeTokens object for easy imports elsewhere.
+export const ThemeTokens = {
+  spacing: Spacing,
+  radii: Radii,
+  shadows: Shadows,
+  palette: Palette,
+  typography: Typography,
+};

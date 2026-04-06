@@ -2,6 +2,7 @@ import { router } from "expo-router";
 import { useEffect } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { useProfile } from "@/contexts/profile-context";
+import { ThemeTokens } from "@/constants/theme";
 
 export default function Index() {
   const { authReady, isAuthenticated, profile, sessionRestored, sessionStatusMessage, appHomeRoute } = useProfile();
@@ -12,7 +13,7 @@ export default function Index() {
     }
 
     const targetRoute = isAuthenticated
-      ? profile.accountType === "solo_runner" && !profile.onboardingComplete
+      ? !profile.onboardingComplete
         ? "/onboarding"
         : appHomeRoute
       : "/welcome";
@@ -24,24 +25,24 @@ export default function Index() {
     );
 
     return () => clearTimeout(timeout);
-  }, [appHomeRoute, authReady, isAuthenticated, profile.accountType, profile.onboardingComplete, sessionRestored]);
+  }, [appHomeRoute, authReady, isAuthenticated, profile.onboardingComplete, sessionRestored]);
 
   if (!authReady || (isAuthenticated && sessionRestored)) {
     return (
       <View
         style={{
           flex: 1,
-          backgroundColor: "#08111d",
+          backgroundColor: ThemeTokens.palette.textPrimary,
           alignItems: "center",
           justifyContent: "center",
-          padding: 24,
+          padding: ThemeTokens.spacing.l,
         }}
       >
-        <ActivityIndicator size="large" color="#60a5fa" />
-        <Text style={{ color: "#f8fbff", fontSize: 22, fontWeight: "800", marginTop: 18 }}>
+        <ActivityIndicator size="large" color={ThemeTokens.palette.secondary} />
+        <Text style={{ color: ThemeTokens.palette.surface, fontSize: 22, fontWeight: "800", marginTop: ThemeTokens.spacing.m }}>
           {authReady ? "Session restored" : "Opening NextStride"}
         </Text>
-        <Text style={{ color: "#9db2ca", fontSize: 14, lineHeight: 22, marginTop: 8, textAlign: "center" }}>
+        <Text style={{ color: ThemeTokens.palette.textMuted, fontSize: 14, lineHeight: 22, marginTop: ThemeTokens.spacing.s, textAlign: "center" }}>
           {authReady
             ? sessionStatusMessage || "Jumping back into your saved account."
             : "Restoring your account, training profile, and recent session state."}

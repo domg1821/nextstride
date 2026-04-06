@@ -21,7 +21,7 @@ const INITIAL_CHAT: ChatMessage[] = [
   },
 ];
 
-export default function CoachTab() {
+export default function GuideTab() {
   const { profile } = useProfile();
   const { workouts } = useWorkouts();
   const { colors } = useThemeColors();
@@ -29,7 +29,7 @@ export default function CoachTab() {
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_CHAT);
 
-  const coachContext = useMemo(
+  const guideContext = useMemo(
     () => ({
       profile: {
         goalEvent: profile.goalEvent,
@@ -42,14 +42,14 @@ export default function CoachTab() {
     [profile.goalEvent, profile.mileage, profile.pr5k, profile.prs, workouts]
   );
 
-  const sendCoachMessage = (prompt: string) => {
+  const sendGuideMessage = (prompt: string) => {
     const trimmed = prompt.trim();
 
     if (!trimmed) {
       return;
     }
 
-    const reply = getRunningCoachReply(trimmed, coachContext);
+    const reply = getRunningCoachReply(trimmed, guideContext);
 
     setMessages((current) => [
       ...current,
@@ -60,14 +60,14 @@ export default function CoachTab() {
   };
 
   return (
-    <AnimatedTabScene tabKey="coach">
+    <AnimatedTabScene tabKey="guide">
       <ScreenScroll colors={colors}>
         <TopProfileBar imageUri={profile.image} name={profile.name} onAvatarPress={openDrawer} />
 
         <PageHeader
-          eyebrow="Coach"
-          title="Your running coach"
-          subtitle="Focused on running only: workouts, pacing math, splits, race prep, recovery, mileage, and fueling."
+          eyebrow="Guide"
+          title="Your running guide"
+          subtitle="Focused on individual runners: workouts, pacing math, splits, race prep, recovery, mileage, and fueling."
         />
 
         <View
@@ -86,7 +86,7 @@ export default function CoachTab() {
             {RUNNING_COACH_SUGGESTIONS.map((suggestion) => (
               <Pressable
                 key={suggestion}
-                onPress={() => sendCoachMessage(suggestion)}
+                onPress={() => sendGuideMessage(suggestion)}
                 style={{
                   backgroundColor: colors.cardAlt,
                   borderRadius: 999,
@@ -109,7 +109,7 @@ export default function CoachTab() {
             ].map((tool) => (
               <Pressable
                 key={tool}
-                onPress={() => sendCoachMessage(tool)}
+                onPress={() => sendGuideMessage(tool)}
                 style={{
                   backgroundColor: colors.primarySoft,
                   borderRadius: 16,
@@ -175,7 +175,7 @@ export default function CoachTab() {
               onChangeText={setQuestion}
               placeholder="Ask about workouts, pace, recovery, race prep..."
               placeholderTextColor={colors.subtext}
-              onSubmitEditing={() => sendCoachMessage(question)}
+              onSubmitEditing={() => sendGuideMessage(question)}
               style={{
                 flex: 1,
                 backgroundColor: colors.cardAlt,
@@ -190,7 +190,7 @@ export default function CoachTab() {
             />
 
             <Pressable
-              onPress={() => sendCoachMessage(question)}
+              onPress={() => sendGuideMessage(question)}
               style={{
                 backgroundColor: colors.primary,
                 borderRadius: 18,
@@ -201,9 +201,7 @@ export default function CoachTab() {
                 justifyContent: "center",
               }}
             >
-              <Text style={{ color: colors.background, fontSize: 14, fontWeight: "700" }}>
-                Send
-              </Text>
+              <Text style={{ color: colors.background, fontSize: 14, fontWeight: "700" }}>Send</Text>
             </Pressable>
           </View>
         </View>

@@ -4,7 +4,6 @@ import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-nativ
 import { InfoCard, PageHeader, PrimaryButton, SecondaryButton } from "@/components/ui-kit";
 import { ScreenScroll } from "@/components/ui-shell";
 import {
-  type AccountType,
   type AbilityOption,
   type FrequencyOption,
   type GoalOption,
@@ -14,14 +13,12 @@ import {
   type RaceDistanceOption,
   type RunningExperienceOption,
   type TrainingPreferenceOption,
-  getAppRouteForAccountType,
   useProfile,
 } from "@/contexts/profile-context";
 import { useThemeColors } from "@/contexts/theme-context";
 
 type QuestionStep =
   | "welcome"
-  | "accountType"
   | "runningExperience"
   | "canRunTwentyMinutes"
   | "currentFrequency"
@@ -60,7 +57,6 @@ type StepConfig =
 
 const STEPS: QuestionStep[] = [
   "welcome",
-  "accountType",
   "runningExperience",
   "canRunTwentyMinutes",
   "currentFrequency",
@@ -72,24 +68,6 @@ const STEPS: QuestionStep[] = [
   "goalRaceDistance",
   "goalTime",
   "goalRaceDate",
-];
-
-const ACCOUNT_TYPE_OPTIONS: Option<AccountType>[] = [
-  {
-    value: "solo_runner",
-    title: "Solo Runner",
-    detail: "Use the current personalized solo training flow and workout experience.",
-  },
-  {
-    value: "coach",
-    title: "Coach",
-    detail: "Set up a coach account and head into the coach dashboard shell for future phases.",
-  },
-  {
-    value: "team_runner",
-    title: "Runner Joining a Team",
-    detail: "Set up a team runner account and land in the team dashboard shell for future phases.",
-  },
 ];
 
 const EXPERIENCE_OPTIONS: Option<RunningExperienceOption>[] = [
@@ -185,21 +163,10 @@ export default function Onboarding() {
   const { colors } = useThemeColors();
   const { authReady, isAuthenticated, profile, completeOnboarding, appHomeRoute } = useProfile();
   const [stepIndex, setStepIndex] = useState(0);
-  const [answers, setAnswers] = useState<OnboardingSurveyAnswers>(() => ({
-    ...EMPTY_ANSWERS,
-    accountType: profile.accountType,
-    ...profile.onboardingAnswers,
-  }));
+  const [answers, setAnswers] = useState<OnboardingSurveyAnswers>(() => ({ ...EMPTY_ANSWERS, ...profile.onboardingAnswers, accountType: "solo_runner" }));
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const activeAccountType = answers.accountType || profile.accountType || "solo_runner";
-  const steps = useMemo(
-    () =>
-      activeAccountType === "solo_runner"
-        ? STEPS
-        : STEPS.filter((currentStep) => currentStep === "welcome" || currentStep === "accountType"),
-    [activeAccountType]
-  );
+  const steps = useMemo(() => STEPS, []);
 
   useEffect(() => {
     if (!authReady) {
@@ -208,11 +175,6 @@ export default function Onboarding() {
 
     if (!isAuthenticated) {
       router.replace("/login");
-      return;
-    }
-
-    if (profile.accountType !== "solo_runner") {
-      router.replace(appHomeRoute);
       return;
     }
 
@@ -245,20 +207,11 @@ export default function Onboarding() {
 
     updateAnswer(step as keyof OnboardingSurveyAnswers, value);
 
-    if (step === "accountType") {
-      return;
-    }
-
     setStepIndex((current) => Math.min(current + 1, steps.length - 1));
   };
 
   const validateCurrentStep = () => {
     switch (step) {
-      case "accountType":
-        if (!answers.accountType) {
-          return "Please choose an account type.";
-        }
-        return "";
       case "recentResult":
         if (!answers.recentResultDistance) {
           return "Please choose a recent result distance.";
@@ -300,14 +253,7 @@ export default function Onboarding() {
     }
 
     if (stepIndex === steps.length - 1) {
-      const finalAnswers =
-        activeAccountType === "solo_runner"
-          ? answers
-          : {
-              ...EMPTY_ANSWERS,
-              accountType: activeAccountType,
-              preferredTrainingDays: 4,
-            };
+      const finalAnswers = { ...answers, accountType: "solo_runner" as const };
       setLoading(true);
 
       try {
@@ -318,7 +264,7 @@ export default function Onboarding() {
           return;
         }
 
-        router.replace(getAppRouteForAccountType(activeAccountType));
+        router.replace(appHomeRoute);
       } finally {
         setLoading(false);
       }
@@ -339,7 +285,7 @@ export default function Onboarding() {
     setStepIndex((current) => Math.max(0, current - 1));
   };
 
-  if (!authReady || !isAuthenticated || profile.accountType !== "solo_runner" || profile.onboardingComplete) {
+  if (!authReady || !isAuthenticated || profile.onboardingComplete) {
     return (
       <View
         style={{
@@ -537,7 +483,7 @@ export default function Onboarding() {
             </InfoCard>
           ) : null}
 
-          {screen.kind === "form" || step === "accountType" ? (
+          {screen.kind === "form" ? (
             <PrimaryButton
               label={stepIndex === steps.length - 1 ? "Finish Setup" : "Continue"}
               onPress={() => void handleContinue()}
@@ -557,13 +503,6 @@ function getScreenConfig(step: QuestionStep): StepConfig {
         kind: "welcome",
         title: "Welcome to NextStride",
         subtitle: "Let's build your personalized training plan",
-      };
-    case "accountType":
-      return {
-        kind: "options",
-        title: "Which account type best matches what you need?",
-        subtitle: "You can keep the solo runner experience or set up a coach or team runner account shell.",
-        options: ACCOUNT_TYPE_OPTIONS,
       };
     case "runningExperience":
       return {

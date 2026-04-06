@@ -1,6 +1,7 @@
 import React from "react";
 import { Pressable, Text, View } from "react-native";
 import { useThemeColors } from "@/contexts/theme-context";
+import { ThemeTokens } from "@/constants/theme";
 
 export function PageHeader({
   eyebrow,
@@ -19,10 +20,9 @@ export function PageHeader({
     <View
       style={{
         backgroundColor: colors.cardAlt,
-        borderRadius: 30,
-        borderWidth: 1,
-        borderColor: colors.border,
-        padding: 24,
+        borderRadius: ThemeTokens.radii.lg,
+        padding: ThemeTokens.spacing.l,
+        ...ThemeTokens.shadows.low,
       }}
     >
       <View
@@ -37,13 +37,13 @@ export function PageHeader({
           {eyebrow ? (
             <Text
               style={{
-              color: colors.primary,
-              fontSize: 12,
-              fontWeight: "800",
-              letterSpacing: 1.1,
-              textTransform: "uppercase",
-            }}
-          >
+                color: colors.primary,
+                fontSize: 12,
+                fontWeight: "800",
+                letterSpacing: 1.1,
+                textTransform: "uppercase",
+              }}
+            >
               {eyebrow}
             </Text>
           ) : null}
@@ -53,7 +53,7 @@ export function PageHeader({
               color: colors.text,
               fontSize: 30,
               fontWeight: "800",
-              marginTop: eyebrow ? 10 : 0,
+              marginTop: eyebrow ? ThemeTokens.spacing.s : 0,
               lineHeight: 36,
             }}
           >
@@ -66,7 +66,7 @@ export function PageHeader({
                 color: colors.subtext,
                 fontSize: 15,
                 lineHeight: 23,
-                marginTop: 12,
+                marginTop: ThemeTokens.spacing.m,
                 maxWidth: 560,
               }}
             >
@@ -95,9 +95,9 @@ export function PrimaryButton({
       onPress={onPress}
       style={({ pressed }) => ({
         backgroundColor: colors.primary,
-        paddingHorizontal: 18,
-        paddingVertical: 15,
-        borderRadius: 18,
+        paddingHorizontal: ThemeTokens.spacing.m,
+        paddingVertical: ThemeTokens.spacing.s + 7,
+        borderRadius: ThemeTokens.radii.md,
         alignItems: "center",
         justifyContent: "center",
         opacity: pressed ? 0.92 : 1,
@@ -124,11 +124,9 @@ export function SecondaryButton({
       onPress={onPress}
       style={({ pressed }) => ({
         backgroundColor: colors.card,
-        borderWidth: 1,
-        borderColor: colors.border,
-        paddingHorizontal: 18,
-        paddingVertical: 15,
-        borderRadius: 18,
+        paddingHorizontal: ThemeTokens.spacing.m,
+        paddingVertical: ThemeTokens.spacing.s + 7,
+        borderRadius: ThemeTokens.radii.md,
         alignItems: "center",
         justifyContent: "center",
         opacity: pressed ? 0.92 : 1,
@@ -156,10 +154,9 @@ export function InfoCard({
     <View
       style={{
         backgroundColor: colors.card,
-        borderRadius: 26,
-        borderWidth: 1,
-        borderColor: colors.border,
-        padding: 20,
+        borderRadius: ThemeTokens.radii.lg,
+        padding: ThemeTokens.spacing.m,
+        ...ThemeTokens.shadows.low,
       }}
     >
       {title ? (
@@ -201,10 +198,9 @@ export function StatCard({
     <View
       style={{
         backgroundColor: colors.card,
-        borderRadius: 26,
-        borderWidth: 1,
-        borderColor: colors.border,
-        padding: 20,
+        borderRadius: ThemeTokens.radii.lg,
+        padding: ThemeTokens.spacing.m,
+        ...ThemeTokens.shadows.low,
       }}
     >
       <Text style={{ color: colors.subtext, fontSize: 13 }}>{label}</Text>

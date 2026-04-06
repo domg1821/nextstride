@@ -1,12 +1,15 @@
 import { router } from "expo-router";
 import { Text, View } from "react-native";
+import { AdvancedRacePredictorCard } from "@/components/advanced-race-predictor-card";
 import TopProfileBar from "@/components/TopProfileBar";
 import { useQuickDrawer } from "@/components/quick-drawer";
+import { WorkoutEffortChip } from "@/components/workout-effort-chip";
 import { InfoCard, PageHeader, SecondaryButton, StatCard } from "@/components/ui-kit";
 import { AnimatedTabScene, ScreenScroll, SectionTitle } from "@/components/ui-shell";
 import { useProfile } from "@/contexts/profile-context";
 import { useThemeColors } from "@/contexts/theme-context";
 import { useWorkouts } from "@/contexts/workout-context";
+import { getLoggedWorkoutEffortGuidance } from "@/lib/workout-effort";
 import { getStatsSummary, getWeeklyGoalProgress } from "@/utils/training-insights";
 
 export default function Progress() {
@@ -17,6 +20,9 @@ export default function Progress() {
   const mileageGoal = parseFloat(profile.mileage) || 30;
   const goalProgress = getWeeklyGoalProgress(workouts, mileageGoal);
   const stats = getStatsSummary(workouts);
+  const recentWorkouts = [...workouts]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 4);
 
   return (
     <AnimatedTabScene tabKey="progress">
@@ -24,9 +30,9 @@ export default function Progress() {
         <TopProfileBar imageUri={profile.image} name={profile.name} onAvatarPress={openDrawer} />
 
         <PageHeader
-          eyebrow="Insights"
-          title="Your running dashboard"
-          subtitle="Weekly and monthly mileage, trend charts, effort, pace, and simple rule-based insight from the work you log."
+          eyebrow="Progress"
+          title="Completed work and training trends"
+          subtitle="Mileage, stats, recent completed workouts, and the simple progress signals that matter most."
         />
 
         {workouts.length === 0 ? (
@@ -110,6 +116,40 @@ export default function Progress() {
             <InfoCard>
               <SectionTitle
                 colors={colors}
+                title="Recent Completed Workouts"
+                subtitle="Your latest logged sessions stay visible here so progress feels grounded in real work, not just charts."
+              />
+              <View style={{ marginTop: 16, gap: 10 }}>
+                {recentWorkouts.map((workout) => (
+                  <View
+                    key={workout.id}
+                    style={{
+                      backgroundColor: colors.cardAlt,
+                      borderRadius: 18,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      padding: 14,
+                      gap: 6,
+                    }}
+                  >
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                      <Text style={{ color: colors.text, fontSize: 16, fontWeight: "700", flex: 1 }}>{workout.type}</Text>
+                      <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "800" }}>{formatWorkoutDate(workout.date)}</Text>
+                    </View>
+                    <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 20 }}>
+                      {formatWorkoutSummary(workout.distance, workout.time, workout.notes)}
+                    </Text>
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+                      <WorkoutEffortChip guidance={getLoggedWorkoutEffortGuidance({ type: workout.type, effort: workout.effort })} compact={true} />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </InfoCard>
+
+            <InfoCard>
+              <SectionTitle
+                colors={colors}
                 title="Insights Summary"
                 subtitle="Short rule-based reads on how training is trending."
               />
@@ -131,6 +171,8 @@ export default function Progress() {
                 ))}
               </View>
             </InfoCard>
+
+            <AdvancedRacePredictorCard />
 
             <InfoCard>
               <SectionTitle
@@ -155,6 +197,24 @@ export default function Progress() {
       </ScreenScroll>
     </AnimatedTabScene>
   );
+}
+
+function formatWorkoutDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function formatWorkoutSummary(distance: string, time: string, notes: string) {
+  const summaryParts = [distance ? `${distance} mi` : "", time || "", notes || ""].filter(Boolean);
+  return summaryParts.join(" • ") || "Completed workout";
 }
 
 function DashboardStatCard({

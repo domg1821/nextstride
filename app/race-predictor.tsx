@@ -1,8 +1,10 @@
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
+import { AdvancedRacePredictorCard } from "@/components/advanced-race-predictor-card";
 import { InfoCard, PageHeader, PrimaryButton } from "@/components/ui-kit";
 import { ScreenScroll, SectionTitle } from "@/components/ui-shell";
+import { usePremium } from "@/contexts/premium-context";
 import { useProfile } from "@/contexts/profile-context";
 import {
   getPredictionForEvent,
@@ -17,6 +19,7 @@ import { useWorkouts } from "@/contexts/workout-context";
 export default function RacePredictorScreen() {
   const { profile } = useProfile();
   const { workouts } = useWorkouts();
+  const { hasAccess } = usePremium();
   const { colors } = useThemeColors();
   const quickEvents = listPredictorEvents();
   const defaultEvent = normalizePredictorEvent(profile.goalEvent || "") ?? "5k";
@@ -28,6 +31,7 @@ export default function RacePredictorScreen() {
     [profile, selectedEvent, workouts]
   );
   const allPredictions = useMemo(() => getRacePredictions(workouts, profile), [profile, workouts]);
+  const advancedUnlocked = hasAccess("race_prediction_advanced");
 
   const applyTypedEvent = () => {
     const nextEvent = normalizePredictorEvent(typedEvent);
@@ -165,11 +169,13 @@ export default function RacePredictorScreen() {
         </View>
       </InfoCard>
 
+      <AdvancedRacePredictorCard />
+
       <InfoCard>
         <SectionTitle
           colors={colors}
-          title="Prediction influences"
-          subtitle="The strongest inputs that shaped this estimate."
+          title={advancedUnlocked ? "Basic prediction influences" : "Prediction influences"}
+          subtitle={advancedUnlocked ? "Your Pro-level baseline stays visible here under the Elite coaching layer." : "The strongest inputs that shaped this estimate."}
         />
 
         <View style={{ marginTop: 16, gap: 10 }}>

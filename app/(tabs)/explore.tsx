@@ -12,13 +12,18 @@ import {
   View,
 } from "react-native";
 import TopProfileBar from "@/components/TopProfileBar";
+import { PostRunFeedbackCard } from "@/components/post-run-feedback-card";
 import { useQuickDrawer } from "@/components/quick-drawer";
+import { WorkoutEffortChip } from "@/components/workout-effort-chip";
 import { InfoCard, PageHeader, PrimaryButton, SecondaryButton, StatCard } from "@/components/ui-kit";
 import { AnimatedTabScene, ScreenScroll, SectionTitle } from "@/components/ui-shell";
+import { type PostRunFeedback, generatePostRunFeedback } from "@/lib/premium-coach";
 import { useProfile } from "@/contexts/profile-context";
 import { useThemeColors } from "@/contexts/theme-context";
 import { useWorkouts } from "@/contexts/workout-context";
 import { buildAdaptiveWeeklyPlan, type PlanDay } from "@/lib/training-plan";
+import { buildUpgradePath } from "@/lib/upgrade-route";
+import { getDefaultEffortScore, getPlanDayEffortGuidance } from "@/lib/workout-effort";
 import { buildLongRangePlan, buildMonthGrid, getWorkoutFeedback, type CalendarPlanDay } from "@/utils/training-insights";
 import { formatFeedDate, formatMonthLabel, startOfWeek } from "@/utils/workout-utils";
 
@@ -71,6 +76,7 @@ export default function Plan() {
   const [manualNotes, setManualNotes] = useState("");
   const [skipNotes, setSkipNotes] = useState("");
   const [savedFeedback, setSavedFeedback] = useState<{ title: string; detail: string } | null>(null);
+  const [savedPostRunFeedback, setSavedPostRunFeedback] = useState<PostRunFeedback | null>(null);
   const mileage = parseFloat(profile.mileage) || 30;
 
   const adaptiveWeek = useMemo(
@@ -159,6 +165,17 @@ export default function Plan() {
 
   const handleComplete = () => {
     if (!selectedEntry?.planDay) return;
+    const completedWorkout = {
+      id: `completed-${selectedEntry.planDay.id}`,
+      type: selectedEntry.planDay.logType,
+      distance: String(selectedEntry.planDay.distance),
+      time: "Completed",
+      splits: "",
+      effort: completeEffort,
+      notes: completeNotes || `Completed from weekly plan: ${selectedEntry.planDay.title}`,
+      date: selectedEntry.date.toISOString(),
+      shoeId: null,
+    };
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     completePlannedWorkout(selectedEntry.planDay, {
       effort: completeEffort,
@@ -169,6 +186,12 @@ export default function Plan() {
     if (selectedEntry.planDay.day === "Sunday" && selectedEntry.date >= weekStart && selectedEntry.date < weekEnd) {
       advancePlanWeek();
     }
+    setSavedPostRunFeedback(
+      generatePostRunFeedback({
+        workout: completedWorkout,
+        previousWorkouts: workouts.slice(0, 5),
+      })
+    );
     finishSave(
       ...Object.values(
         getWorkoutFeedback({
@@ -182,8 +205,8 @@ export default function Plan() {
 
   const handleManualLog = () => {
     if (!selectedEntry) return;
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    addWorkout({
+    const manualWorkout = {
+      id: `manual-${selectedEntry.dateKey}`,
       type: manualType.trim() || selectedEntry.planDay?.logType || "Manual Workout",
       distance: manualDistance,
       time: manualTime,
@@ -191,6 +214,17 @@ export default function Plan() {
       effort: manualEffort,
       notes: manualNotes,
       date: selectedEntry.date.toISOString(),
+      shoeId: null,
+    };
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    addWorkout({
+      type: manualWorkout.type,
+      distance: manualWorkout.distance,
+      time: manualWorkout.time,
+      splits: "",
+      effort: manualWorkout.effort,
+      notes: manualWorkout.notes,
+      date: manualWorkout.date,
     });
     applyAutomaticPr({ distance: manualDistance, time: manualTime });
     if (selectedEntry.planDay) {
@@ -202,6 +236,12 @@ export default function Plan() {
       });
     }
     setPlanDayNote(selectedEntry.dateKey, manualNotes);
+    setSavedPostRunFeedback(
+      generatePostRunFeedback({
+        workout: manualWorkout,
+        previousWorkouts: workouts.slice(0, 5),
+      })
+    );
     finishSave(
       ...Object.values(
         getWorkoutFeedback({
@@ -218,12 +258,14 @@ export default function Plan() {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     skipPlannedWorkout(selectedEntry.planDay, skipNotes);
     setPlanDayNote(selectedEntry.dateKey, skipNotes);
+    setSavedPostRunFeedback(null);
     finishSave("Day skipped.", "You can keep tomorrow lighter if today needed to come out of the plan.");
   };
 
   const handleSaveNotes = () => {
     if (!selectedEntry) return;
     setPlanDayNote(selectedEntry.dateKey, completeNotes);
+    setSavedPostRunFeedback(null);
     finishSave("Note saved.", "Your note is attached to this training day.");
   };
 
@@ -243,6 +285,8 @@ export default function Plan() {
             <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 21, marginTop: 8 }}>{savedFeedback.detail}</Text>
           </InfoCard>
         ) : null}
+
+        {savedFeedback ? <PostRunFeedbackCard feedback={savedPostRunFeedback} /> : null}
 
         <View style={{ flexDirection: "row", gap: 12 }}>
           <View style={{ flex: 1 }}>
@@ -444,7 +488,8 @@ export default function Plan() {
                     </Text>
                   ) : null}
 
-                  <View style={{ flexDirection: "row", gap: 10, marginTop: 2 }}>
+                  <View style={{ flexDirection: "row", gap: 10, marginTop: 2, flexWrap: "wrap" }}>
+                    <WorkoutEffortChip guidance={getPlanDayEffortGuidance(day)} compact={true} />
                     <InlineChip
                       colors={colors}
                       label={isWorkoutLiked(day.id) ? "Liked" : "Like"}
@@ -498,9 +543,19 @@ export default function Plan() {
                   <Text style={{ color: colors.text, fontSize: 17, fontWeight: "700" }}>
                     {selectedEntry?.planDay ? `${selectedEntry.planDay.distance} mi planned` : "No assigned workout yet"}
                   </Text>
+                  {selectedEntry?.planDay ? (
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+                      <WorkoutEffortChip guidance={getPlanDayEffortGuidance(selectedEntry.planDay)} />
+                    </View>
+                  ) : null}
                   <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 21 }}>
                     {selectedEntry?.planDay?.details || "Use this day for whatever you actually ran, or save notes for later."}
                   </Text>
+                  {selectedEntry?.planDay ? (
+                    <Text style={{ color: colors.subtext, fontSize: 13, lineHeight: 19 }}>
+                      {getPlanDayEffortGuidance(selectedEntry.planDay).beginnerTip}
+                    </Text>
+                  ) : null}
                 </View>
 
                 {selectedEntry?.planDay ? (
@@ -519,6 +574,19 @@ export default function Plan() {
                     <Text style={{ color: colors.subtext, fontSize: 13, lineHeight: 19 }}>
                       Unlock heart rate targets, fueling suggestions, and recovery prompts for this workout day.
                     </Text>
+                    <Pressable
+                      onPress={() => router.push(buildUpgradePath({ plan: "pro" }))}
+                      style={{
+                        alignSelf: "flex-start",
+                        marginTop: 6,
+                        borderRadius: 999,
+                        backgroundColor: colors.primarySoft,
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                      }}
+                    >
+                      <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "800" }}>Upgrade to unlock</Text>
+                    </Pressable>
                   </View>
                 ) : null}
 
@@ -821,21 +889,7 @@ function cellBorder(day: CalendarPlanDay | null, colors: ReturnType<typeof useTh
 }
 
 function defaultEffort(day: PlanDay | CalendarPlanDay | null) {
-  switch (day?.category) {
-    case "intervals":
-      return 8;
-    case "threshold":
-      return 7;
-    case "steady":
-    case "long":
-      return 6;
-    case "easy":
-      return 4;
-    case "recovery":
-      return 3;
-    default:
-      return 5;
-  }
+  return getDefaultEffortScore(day?.category);
 }
 
 function addMonths(date: Date, amount: number) {

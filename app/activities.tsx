@@ -1,9 +1,11 @@
 import { router } from "expo-router";
 import { Pressable, Text, View } from "react-native";
+import { WorkoutEffortChip } from "@/components/workout-effort-chip";
 import { InfoCard, PageHeader } from "@/components/ui-kit";
 import { ScreenScroll, SectionTitle } from "@/components/ui-shell";
 import { useThemeColors } from "@/contexts/theme-context";
 import { useWorkouts } from "@/contexts/workout-context";
+import { getLoggedWorkoutEffortGuidance } from "@/lib/workout-effort";
 import { getWeeklyGoalProgress } from "@/utils/training-insights";
 import { formatFeedDate, getWorkoutPace } from "@/utils/workout-utils";
 
@@ -162,6 +164,13 @@ function FeaturedFeedCard({
         <FeedMetric colors={colors} label="Effort" value={`${workout.effort.toFixed(1)}/10`} />
       </View>
 
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+        <WorkoutEffortChip guidance={getLoggedWorkoutEffortGuidance({ type: workout.type, effort: workout.effort })} compact={true} />
+        <Text style={{ color: colors.subtext, fontSize: 13, lineHeight: 19, flex: 1 }}>
+          {getLoggedWorkoutEffortGuidance({ type: workout.type, effort: workout.effort }).beginnerTip}
+        </Text>
+      </View>
+
       {shoeName ? (
         <Text style={{ color: colors.subtext, fontSize: 13 }}>In rotation: {shoeName}</Text>
       ) : null}
@@ -254,6 +263,13 @@ function FeedCard({
             <FeedMetric colors={colors} label="Time" value={workout.time || "Logged"} />
             <FeedMetric colors={colors} label="Pace" value={pace ?? "N/A"} />
             <FeedMetric colors={colors} label="Effort" value={`${workout.effort.toFixed(1)}/10`} />
+          </View>
+
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+            <WorkoutEffortChip guidance={getLoggedWorkoutEffortGuidance({ type: workout.type, effort: workout.effort })} compact={true} />
+            <Text style={{ color: colors.subtext, fontSize: 13, lineHeight: 19, flex: 1 }}>
+              {getLoggedWorkoutEffortGuidance({ type: workout.type, effort: workout.effort }).shortDescription}
+            </Text>
           </View>
 
           {shoeName ? (

@@ -1,11 +1,13 @@
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
+import { WorkoutEffortChip } from "@/components/workout-effort-chip";
 import { InfoCard, PageHeader, PrimaryButton, SecondaryButton } from "@/components/ui-kit";
 import { ScreenScroll, SectionTitle } from "@/components/ui-shell";
 import { useProfile } from "@/contexts/profile-context";
 import { useThemeColors } from "@/contexts/theme-context";
 import { useWorkouts } from "@/contexts/workout-context";
+import { getPlanDayEffortGuidance } from "@/lib/workout-effort";
 import { buildLongRangePlan, buildMonthGrid, type CalendarPlanDay } from "@/utils/training-insights";
 import { formatFeedDate, formatMonthLabel } from "@/utils/workout-utils";
 
@@ -161,10 +163,16 @@ export default function CalendarScreen() {
                 }}
               >
                 <Text style={{ color: colors.text, fontSize: 20, fontWeight: "700" }}>{selectedDay.title}</Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+                  <WorkoutEffortChip guidance={getPlanDayEffortGuidance(selectedDay)} />
+                </View>
                 <Text style={{ color: colors.subtext, fontSize: 14 }}>
                   {selectedDay.kind === "rest" ? "Rest / recovery focus" : `${selectedDay.distance} mi planned`}
                 </Text>
                 <Text style={{ color: colors.text, fontSize: 14, lineHeight: 20 }}>{selectedDay.details}</Text>
+                <Text style={{ color: colors.subtext, fontSize: 13, lineHeight: 19 }}>
+                  {getPlanDayEffortGuidance(selectedDay).beginnerTip}
+                </Text>
               </View>
             ) : null}
 

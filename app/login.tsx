@@ -151,9 +151,7 @@ export default function Login() {
 
         {isAuthenticated ? (
           <Pressable
-            onPress={() =>
-              router.replace(profile.accountType === "solo_runner" && !profile.onboardingComplete ? "/onboarding" : appHomeRoute)
-            }
+            onPress={() => router.replace(!profile.onboardingComplete ? "/onboarding" : appHomeRoute)}
             style={{ marginTop: 16 }}
           >
             <Text style={{ color: "#9db2ca", textAlign: "center", fontSize: 14, fontWeight: "600" }}>

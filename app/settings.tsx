@@ -4,6 +4,7 @@ import { Animated, Pressable, ScrollView, Switch, Text, TextInput, View } from "
 import { usePremium } from "@/contexts/premium-context";
 import { useProfile } from "@/contexts/profile-context";
 import { useThemeColors } from "@/contexts/theme-context";
+import { buildUpgradePath } from "@/lib/upgrade-route";
 
 type SettingsRowProps = {
   title: string;
@@ -235,14 +236,14 @@ export default function Settings() {
           title="Premium"
           subtitle={
             status === "premium_active"
-              ? "Your Premium plan is active. Review features, status, and future billing details."
+              ? "Your paid premium tier is active. Review plan access, locked features, and billing details."
               : status === "upgrade_pending"
-                ? "Upgrade started. Open Premium to review pending status and next billing steps."
-                : "Unlock heart rate guidance, fueling support, adaptive adjustments, and deeper training insights."
+                ? "Upgrade started. Open plans to review pending status and next billing steps."
+                : "Unlock Pro or Elite for heart rate guidance, fueling, adaptive training, and premium feedback."
           }
           accent="#d97706"
           delay={240}
-          onPress={() => router.push("/premium")}
+          onPress={() => router.push(buildUpgradePath({ plan: status === "premium_active" ? "elite" : "pro" }))}
           trailing={
             <View
               style={{

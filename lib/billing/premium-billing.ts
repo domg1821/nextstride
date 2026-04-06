@@ -1,78 +1,130 @@
-import { Platform } from "react-native";
-import { PREMIUM_PRODUCT } from "@/lib/premium-products";
+import type { BillingCycle, PremiumTier } from "@/lib/premium-products";
+import {
+  fetchRemoteSubscriptionState,
+  getStripeClientErrorMessage,
+  startStripeCheckout,
+} from "@/lib/billing/stripe-client";
 
 export type PremiumStatus = "not_premium" | "upgrade_pending" | "premium_active";
-export type PurchaseEnvironment = "ios_app_store" | "android_play_store" | "web_placeholder";
+export type PurchaseEnvironment = "stripe_checkout";
+
 export type PurchaseResult =
   | {
       status: "pending";
       environment: PurchaseEnvironment;
       message: string;
+      tier: PremiumTier;
+      billingCycle: BillingCycle;
     }
   | {
       status: "active";
       environment: PurchaseEnvironment;
       message: string;
+      tier: PremiumTier;
+      billingCycle: BillingCycle;
       renewalDate?: string;
     }
   | {
       status: "inactive";
       environment: PurchaseEnvironment;
       message: string;
+      tier?: PremiumTier;
+      billingCycle?: BillingCycle;
     };
 
 export type PurchaseAdapter = {
-  startSubscriptionPurchase: () => Promise<PurchaseResult>;
+  startSubscriptionPurchase: (tier: PremiumTier, billingCycle: BillingCycle) => Promise<PurchaseResult>;
   restorePurchases: () => Promise<PurchaseResult>;
 };
 
 export function getPurchaseEnvironment(): PurchaseEnvironment {
-  if (Platform.OS === "ios") {
-    return "ios_app_store";
-  }
-
-  if (Platform.OS === "android") {
-    return "android_play_store";
-  }
-
-  return "web_placeholder";
+  return "stripe_checkout";
 }
 
 export function getPurchaseEnvironmentLabel(environment: PurchaseEnvironment) {
-  if (environment === "ios_app_store") {
-    return "Apple App Store subscription";
+  if (environment === "stripe_checkout") {
+    return "Stripe Checkout";
   }
 
-  if (environment === "android_play_store") {
-    return "Google Play subscription";
-  }
-
-  return "Web placeholder flow";
+  return "Stripe Checkout";
 }
 
-export const placeholderPurchaseAdapter: PurchaseAdapter = {
-  async startSubscriptionPurchase() {
+export const stripePurchaseAdapter: PurchaseAdapter = {
+  async startSubscriptionPurchase(tier, billingCycle) {
     const environment = getPurchaseEnvironment();
 
-    return {
-      status: "pending",
-      environment,
-      message:
-        environment === "web_placeholder"
-          ? "Premium checkout is not connected on web yet. The page is ready for a future website billing decision."
-          : `Premium upgrade started for ${getPurchaseEnvironmentLabel(environment).toLowerCase()}, but the real store billing connector is not wired yet for ${PREMIUM_PRODUCT.productIds[Platform.OS as "ios" | "android"]}.`,
-    };
+    if (tier === "free") {
+      return {
+        status: "inactive",
+        environment,
+        tier,
+        billingCycle,
+        message: "The Free plan does not require checkout.",
+      };
+    }
+
+    try {
+      await startStripeCheckout({
+        plan: tier,
+        billingCycle,
+      });
+
+      return {
+        status: "pending",
+        environment,
+        tier,
+        billingCycle,
+        message: `Redirecting to secure Stripe checkout for ${tier === "elite" ? "Elite" : "Pro"} ${billingCycle}.`,
+      };
+    } catch (error) {
+      return {
+        status: "inactive",
+        environment,
+        tier,
+        billingCycle,
+        message: getStripeClientErrorMessage(error),
+      };
+    }
   },
+
   async restorePurchases() {
     const environment = getPurchaseEnvironment();
 
-    return {
-      status: "inactive",
-      environment,
-      message:
-        environment === "web_placeholder"
-          ? "There are no web Premium purchases to restore yet."
-          : `Restore purchases is ready for ${getPurchaseEnvironmentLabel(environment).toLowerCase()} once store receipt validation is connected.`,
-    };
+    try {
+      const subscription = await fetchRemoteSubscriptionState();
+
+      if (subscription.status === "premium_active") {
+        return {
+          status: "active",
+          environment,
+          tier: subscription.tier,
+          billingCycle: subscription.billingCycle,
+          renewalDate: subscription.renewalDate ?? undefined,
+          message: subscription.lastMessage,
+        };
+      }
+
+      if (subscription.status === "upgrade_pending") {
+        return {
+          status: "pending",
+          environment,
+          tier: subscription.pendingTier ?? "pro",
+          billingCycle: subscription.billingCycle,
+          message: subscription.lastMessage,
+        };
+      }
+
+      return {
+        status: "inactive",
+        environment,
+        message: subscription.lastMessage,
+      };
+    } catch (error) {
+      return {
+        status: "inactive",
+        environment,
+        message: getStripeClientErrorMessage(error),
+      };
+    }
   },
 };

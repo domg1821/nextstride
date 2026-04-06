@@ -2,8 +2,8 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useSegments } from "expo-router";
 import { useEffect, useMemo, useRef } from "react";
 import { ActivityIndicator, Animated, Easing, Pressable, Text, View, useWindowDimensions } from "react-native";
-import CoachTab from "./coach";
 import Plan from "./explore";
+import GuideTab from "./guide";
 import Home from "./index";
 import Profile from "./profile";
 import Progress from "./progress";
@@ -11,7 +11,7 @@ import { QuickDrawerProvider } from "@/components/quick-drawer";
 import { useProfile } from "@/contexts/profile-context";
 import { useThemeColors } from "@/contexts/theme-context";
 
-type TabKey = "index" | "explore" | "coach" | "progress" | "profile";
+type TabKey = "index" | "explore" | "guide" | "progress" | "profile";
 
 type TabConfig = {
   key: TabKey;
@@ -24,13 +24,16 @@ type TabConfig = {
 const TAB_CONFIGS: TabConfig[] = [
   { key: "index", title: "Home", icon: "home", href: "/(solo)", component: Home },
   { key: "explore", title: "Plan", icon: "calendar", href: "/(solo)/explore", component: Plan },
-  { key: "coach", title: "Coach", icon: "chatbubble-ellipses", href: "/(solo)/coach", component: CoachTab },
+  { key: "guide", title: "Guide", icon: "chatbubble-ellipses", href: "/(solo)/guide", component: GuideTab },
   { key: "progress", title: "Progress", icon: "stats-chart", href: "/(solo)/progress", component: Progress },
   { key: "profile", title: "Profile", icon: "person", href: "/(solo)/profile", component: Profile },
 ];
 
+const VISIBLE_TAB_KEYS: TabKey[] = ["index", "explore", "guide", "progress"];
+const VISIBLE_TAB_CONFIGS = TAB_CONFIGS.filter((tab) => VISIBLE_TAB_KEYS.includes(tab.key));
+
 export default function TabLayout() {
-  const { authReady, isAuthenticated, profile, appHomeRoute } = useProfile();
+  const { authReady, isAuthenticated, profile } = useProfile();
   const { colors, isDark } = useThemeColors();
   const { width } = useWindowDimensions();
   const segments = useSegments();
@@ -49,15 +52,11 @@ export default function TabLayout() {
       return;
     }
 
-    if (profile.accountType === "solo_runner" && !profile.onboardingComplete) {
+    if (!profile.onboardingComplete) {
       router.replace("/onboarding");
       return;
     }
-
-    if (profile.accountType !== "solo_runner") {
-      router.replace(appHomeRoute);
-    }
-  }, [appHomeRoute, authReady, isAuthenticated, profile.accountType, profile.onboardingComplete]);
+  }, [authReady, isAuthenticated, profile.onboardingComplete]);
 
   useEffect(() => {
     const targetValue = -Math.max(activeIndex, 0) * width;
@@ -90,7 +89,7 @@ export default function TabLayout() {
           paddingHorizontal: 6,
         }}
       >
-        {TAB_CONFIGS.map((tab) => {
+        {VISIBLE_TAB_CONFIGS.map((tab) => {
           const active = tab.key === activeTab;
 
           return (
@@ -132,8 +131,7 @@ export default function TabLayout() {
   if (
     !authReady ||
     !isAuthenticated ||
-    (profile.accountType === "solo_runner" && !profile.onboardingComplete) ||
-    profile.accountType !== "solo_runner"
+    !profile.onboardingComplete
   ) {
     return (
       <View
@@ -150,7 +148,7 @@ export default function TabLayout() {
           Preparing your account
         </Text>
         <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 22, marginTop: 8, textAlign: "center" }}>
-          Checking your remembered session and account access.
+          Checking your remembered session and runner access.
         </Text>
       </View>
     );
@@ -195,7 +193,7 @@ export default function TabLayout() {
 function getActiveTab(segment?: string): TabKey {
   switch (segment) {
     case "explore":
-    case "coach":
+    case "guide":
     case "progress":
     case "profile":
       return segment;

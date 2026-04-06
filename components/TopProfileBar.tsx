@@ -1,3 +1,4 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { Image, Pressable, Text, View } from "react-native";
 import { useThemeColors } from "@/contexts/theme-context";
@@ -20,6 +21,7 @@ export default function TopProfileBar({
   onAvatarPress,
 }: Props) {
   const { colors } = useThemeColors();
+  const openNotifications = () => router.push("/notifications");
 
   return (
     <View
@@ -101,6 +103,22 @@ export default function TopProfileBar({
           <Text style={{ color: colors.text, fontSize: 13, fontWeight: "700" }}>
             Website
           </Text>
+        </Pressable>
+
+        <Pressable
+          onPress={openNotifications}
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: colors.card,
+            borderWidth: 1,
+            borderColor: colors.border,
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <Ionicons name="notifications-outline" size={20} color={colors.text} />
         </Pressable>
 
         {onRightPress && (
