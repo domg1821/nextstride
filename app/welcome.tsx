@@ -1,8 +1,8 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { useRef, useState } from "react";
-import { LayoutChangeEvent, Pressable, ScrollView, Text, View } from "react-native";
-import { FooterLink, GlassPanel, MarketingIcon, SectionChip, SiteButton, SiteSection } from "@/components/marketing-site";
+import { LayoutChangeEvent, Linking, Pressable, ScrollView, Text, View } from "react-native";
+import { FooterLink, FooterSocialLink, GlassPanel, MarketingIcon, SectionChip, SiteButton, SiteSection } from "@/components/marketing-site";
 import { MarketingBackdrop, RunningSurfaceAccent } from "@/components/running-visuals";
 import { useProfile } from "@/contexts/profile-context";
 import { PREMIUM_PLANS, type BillingCycle, type PremiumTier } from "@/lib/premium-products";
@@ -143,10 +143,10 @@ export default function Welcome() {
           padding={padding}
         >
           <View style={{ flexDirection: isDesktop ? "row" : "column", gap: 24, alignItems: "stretch" }}>
-            <View style={{ flex: 1.2 }}>
+            <View style={{ flex: isDesktop ? 1.2 : undefined, width: "100%", minWidth: 0 }}>
               <WeekShowcase />
             </View>
-            <View style={{ flex: 0.9, gap: 14 }}>
+            <View style={{ flex: isDesktop ? 0.9 : undefined, width: "100%", minWidth: 0, gap: 14 }}>
               <StoryCard
                 icon="footsteps-outline"
                 title="Today is clear"
@@ -369,23 +369,25 @@ function WeekShowcase() {
   const layout = useResponsiveLayout();
 
   return (
-    <GlassPanel highlight={true} padding={28} radius={34}>
-      <View style={{ flexDirection: layout.isPhone ? "column" : "row", justifyContent: "space-between", gap: 18, alignItems: "flex-start" }}>
-        <View style={{ flex: 1 }}>
-          <Text style={{ color: "#f8fbff", fontSize: layout.isPhone ? 28 : 34, fontWeight: "800" }}>See your week in one glance</Text>
-          <Text style={{ color: "#9db2ca", fontSize: 15, lineHeight: 24, marginTop: 10, maxWidth: 540 }}>
-            The key sessions stand out, support days stay calmer, and the whole week feels more intentional at first glance.
-          </Text>
+    <View style={{ width: "100%", minWidth: 0 }}>
+      <GlassPanel highlight={true} padding={28} radius={34}>
+        <View style={{ flexDirection: layout.isPhone ? "column" : "row", justifyContent: "space-between", gap: 18, alignItems: "flex-start" }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ color: "#f8fbff", fontSize: layout.isPhone ? 28 : 34, fontWeight: "800" }}>See your week in one glance</Text>
+            <Text style={{ color: "#9db2ca", fontSize: 15, lineHeight: 24, marginTop: 10, maxWidth: 540 }}>
+              The key sessions stand out, support days stay calmer, and the whole week feels more intentional at first glance.
+            </Text>
+          </View>
+          <SectionChip label="Most important view" />
         </View>
-        <SectionChip label="Most important view" />
-      </View>
 
-      <View style={{ gap: 12, marginTop: 24 }}>
-        {WEEK_PREVIEW.map((item) => (
-          <WeekPlanRow key={item.day} {...item} />
-        ))}
-      </View>
-    </GlassPanel>
+        <View style={{ gap: 12, marginTop: 24 }}>
+          {WEEK_PREVIEW.map((item) => (
+            <WeekPlanRow key={item.day} {...item} />
+          ))}
+        </View>
+      </GlassPanel>
+    </View>
   );
 }
 
@@ -421,15 +423,17 @@ function WeekPlanRow({ day, title, detail, tone }: { day: string; title: string;
 
 function StoryCard({ icon, title, body }: { icon: keyof typeof Ionicons.glyphMap; title: string; body: string }) {
   return (
-    <GlassPanel padding={20} radius={26}>
-      <View style={{ flexDirection: "row", gap: 14, alignItems: "flex-start" }}>
-        <MarketingIcon label="" icon={icon} active={true} />
-        <View style={{ flex: 1 }}>
-          <Text style={{ color: "#f8fbff", fontSize: 20, fontWeight: "700" }}>{title}</Text>
-          <Text style={{ color: "#9db2ca", fontSize: 14, lineHeight: 22, marginTop: 8 }}>{body}</Text>
+    <View style={{ width: "100%", minWidth: 0 }}>
+      <GlassPanel padding={20} radius={26}>
+        <View style={{ flexDirection: "row", gap: 14, alignItems: "flex-start" }}>
+          <MarketingIcon label="" icon={icon} active={true} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ color: "#f8fbff", fontSize: 20, fontWeight: "700" }}>{title}</Text>
+            <Text style={{ color: "#9db2ca", fontSize: 14, lineHeight: 22, marginTop: 8 }}>{body}</Text>
+          </View>
         </View>
-      </View>
-    </GlassPanel>
+      </GlassPanel>
+    </View>
   );
 }
 
@@ -662,6 +666,10 @@ function Footer({
   onSignup: () => void;
   onOpenApp: () => void;
 }) {
+  const openInstagram = () => {
+    void Linking.openURL("https://instagram.com/NextStrideRunning");
+  };
+
   return (
     <View style={{ marginTop: 90, paddingHorizontal: padding, paddingTop: 34, paddingBottom: 18, borderTopWidth: 1, borderTopColor: "rgba(103, 232, 249, 0.1)" }}>
       <View style={{ flexDirection: isDesktop ? "row" : "column", justifyContent: "space-between", gap: 24 }}>
@@ -670,6 +678,9 @@ function Footer({
           <Text style={{ color: "#9db2ca", fontSize: 14, lineHeight: 22, marginTop: 10 }}>
             A solo-runner training app built around clear plans, better feedback, and smarter progression.
           </Text>
+          <View style={{ marginTop: 18 }}>
+            <FooterSocialLink label="@NextStrideRunning" icon="logo-instagram" onPress={openInstagram} />
+          </View>
         </View>
 
         <View style={{ gap: 12 }}>

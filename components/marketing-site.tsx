@@ -219,8 +219,67 @@ export function FooterLink({
   onPress?: () => void;
 }) {
   return (
-    <Pressable onPress={onPress}>
+    <Pressable onPress={onPress} style={({ hovered }) => ({ opacity: hovered ? 0.92 : 1 })}>
       <Text style={{ color: "#d7e3f4", fontSize: 14, fontWeight: "600" }}>{label}</Text>
+    </Pressable>
+  );
+}
+
+export function FooterSocialLink({
+  label,
+  icon,
+  onPress,
+}: {
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  onPress?: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ hovered, pressed }) => ({
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+        alignSelf: "flex-start",
+        opacity: pressed ? 0.88 : 1,
+        transform: [{ translateY: hovered ? -1 : 0 }],
+      })}
+    >
+      {({ hovered }) => (
+        <>
+          <View
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 14,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: hovered ? "rgba(37, 99, 235, 0.18)" : "rgba(15, 27, 45, 0.92)",
+              borderWidth: 1,
+              borderColor: hovered ? "rgba(103, 232, 249, 0.24)" : "rgba(103, 232, 249, 0.12)",
+              shadowColor: "#38bdf8",
+              shadowOpacity: hovered ? 0.18 : 0.08,
+              shadowRadius: hovered ? 16 : 8,
+              shadowOffset: { width: 0, height: 6 },
+            }}
+          >
+            <Ionicons name={icon} size={15} color={hovered ? "#dff8ff" : "#b8c8da"} />
+          </View>
+          <Text
+            style={{
+              color: hovered ? "#dff4ff" : "#a5b8cd",
+              fontSize: 14,
+              lineHeight: 20,
+              fontWeight: "600",
+            }}
+          >
+            {label}
+          </Text>
+        </>
+      )}
     </Pressable>
   );
 }
