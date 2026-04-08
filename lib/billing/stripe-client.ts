@@ -1,7 +1,3 @@
-import * as Linking from "expo-linking";
-import * as WebBrowser from "expo-web-browser";
-import { Platform } from "react-native";
-import { supabase } from "@/lib/supabase";
 import {
   PREMIUM_SUBSCRIPTIONS_TABLE,
   getStripeCancelPath,
@@ -10,6 +6,10 @@ import {
   type StripeCheckoutSelection,
 } from "@/lib/billing/stripe-config";
 import type { BillingCycle, PremiumTier } from "@/lib/premium-products";
+import { supabase, supabaseUrl } from "@/lib/supabase";
+import * as Linking from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
+import { Platform } from "react-native";
 
 type SubscriptionRow = {
   plan_tier?: PremiumTier | null;
@@ -31,6 +31,12 @@ export type SyncedPremiumState = {
   stripeSubscriptionId?: string | null;
 };
 
+type PremiumSyncOptions = {
+  sessionId?: string;
+  timeoutMs?: number;
+  intervalMs?: number;
+};
+
 type CheckoutSessionResponse = {
   checkoutUrl?: string;
   sessionId?: string;
@@ -38,6 +44,7 @@ type CheckoutSessionResponse = {
 
 type ConfirmSessionResponse = {
   subscription?: SubscriptionRow | null;
+  error?: string;
 };
 
 function buildReturnUrl(path: string, selection: StripeCheckoutSelection) {
@@ -46,7 +53,18 @@ function buildReturnUrl(path: string, selection: StripeCheckoutSelection) {
       plan: selection.plan,
       billing: selection.billingCycle,
     },
-  });
+  })
+    .replace(/[?&]session_id=[^&]*/g, "")
+    .replace(/\?&/, "?")
+    .replace(/[?&]$/, "");
+}
+
+function logStripeCheckoutDebug(input: { successUrl: string; cancelUrl: string }) {
+  if (!__DEV__) {
+    return;
+  }
+
+  console.log("[stripe-checkout] return URLs", input);
 }
 
 function mapSubscriptionRow(row?: SubscriptionRow | null): SyncedPremiumState {
@@ -68,7 +86,7 @@ function mapSubscriptionRow(row?: SubscriptionRow | null): SyncedPremiumState {
       pendingTier: row.plan_tier === "elite" ? "elite" : "pro",
       billingCycle: row.billing_cycle ?? "yearly",
       renewalDate: null,
-      lastMessage: `Stripe checkout is in progress for ${row.plan_tier === "elite" ? "Elite" : "Pro"}.`,
+      lastMessage: `Your ${row.plan_tier === "elite" ? "Elite" : "Pro"} upgrade is processing. Premium access should unlock shortly.`,
       stripeCustomerId: row.stripe_customer_id ?? null,
       stripeSubscriptionId: row.stripe_subscription_id ?? null,
     };
@@ -110,6 +128,69 @@ function getErrorMessage(error: unknown) {
   return "Unknown Stripe billing error.";
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function parseFunctionResponse<T>(response: Response): Promise<T> {
+  const responseText = await response.text();
+  const payload = responseText ? tryParseJson(responseText) : null;
+
+  if (!response.ok) {
+    const backendMessage =
+      payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
+        ? payload.error
+        : responseText.trim();
+    const detail = backendMessage || `Stripe confirmation failed with status ${response.status}.`;
+    throw new Error(detail);
+  }
+
+  if (!responseText) {
+    return {} as T;
+  }
+
+  if (payload === null) {
+    throw new Error("Stripe confirmation returned an unreadable response.");
+  }
+
+  return payload as T;
+}
+
+function tryParseJson(value: string) {
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function chooseMoreCompleteState(
+  current: SyncedPremiumState | null,
+  next: SyncedPremiumState | null
+): SyncedPremiumState | null {
+  if (!next) {
+    return current;
+  }
+
+  if (!current) {
+    return next;
+  }
+
+  if (next.status === "premium_active") {
+    return next;
+  }
+
+  if (current.status === "premium_active") {
+    return current;
+  }
+
+  if (next.status === "upgrade_pending") {
+    return next;
+  }
+
+  return current;
+}
+
 export async function startStripeCheckout(selection: StripeCheckoutSelection) {
   const {
     data: { user },
@@ -119,17 +200,33 @@ export async function startStripeCheckout(selection: StripeCheckoutSelection) {
     throw new Error("Sign in before starting checkout.");
   }
 
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.access_token) {
+    throw new Error("You must be signed in before starting checkout.");
+  }
+
+  const successUrl = buildReturnUrl(getStripeSuccessPath(), selection);
+  const cancelUrl = buildReturnUrl(getStripeCancelPath(), selection);
+
+  logStripeCheckoutDebug({ successUrl, cancelUrl });
+
   const { data, error } = await supabase.functions.invoke<CheckoutSessionResponse>("stripe-create-checkout", {
     body: {
       plan: selection.plan,
       billingCycle: selection.billingCycle,
-      successUrl: buildReturnUrl(getStripeSuccessPath(), selection),
-      cancelUrl: buildReturnUrl(getStripeCancelPath(), selection),
+      successUrl,
+      cancelUrl,
+    },
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
     },
   });
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(error.message || "Stripe checkout failed.");
   }
 
   if (!data?.checkoutUrl) {
@@ -175,17 +272,79 @@ export async function confirmStripeCheckoutSession(sessionId: string) {
     throw new Error("Missing checkout session id.");
   }
 
-  const { data, error } = await supabase.functions.invoke<ConfirmSessionResponse>("stripe-confirm-session", {
-    body: {
-      sessionId: trimmedSessionId,
-    },
-  });
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
-  if (error) {
-    throw new Error(error.message);
+  if (!session?.access_token) {
+    throw new Error("You must be signed in to confirm your Stripe checkout.");
   }
 
+  const response = await fetch(`${supabaseUrl}/functions/v1/stripe-confirm-session`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      sessionId: trimmedSessionId,
+    }),
+  });
+
+  const data = await parseFunctionResponse<ConfirmSessionResponse>(response);
   return mapSubscriptionRow(data?.subscription ?? null);
+}
+
+export async function pollPremiumSync(options: PremiumSyncOptions = {}) {
+  const timeoutMs = options.timeoutMs ?? 15000;
+  const intervalMs = options.intervalMs ?? 2000;
+  const deadline = Date.now() + timeoutMs;
+  let latestState: SyncedPremiumState | null = null;
+  let lastError: unknown = null;
+
+  while (Date.now() <= deadline) {
+    try {
+      if (options.sessionId) {
+        latestState = chooseMoreCompleteState(latestState, await confirmStripeCheckoutSession(options.sessionId));
+      }
+
+      latestState = chooseMoreCompleteState(latestState, await fetchRemoteSubscriptionState());
+
+      if (latestState?.status === "premium_active") {
+        return latestState;
+      }
+
+      if (Date.now() >= deadline) {
+        break;
+      }
+
+      await sleep(intervalMs);
+    } catch (error) {
+      lastError = error;
+
+      if (Date.now() >= deadline) {
+        break;
+      }
+
+      await sleep(intervalMs);
+    }
+  }
+
+  if (latestState) {
+    if (latestState.status === "upgrade_pending") {
+      return {
+        ...latestState,
+        lastMessage:
+          latestState.pendingTier === "elite"
+            ? "Your Elite purchase went through. We are finishing the upgrade and your premium access should unlock shortly."
+            : "Your Pro purchase went through. We are finishing the upgrade and your premium access should unlock shortly.",
+      };
+    }
+
+    return latestState;
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("Unable to sync your Stripe purchase yet.");
 }
 
 export function getStripeClientErrorMessage(error: unknown) {

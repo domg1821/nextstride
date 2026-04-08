@@ -1,226 +1,117 @@
-import type { ProfileType } from "@/contexts/profile-context";
+import type { ProfileType, RaceGoalType } from "@/contexts/profile-context";
 import type { WorkoutType } from "@/contexts/workout-context";
 import { formatDuration, parseDistance, parseTimeToSeconds } from "@/utils/workout-utils";
 
 export type RunningCoachContext = {
-  profile: Pick<ProfileType, "goalEvent" | "mileage" | "pr5k" | "prs">;
+  profile: Pick<ProfileType, "goalEvent" | "mileage" | "pr5k" | "prs" | "raceGoals" | "runnerLevel" | "preferredTrainingDays">;
   workouts: WorkoutType[];
+  todayWorkout?: {
+    title: string;
+    details: string;
+    distance: number;
+    kind: string;
+  } | null;
+  weeklySummary?: {
+    totalMiles: number;
+    runCount: number;
+    averageEffort: number | null;
+  };
+  streak?: number;
+  adaptiveFeedback?: string[];
+  recovery?: {
+    percent: number;
+    status: "high" | "moderate" | "low";
+    explanation: string;
+    recommendation: string;
+    adjustment: "push" | "maintain" | "ease_off";
+  };
+  engine?: {
+    sleepHours: string;
+    sleepQuality: "solid" | "mixed" | "poor";
+    sleepScore: number | null;
+    restingHr: string;
+    heartRateTrend: "stable" | "slightly_up" | "elevated";
+    fuelingStatus: "solid" | "mixed" | "low";
+    fatigueLevel: "fresh" | "steady" | "heavy";
+  };
+  fuelingToday?: {
+    eatenCalories: number;
+    burnedCalories: number;
+    netCalories: number;
+    status: "underfueled" | "balanced" | "well_fueled";
+    statusLabel: string;
+    insight: string;
+  };
 };
 
 export const RUNNING_COACH_SUGGESTIONS = [
-  "What should an easy run feel like?",
-  "How hard should tempo pace be?",
-  "What should I eat before a long run?",
-  "Convert 18 minutes for 3 miles to pace",
-  "What is 6:00 mile pace for 800m?",
+  "Help with today's workout",
+  "Why did my last run feel hard?",
+  "Am I on track for my goal race?",
+  "What pace should I run today?",
+  "How should I recover after a hard run?",
 ];
 
 type CalculationResult = {
   answer: string;
 };
 
-type TopicResponse = {
-  answer: string;
-};
-
-type TopicMatcher = {
-  keywords: string[];
-  handler: (question: string, context: RunningCoachContext, summary: CoachSummary) => string;
-};
-
 type CoachSummary = {
   mileageGoal: number;
-  recentHighEffort: boolean;
-  recentWorkoutTypes: string[];
-  recentTimedRuns: number;
   goalEventLabel: string;
+  goalRace: RaceGoalType | null;
   pr5k: string;
+  runnerLevel: ProfileType["runnerLevel"];
+  preferredTrainingDays: number;
+  recentWorkout: WorkoutType | null;
+  recentWorkouts: WorkoutType[];
+  recentTimedRuns: number;
+  recentHighEffort: boolean;
+  averageRecentEffort: number | null;
+  recentWorkoutTypes: string[];
+  consistency: "low" | "solid" | "strong";
+  weeklyMiles: number;
+  weeklyRunCount: number;
+  streak: number;
+  workloadStatus: "below_goal" | "on_track" | "above_goal";
+  recoveryPercent: number | null;
+  recoveryStatus: "high" | "moderate" | "low" | null;
+  recoveryAdjustment: "push" | "maintain" | "ease_off" | null;
+  recoveryExplanation: string;
+  adaptiveFeedback: string[];
+  fuelingStatusLabel: string | null;
+  fuelingInsight: string | null;
+  fuelingStatus: RunningCoachContext["fuelingToday"] extends infer T ? T extends { status: infer S } ? S : null : null;
+  eatenCalories: number | null;
+  burnedCalories: number | null;
+  netCalories: number | null;
+  sleepScore: number | null;
+  sleepHours: string | null;
+  sleepQuality: RunningCoachContext["engine"] extends infer T ? T extends { sleepQuality: infer S } ? S : null : null;
+  restingHr: string | null;
+  heartRateTrend: "stable" | "slightly_up" | "elevated" | null;
+  fatigueLevel: "fresh" | "steady" | "heavy" | null;
+  todayWorkout: RunningCoachContext["todayWorkout"];
 };
 
-const TOPIC_MATCHERS: TopicMatcher[] = [
-  {
-    keywords: ["easy run", "easy day", "easy effort", "easy pace"],
-    handler: (_question, context, summary) =>
-      withContext(
-        "Easy runs should feel conversational, controlled, and almost a little too easy at the start.",
-        context,
-        summary,
-        summary.recentHighEffort
-          ? "Since your recent effort has been high, keep the next easy run truly relaxed."
-          : "You should finish feeling like you could keep going."
-      ),
-  },
-  {
-    keywords: ["tempo", "threshold"],
-    handler: (_question, context, summary) =>
-      withContext(
-        "Tempo work should feel strong, steady, and sustainable, not like a race from the first minute.",
-        context,
-        summary,
-        summary.goalEventLabel.includes("5K") || summary.goalEventLabel.includes("10K")
-          ? "For your goal event, think controlled discomfort and rhythm rather than sprinting."
-          : "If breathing gets ragged too early, back it down slightly."
-      ),
-  },
-  {
-    keywords: ["interval", "track", "speed work", "speedwork"],
-    handler: (question, context, summary) => {
-      if (question.includes("how often")) {
-        return withContext(
-          "Most runners do best with one speed-focused session each week.",
-          context,
-          summary,
-          summary.mileageGoal >= 45
-            ? "A second quality day can work if your easy days stay easy and recovery is holding up."
-            : "Only add more if recovery stays solid."
-        );
-      }
+type CoachCategory =
+  | "workout_explanation"
+  | "pacing_guidance"
+  | "recovery_advice"
+  | "race_prediction"
+  | "training_adjustment"
+  | "fueling"
+  | "heart_rate"
+  | "injury"
+  | "general";
 
-      return withContext(
-        "Intervals should feel controlled fast, not reckless.",
-        context,
-        summary,
-        "The goal is repeatable quality and stable splits, not one hero rep followed by a fade."
-      );
-    },
-  },
-  {
-    keywords: ["long run"],
-    handler: (_question, context, summary) =>
-      withContext(
-        "Long runs should usually stay aerobic and build durability more than ego.",
-        context,
-        summary,
-        summary.goalEventLabel.includes("Half") || summary.goalEventLabel.includes("Marathon")
-          ? "For longer races, the long run matters most when it stays steady enough to recover from."
-          : "Start easy, settle in, and only finish stronger if the plan calls for it."
-      ),
-  },
-  {
-    keywords: ["recovery day", "day after a hard workout", "after a hard workout", "recover"],
-    handler: (_question, context, summary) =>
-      withContext(
-        "The day after a hard workout should be easy or off.",
-        context,
-        summary,
-        summary.recentHighEffort
-          ? "Right now I would strongly lean easy or full recovery."
-          : "Keep the run short, relaxed, and focused on absorbing the work."
-      ),
-  },
-  {
-    keywords: ["mileage increase", "increase mileage", "weekly mileage", "mileage"],
-    handler: (_question, context, summary) =>
-      withContext(
-        "Increase mileage gradually enough that workouts stay sharp and easy days still feel easy.",
-        context,
-        summary,
-        summary.mileageGoal <= 25
-          ? "Small steady jumps work better than big jumps when your base is still building."
-          : "If your legs stay flat for several days, the increase was probably too aggressive."
-      ),
-  },
-  {
-    keywords: ["fatigue", "sore", "soreness", "heavy legs", "tired legs", "tired"],
-    handler: (_question, context, summary) =>
-      withContext(
-        "If you feel sore or flat, protect the next few days instead of forcing pace.",
-        context,
-        summary,
-        summary.recentHighEffort
-          ? "Your recent training already points toward backing off a bit."
-          : "Trim distance if needed, keep effort easy, and let recovery do its job."
-      ),
-  },
-  {
-    keywords: ["race prep", "race preparation", "race strategy", "race", "taper", "taper week"],
-    handler: (question, context, summary) => {
-      if (question.includes("taper")) {
-        return withContext(
-          "Taper week should reduce stress while keeping your legs awake.",
-          context,
-          summary,
-          "Keep workouts short and specific, cut volume, and show up feeling fresh instead of stale."
-        );
-      }
-
-      return withContext(
-        "Race strategy should feel patient early and strong late.",
-        context,
-        summary,
-        summary.goalEventLabel
-          ? `For a ${summary.goalEventLabel} focus, aim to stay controlled early and avoid spending your race in the red too soon.`
-          : "Start under control, settle into rhythm, and save your hardest running for the back half."
-      );
-    },
-  },
-  {
-    keywords: ["fuel", "eat", "before a run", "before run", "before a long run", "after a run", "after run", "carb"],
-    handler: (question, context, summary) => {
-      if (question.includes("after")) {
-        return withContext(
-          "After harder or longer runs, get carbs and some protein in fairly soon.",
-          context,
-          summary,
-          "You are trying to start recovery before the next workout sneaks up on you."
-        );
-      }
-
-      return withContext(
-        "Before a run, keep fueling simple, familiar, and easy to digest.",
-        context,
-        summary,
-        summary.goalEventLabel.includes("Half") || summary.goalEventLabel.includes("Marathon")
-          ? "Longer long-run and race-prep days usually feel better with a carb-focused meal 2 to 3 hours beforehand."
-          : "For shorter sessions, a light carb snack is often enough."
-      );
-    },
-  },
-  {
-    keywords: ["rest day", "when to rest", "rest"],
-    handler: (_question, context, summary) =>
-      withContext(
-        "Take a rest day when fatigue is piling up, effort is drifting higher than normal, or easy running stops feeling easy.",
-        context,
-        summary,
-        summary.recentHighEffort
-          ? "Based on your recent effort, extra recovery would be a reasonable call."
-          : "Rest helps good training sink in."
-      ),
-  },
-  {
-    keywords: ["consistency", "stay consistent", "training consistency"],
-    handler: (_question, context, summary) =>
-      withContext(
-        "Consistency usually comes from doing slightly less than your maximum and repeating it well.",
-        context,
-        summary,
-        `At around ${summary.mileageGoal} miles per week, protecting recovery is what keeps good weeks stacking up.`
-      ),
-  },
-  {
-    keywords: ["pacing", "pace"],
-    handler: (_question, context, summary) =>
-      withContext(
-        "Good pacing feels controlled early and stronger late.",
-        context,
-        summary,
-        summary.pr5k
-          ? `Since you have a ${summary.pr5k} 5K PR on file, think in terms of effort discipline first and pace second when you are tired.`
-          : "If you have to force the first half, the pace is too hot."
-      ),
-  },
-  {
-    keywords: ["split", "splits"],
-    handler: (_question, context, summary) =>
-      withContext(
-        "Good splits usually come from starting controlled enough that the final rep or final mile is still honest.",
-        context,
-        summary,
-        "Aim for repeatable pacing, not one fast split followed by a fade."
-      ),
-  },
-];
+type CoachReplyParts = {
+  answer: string;
+  context: string;
+  nextStep: string;
+  assumption?: string;
+  followUp?: string;
+};
 
 export function getRunningCoachReply(input: string, context: RunningCoachContext) {
   const question = normalizeQuestion(input);
@@ -232,21 +123,651 @@ export function getRunningCoachReply(input: string, context: RunningCoachContext
   }
 
   if (!isRunningQuestion(question)) {
-    return "I focus on running, workouts, pacing, recovery, race prep, and fueling questions.";
+    return "I can help best with running, training, pacing, recovery, and race prep. What would you like help with there?";
   }
 
-  const topicReply = getTopicReply(question, context, summary);
+  const category = classifyQuestion(question);
 
-  if (topicReply) {
-    return topicReply.answer;
+  switch (category) {
+    case "workout_explanation":
+      return formatCoachReply(buildWorkoutExplanationReply(question, summary));
+    case "pacing_guidance":
+      return formatCoachReply(buildPacingReply(question, summary));
+    case "recovery_advice":
+      return formatCoachReply(buildRecoveryReply(question, summary));
+    case "race_prediction":
+      return formatCoachReply(buildRaceReply(question, summary));
+    case "training_adjustment":
+      return formatCoachReply(buildTrainingAdjustmentReply(question, summary));
+    case "fueling":
+      return formatCoachReply(buildFuelingReply(question, summary));
+    case "heart_rate":
+      return formatCoachReply(buildHeartRateReply(question, summary));
+    case "injury":
+      return formatCoachReply(buildInjuryReply(summary));
+    default:
+      return formatCoachReply(buildGeneralReply(summary));
+  }
+}
+
+function buildWorkoutExplanationReply(question: string, summary: CoachSummary): CoachReplyParts {
+  if (summary.todayWorkout) {
+    const purpose = getWorkoutPurpose(summary.todayWorkout.title, summary.todayWorkout.kind);
+    const effort = getWorkoutEffortCue(summary.todayWorkout.title, summary.todayWorkout.kind);
+
+    return {
+      answer: `Today's workout is ${summary.todayWorkout.title.toLowerCase()}. ${purpose}`,
+      context: `${summary.todayWorkout.details} ${effort}`,
+      nextStep: summary.recentHighEffort
+        ? "Keep the first part extra controlled because your recent running has leaned hard."
+        : "Run the opening minutes calmly and let the workout come to you.",
+    };
   }
 
-  return withContext(
-    "I can help with workouts, pacing, recovery, mileage, race prep, fueling, and running calculations.",
-    context,
-    summary,
-    "Ask it directly and I'll keep the answer concise."
+  if (question.includes("tempo") || question.includes("threshold")) {
+    return {
+      answer: "Tempo work is there to build stamina at a strong but controlled effort.",
+      context: "It should feel steady and honest, not like you are racing from the first minute.",
+      nextStep: "If breathing is ragged early, back off a little and hold rhythm instead.",
+    };
+  }
+
+  if (question.includes("long run")) {
+    return {
+      answer: "The long run is mainly for endurance and durability.",
+      context: "Most of the value comes from staying aerobic enough to recover and train again well.",
+      nextStep: "Keep it patient early and only finish stronger if the plan clearly calls for that.",
+    };
+  }
+
+  return {
+    answer: "The workout purpose should tell you what to prioritize: easy means relaxed, quality means controlled work, recovery means absorbing training.",
+    context: "The best running advice always starts with the job of the session rather than treating every run the same way.",
+    nextStep: "Ask about the specific session and I can make the target feel clearer.",
+  };
+}
+
+function buildPacingReply(question: string, summary: CoachSummary): CoachReplyParts {
+  if (summary.todayWorkout) {
+    const workoutType = `${summary.todayWorkout.title} ${summary.todayWorkout.kind}`.toLowerCase();
+
+    if (workoutType.includes("easy") || workoutType.includes("recovery")) {
+      return {
+        answer: "Run today by easy effort, not by a fixed pace.",
+        context: summary.recentHighEffort
+          ? "Recent effort has been high enough that forcing an easy-day split would just add more fatigue. Keep it conversational from the start."
+          : "The point of an easy run is low stress aerobic work, so the pace only matters if it stays relaxed and conversational.",
+        nextStep: "If breathing gets choppy or you feel yourself pressing to hold a number, slow down and make the run feel smoother.",
+      };
+    }
+
+    if (workoutType.includes("tempo") || workoutType.includes("threshold")) {
+      return {
+        answer: "For today's workout, chase rhythm before pace.",
+        context: summary.pr5k
+          ? `Your ${summary.pr5k} 5K PR gives useful context, but the better target is controlled discomfort you can hold evenly rather than one perfect split.`
+          : "Without a recent benchmark, effort is a better guide than forcing a split that may not match current fitness.",
+        nextStep: "Start the first rep or first block slightly conservative and settle into a pace you could repeat cleanly.",
+      };
+    }
+  }
+
+  if (summary.pr5k) {
+    return {
+      answer: "Use effort first and your benchmark second.",
+      context: `With a ${summary.pr5k} 5K PR on file, pacing should still feel controlled enough that you are not fading halfway through.`,
+      nextStep: "Start a touch conservative and aim to finish stronger than you started.",
+    };
+  }
+
+  return {
+    answer: "The right pace depends on the session and your current fitness.",
+    context: "Exact splits only make sense when they are tied to workout purpose, recent fitness, and current fatigue.",
+    nextStep: "Tell me the workout or goal race and I can narrow the pace guidance much more precisely.",
+    assumption: "I do not have enough detail yet to give an exact pace range.",
+    followUp: "What workout are you running today?",
+  };
+}
+
+function buildRecoveryReply(question: string, summary: CoachSummary): CoachReplyParts {
+  if (question.includes("skip") && summary.todayWorkout) {
+    if (summary.recoveryAdjustment === "ease_off") {
+      return {
+        answer: "You should strongly consider modifying or skipping the quality part of today's session.",
+        context: `${summary.recoveryExplanation} That is not a strong setup for forcing a hard day.`,
+        nextStep: "Warm up first, then convert it to an easy aerobic run or take the rest day if the body still feels flat.",
+      };
+    }
+
+    return {
+      answer: "Do not skip it automatically, but earn the workout in the warm-up.",
+      context: summary.recoveryAdjustment === "maintain"
+        ? `${summary.recoveryExplanation} You can still train, but the session should start more controlled than usual.`
+        : "Your readiness looks good enough to try the planned session if the warm-up feels normal.",
+      nextStep: "Give yourself 10-15 easy minutes, then keep the workout only if rhythm and breathing settle well.",
+    };
+  }
+
+  if (summary.recentWorkout) {
+    const recentLabel = `${summary.recentWorkout.type || "run"} at effort ${summary.recentWorkout.effort}/10`;
+
+    if (summary.recentWorkout.effort >= 8 || question.includes("hard") || question.includes("bad")) {
+      return {
+        answer: getHardRunHeadline(summary),
+        context: [
+          `Your recent run was ${recentLabel}.`,
+          buildRecentWorkoutContext(summary),
+          summary.recoveryExplanation,
+          buildConditionContext(summary),
+          summary.fuelingInsight,
+        ]
+          .filter(Boolean)
+          .join(" "),
+        nextStep: "Keep the next 24-48 hours easy, avoid trying to make up pace, and get back to normal intensity only when an easy run feels smooth again.",
+      };
+    }
+  }
+
+  return {
+    answer: summary.recoveryAdjustment === "ease_off"
+      ? "Recovery is the limiter right now."
+      : summary.recoveryAdjustment === "maintain"
+        ? "Recovery is workable but not perfect."
+        : "Recovery looks supportive today.",
+    context: summary.consistency === "strong"
+      ? `${summary.recoveryExplanation} Your consistency is good enough that protecting the next quality day matters more than squeezing in extra work.`
+      : `${summary.recoveryExplanation} When training is uneven, fatigue hides fitness fast.`,
+    nextStep: summary.recoveryAdjustment === "ease_off"
+      ? "Keep the next run short and easy, prioritize sleep and food tonight, and skip extra intensity until the body feels normal again."
+      : "Use easy effort, steady fueling, and a normal night of sleep to set up the next quality session.",
+  };
+}
+
+function buildRaceReply(_question: string, summary: CoachSummary): CoachReplyParts {
+  if (summary.goalRace?.event) {
+    const countdown = summary.goalRace.raceDate ? getRaceCountdown(summary.goalRace.raceDate) : null;
+
+    return {
+      answer: `Judge the block against your ${summary.goalRace.event} goal, not one good or bad run.`,
+      context: [
+        summary.goalRace.goalTime ? `Goal time is ${summary.goalRace.goalTime}.` : null,
+        countdown,
+        summary.consistency === "strong"
+          ? "Recent consistency looks strong enough to keep building."
+          : summary.consistency === "solid"
+            ? "Consistency looks decent, so steady training matters more than forcing breakthroughs."
+            : "Consistency looks light right now, so the safest win is stacking more good weeks first.",
+        summary.weeklyMiles > 0 ? `This week is at ${summary.weeklyMiles.toFixed(1)} miles against a goal of about ${summary.mileageGoal}.` : null,
+      ]
+        .filter(Boolean)
+        .join(" "),
+      nextStep: "Ask me whether your recent training supports that specific goal time and I will give you a more direct read.",
+    };
+  }
+
+  if (summary.goalEventLabel !== "running") {
+    return {
+      answer: `You do have a ${summary.goalEventLabel} focus, which helps frame the training.`,
+      context: "A clear race distance changes how workouts, long runs, and pacing guidance should be interpreted even before a full goal is set.",
+      assumption: "I do not have a goal date or goal time saved yet.",
+      nextStep: "Add a goal race and time if you want sharper prediction-style guidance.",
+    };
+  }
+
+  return {
+    answer: "I can talk race prediction, but I need a race goal to make it meaningful.",
+    context: "Prediction only means something when it is tied to a distance and recent training context.",
+    nextStep: "Set a goal race or tell me the distance you care about most right now.",
+  };
+}
+
+function buildTrainingAdjustmentReply(question: string, summary: CoachSummary): CoachReplyParts {
+  const struggling =
+    summary.consistency === "low" || summary.recentHighEffort || (summary.averageRecentEffort ?? 0) >= 7.5;
+  const thriving =
+    summary.consistency === "strong" &&
+    !summary.recentHighEffort &&
+    (summary.averageRecentEffort === null || summary.averageRecentEffort <= 6.5);
+
+  if (question.includes("increase") || thriving) {
+    if (thriving) {
+      return {
+        answer: "A small increase is reasonable.",
+        context: "Your recent training looks consistent without obvious overload.",
+        nextStep: "Think slight progression, not a big jump. More is only useful if easy days still feel easy.",
+      };
+    }
+  }
+
+  if (question.includes("reduce") || struggling) {
+    return {
+      answer: "I would lean hold or slightly reduce right now.",
+      context: summary.recentHighEffort
+        ? `Recent effort has been high, so forcing more would probably blunt the next good session. ${buildConditionContext(summary)}`
+        : `The recent pattern does not really support a clean increase yet. ${buildConditionContext(summary)}`,
+      nextStep: "Keep the next few days controlled, then build again once rhythm returns.",
+    };
+  }
+
+  return {
+    answer: "Holding steady looks like the smartest call.",
+    context: "There is enough training there to keep progressing, but not a strong reason to press harder this second.",
+    nextStep: "Aim for another solid week before trying to add more load.",
+  };
+}
+
+function buildFuelingReply(question: string, summary: CoachSummary): CoachReplyParts {
+  if (question.includes("before")) {
+    return {
+      answer: "Before a run, keep food simple and easy to digest.",
+      context: "The goal is usable carbohydrate without stomach stress. The longer or harder the run, the more important that becomes.",
+      nextStep: "Use a light carb-based snack 30-90 minutes before if needed, and avoid starting harder sessions underfueled.",
+    };
+  }
+
+  if (question.includes("after") || question.includes("recover")) {
+    return {
+      answer: "After a hard or long run, eat soon enough that recovery starts the same day.",
+      context: "Post-run fueling helps restore glycogen, supports muscle repair, and makes the next run feel more normal instead of flat.",
+      nextStep: "Within about an hour, get carbohydrate plus protein, fluids, and enough total intake that you are not still digging out by evening.",
+    };
+  }
+
+  return {
+    answer: summary.fuelingStatusLabel === "Underfueled"
+      ? "Fueling looks too light for the running you are doing."
+      : "Fueling should support the work, not become its own project.",
+    context:
+      [
+        summary.fuelingInsight ?? "For runners, the main question is whether intake is helping you train and recover, especially around harder and longer sessions.",
+        buildFuelingContext(summary),
+      ]
+        .filter(Boolean)
+        .join(" "),
+    nextStep: summary.fuelingStatusLabel === "Underfueled"
+      ? "Fix the basics first: eat earlier after runs, add an easy carb source before quality days, and stop trying to train hard on low intake."
+      : "Keep your pre-run and post-run habits repeatable so energy and recovery stay steadier across the week.",
+  };
+}
+
+function buildHeartRateReply(_question: string, summary: CoachSummary): CoachReplyParts {
+  return {
+    answer: summary.heartRateTrend === "elevated"
+      ? "A higher heart rate usually means the day should stay more controlled."
+      : "Heart rate is useful when it confirms how the run feels, not when it overrides everything else.",
+    context: summary.heartRateTrend === "elevated"
+      ? `In running, HR often rises when recovery, heat, dehydration, or residual fatigue are pushing the body harder than normal for the same pace. ${buildHeartRateContext(summary)}`
+      : `Your current HR trend reads ${summary.heartRateTrend ?? "unclear"}. ${buildHeartRateContext(summary)} HR is most useful as a readiness and pacing check alongside breathing, legs, and workout purpose.`,
+    nextStep: summary.heartRateTrend === "elevated"
+      ? "Run by effort instead of forcing pace, keep the session aerobic, and reassess after an easy day or two. If it is severe or persistent, get medical advice."
+      : "Use HR to keep easy runs honest and to flag unusual fatigue, but let effort be the tie-breaker when conditions are off.",
+  };
+}
+
+function buildInjuryReply(_summary: CoachSummary): CoachReplyParts {
+  return {
+    answer: "If something feels injury-like, reduce stress first and do not try to train through worsening pain.",
+    context: "I can help with basic running guidance, but I cannot diagnose an injury. Pain that changes your stride or gets worse during the run usually means the load is too high right now.",
+    nextStep: "Cut intensity, shorten or stop the run if mechanics change, and get evaluated by a qualified professional if pain is sharp, worsening, or not settling quickly.",
+  };
+}
+
+function buildGeneralReply(summary: CoachSummary): CoachReplyParts {
+  if (summary.todayWorkout) {
+    return {
+      answer: `Start with today's workout: ${summary.todayWorkout.title}.`,
+      context: `That is usually the clearest way to make the coach useful because it anchors pacing, effort, recovery, and how the day fits your goal. ${buildConditionContext(summary)}`,
+      nextStep: "Ask what it should feel like, how to pace it, or how it fits your goal.",
+    };
+  }
+
+  return {
+    answer: "I can help most when the question is specific to your running.",
+    context: "Workouts, pacing, recovery, goal races, and recent effort are all fair game.",
+    nextStep: "Try asking about your next run or the last session that felt off.",
+  };
+}
+
+function formatCoachReply(parts: CoachReplyParts) {
+  return [
+    `Short answer: ${parts.answer}`,
+    `Why: ${parts.context}${parts.assumption ? ` Assumption: ${parts.assumption}` : ""}`,
+    `What to do next: ${parts.nextStep}`,
+    parts.followUp ? `Follow-up: ${parts.followUp}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function classifyQuestion(question: string): CoachCategory {
+  if (hasAny(question, ["pain", "injury", "injured", "hurt", "knee", "shin", "achilles", "hamstring"])) {
+    return "injury";
+  }
+
+  if (
+    hasAny(question, [
+      "today",
+      "today's workout",
+      "help with today",
+      "what is the purpose",
+      "purpose",
+      "explain workout",
+      "what should this feel like",
+      "what should my long run feel like",
+    ])
+  ) {
+    return "workout_explanation";
+  }
+
+  if (hasAny(question, ["pace", "pacing", "split", "splits"])) {
+    return "pacing_guidance";
+  }
+
+  if (hasAny(question, ["food", "eat", "eating", "fuel", "fueling", "calories", "carb", "carbs", "protein", "gel", "hydration"])) {
+    return "fueling";
+  }
+
+  if (hasAny(question, ["heart rate", "hr", "bpm", "pulse"])) {
+    return "heart_rate";
+  }
+
+  if (hasAny(question, ["recover", "recovery", "rest", "fatigue", "tired", "sore", "hard"])) {
+    return "recovery_advice";
+  }
+
+  if (hasAny(question, ["goal", "goal race", "prediction", "on track", "race", "target"])) {
+    return "race_prediction";
+  }
+
+  if (hasAny(question, ["adjust", "increase", "reduce", "hold", "mileage", "how often", "consistency"])) {
+    return "training_adjustment";
+  }
+
+  return "general";
+}
+
+function summarizeContext(context: RunningCoachContext): CoachSummary {
+  const mileageGoal = Number.parseFloat(context.profile.mileage) || 30;
+  const recentWorkouts = [...context.workouts]
+    .sort((left, right) => new Date(right.date).getTime() - new Date(left.date).getTime())
+    .slice(0, 6);
+  const recentWorkout = recentWorkouts[0] ?? null;
+  const recentTimedRuns = recentWorkouts.filter((workout) => {
+    const distance = parseDistance(workout.distance);
+    const seconds = parseTimeToSeconds(workout.time);
+    return Boolean(distance && seconds);
+  }).length;
+  const averageRecentEffort =
+    recentWorkouts.length > 0
+      ? recentWorkouts.reduce((sum, workout) => sum + (Number.isFinite(workout.effort) ? workout.effort : 0), 0) /
+        recentWorkouts.length
+      : null;
+  const weeklyMiles = context.weeklySummary?.totalMiles ?? 0;
+  const workloadRatio = mileageGoal > 0 ? weeklyMiles / mileageGoal : 0;
+
+  return {
+    mileageGoal,
+    goalEventLabel: context.profile.goalEvent || "running",
+    goalRace: context.profile.raceGoals[0] ?? null,
+    pr5k: context.profile.pr5k || context.profile.prs["5k"] || "",
+    runnerLevel: context.profile.runnerLevel ?? null,
+    preferredTrainingDays: context.profile.preferredTrainingDays || 4,
+    recentWorkout,
+    recentWorkouts,
+    recentTimedRuns,
+    recentHighEffort: recentWorkouts.some((workout) => workout.effort >= 8),
+    averageRecentEffort,
+    recentWorkoutTypes: recentWorkouts.map((workout) => workout.type).filter(Boolean),
+    consistency: getConsistencyStatus(context.workouts),
+    weeklyMiles,
+    weeklyRunCount: context.weeklySummary?.runCount ?? 0,
+    streak: context.streak ?? 0,
+    workloadStatus: workloadRatio >= 1.08 ? "above_goal" : workloadRatio >= 0.72 ? "on_track" : "below_goal",
+    recoveryPercent: context.recovery?.percent ?? null,
+    recoveryStatus: context.recovery?.status ?? null,
+    recoveryAdjustment: context.recovery?.adjustment ?? null,
+    recoveryExplanation: context.recovery?.explanation ?? "Recovery data is limited.",
+    adaptiveFeedback: context.adaptiveFeedback ?? [],
+    fuelingStatusLabel: context.fuelingToday?.statusLabel ?? null,
+    fuelingInsight: context.fuelingToday?.insight ?? null,
+    fuelingStatus: context.fuelingToday?.status ?? null,
+    eatenCalories: context.fuelingToday?.eatenCalories ?? null,
+    burnedCalories: context.fuelingToday?.burnedCalories ?? null,
+    netCalories: context.fuelingToday?.netCalories ?? null,
+    sleepScore: context.engine?.sleepScore ?? null,
+    sleepHours: context.engine?.sleepHours ?? null,
+    sleepQuality: context.engine?.sleepQuality ?? null,
+    restingHr: context.engine?.restingHr ?? null,
+    heartRateTrend: context.engine?.heartRateTrend ?? null,
+    fatigueLevel: context.engine?.fatigueLevel ?? null,
+    todayWorkout: context.todayWorkout ?? null,
+  };
+}
+
+function buildRecentWorkoutContext(summary: CoachSummary) {
+  if (!summary.recentWorkout) {
+    return "";
+  }
+
+  const distance = parseDistance(summary.recentWorkout.distance);
+  const pace = getWorkoutPaceText(summary.recentWorkout);
+  const details = [
+    distance ? `${distance.toFixed(distance % 1 === 0 ? 0 : 1)} miles` : null,
+    pace ? `${pace} pace` : null,
+    Number.isFinite(summary.recentWorkout.effort) ? `${summary.recentWorkout.effort}/10 effort` : null,
+  ].filter(Boolean);
+
+  return details.length > 0 ? `That session came in at ${details.join(", ")}.` : "";
+}
+
+function buildFuelingContext(summary: CoachSummary) {
+  if (summary.eatenCalories === null || summary.netCalories === null) {
+    return "";
+  }
+
+  const parts = [
+    `${Math.round(summary.eatenCalories)} calories eaten today`,
+    summary.burnedCalories !== null ? `${Math.round(summary.burnedCalories)} burned` : null,
+    `${Math.round(summary.netCalories)} net`,
+  ].filter(Boolean);
+
+  return parts.length > 0 ? `Current intake context: ${parts.join(", ")}.` : "";
+}
+
+function buildHeartRateContext(summary: CoachSummary) {
+  const parts = [
+    summary.restingHr ? `Resting HR is ${summary.restingHr}` : null,
+    summary.heartRateTrend ? `trend is ${summary.heartRateTrend.replace("_", " ")}` : null,
+  ].filter(Boolean);
+
+  return parts.length > 0 ? `${parts.join(", ")}.` : "";
+}
+
+function buildConditionContext(summary: CoachSummary) {
+  const parts = [
+    summary.sleepScore !== null ? `sleep score ${summary.sleepScore}` : null,
+    summary.sleepQuality ? `sleep quality ${summary.sleepQuality}` : null,
+    summary.sleepHours ? `${summary.sleepHours} hours sleep` : null,
+    summary.heartRateTrend ? `HR ${summary.heartRateTrend.replace("_", " ")}` : null,
+    summary.fatigueLevel ? `fatigue ${summary.fatigueLevel}` : null,
+    summary.fuelingStatusLabel ? `fueling ${summary.fuelingStatusLabel.toLowerCase()}` : null,
+  ].filter(Boolean);
+
+  return parts.length > 0 ? `Right now the main recovery signals are ${parts.join(", ")}.` : "";
+}
+
+function getConsistencyStatus(workouts: WorkoutType[]) {
+  const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
+  const recentDays = new Set(
+    workouts
+      .filter((workout) => new Date(workout.date).getTime() >= cutoff)
+      .map((workout) => new Date(workout.date).toISOString().slice(0, 10))
   );
+
+  if (recentDays.size >= 6) {
+    return "strong";
+  }
+
+  if (recentDays.size >= 3) {
+    return "solid";
+  }
+
+  return "low";
+}
+
+function getWorkoutPurpose(title: string, kind: string) {
+  const descriptor = `${title} ${kind}`.toLowerCase();
+
+  if (descriptor.includes("tempo") || descriptor.includes("threshold")) {
+    return "The main job is to build faster aerobic strength without racing the session.";
+  }
+
+  if (descriptor.includes("long")) {
+    return "The main job is endurance and durability, not proving fitness in one day.";
+  }
+
+  if (descriptor.includes("recovery")) {
+    return "The main job is helping your legs absorb work and come back fresher.";
+  }
+
+  if (descriptor.includes("easy")) {
+    return "The main job is aerobic volume that does not cost too much recovery.";
+  }
+
+  if (descriptor.includes("track") || descriptor.includes("interval") || descriptor.includes("quality")) {
+    return "The main job is quality work with enough control that the whole session stays honest.";
+  }
+
+  return "The main job is to match the planned purpose of the day instead of drifting into the wrong effort.";
+}
+
+function getWorkoutEffortCue(title: string, kind: string) {
+  const descriptor = `${title} ${kind}`.toLowerCase();
+
+  if (descriptor.includes("tempo") || descriptor.includes("threshold")) {
+    return "It should feel strong and steady, not frantic.";
+  }
+
+  if (descriptor.includes("long")) {
+    return "It should feel patient early and mostly aerobic.";
+  }
+
+  if (descriptor.includes("recovery") || descriptor.includes("easy")) {
+    return "It should feel relaxed enough that conversation is easy.";
+  }
+
+  if (descriptor.includes("track") || descriptor.includes("interval") || descriptor.includes("quality")) {
+    return "It should feel controlled hard, not reckless.";
+  }
+
+  return "Let effort stay aligned with the purpose of the day.";
+}
+
+function getRaceCountdown(value: string) {
+  const raceDate = new Date(value);
+
+  if (Number.isNaN(raceDate.getTime())) {
+    return "";
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  raceDate.setHours(0, 0, 0, 0);
+  const days = Math.round((raceDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (days > 1) {
+    return `${days} days out gives you enough time to keep building rather than forcing anything.`;
+  }
+
+  if (days === 1) {
+    return "Race day is tomorrow, so freshness matters more than adding work.";
+  }
+
+  if (days === 0) {
+    return "Race day is today, so the priority is calm execution.";
+  }
+
+  return "";
+}
+
+function hasAny(question: string, keywords: string[]) {
+  return keywords.some((keyword) => question.includes(keyword));
+}
+
+function normalizeQuestion(input: string) {
+  return input.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function isRunningQuestion(question: string) {
+  const runningKeywords = [
+    "run",
+    "running",
+    "workout",
+    "pace",
+    "easy",
+    "tempo",
+    "threshold",
+    "interval",
+    "track",
+    "long run",
+    "race",
+    "mile",
+    "mileage",
+    "effort",
+    "recover",
+    "recovery",
+    "rest",
+    "taper",
+    "fatigue",
+    "goal",
+    "prediction",
+    "5k",
+    "10k",
+    "marathon",
+    "half",
+    "split",
+    "today",
+    "food",
+    "fuel",
+    "calories",
+    "heart rate",
+    "hr",
+    "injury",
+    "pain",
+    "sleep",
+  ];
+
+  return runningKeywords.some((keyword) => question.includes(keyword));
+}
+
+function getHardRunHeadline(summary: CoachSummary) {
+  if (summary.recoveryAdjustment === "ease_off") {
+    return "Your run probably felt hard because recovery was already behind.";
+  }
+
+  if (summary.fuelingStatusLabel === "Underfueled") {
+    return "Low fueling likely made the run feel harder than the pace suggested.";
+  }
+
+  if (summary.recentHighEffort) {
+    return "You were likely carrying fatigue from earlier in the week.";
+  }
+
+  return "The body likely was not as fresh as the run demanded.";
+}
+
+function getWorkoutPaceText(workout: WorkoutType) {
+  const distance = parseDistance(workout.distance);
+  const seconds = parseTimeToSeconds(workout.time);
+
+  if (!distance || !seconds) {
+    return null;
+  }
+
+  const paceSeconds = seconds / distance;
+  const minutes = Math.floor(paceSeconds / 60);
+  const remainder = Math.round(paceSeconds % 60);
+  return `${minutes}:${String(remainder).padStart(2, "0")}/mi`;
 }
 
 function getCalculationReply(question: string): CalculationResult | null {
@@ -343,130 +864,6 @@ function getCalculationReply(question: string): CalculationResult | null {
   }
 
   return null;
-}
-
-function getTopicReply(
-  question: string,
-  context: RunningCoachContext,
-  summary: CoachSummary
-): TopicResponse | null {
-  for (const matcher of TOPIC_MATCHERS) {
-    if (matcher.keywords.some((keyword) => question.includes(keyword))) {
-      return {
-        answer: matcher.handler(question, context, summary),
-      };
-    }
-  }
-
-  if (question.includes("how often")) {
-    return {
-      answer: withContext(
-        "Most runners do best when hard sessions are limited to one or two focused days each week.",
-        context,
-        summary,
-        "Everything else should support those days with easier running."
-      ),
-    };
-  }
-
-  if (question.includes("what should i do")) {
-    return {
-      answer: withContext(
-        "Match the answer to the purpose of the day: easy means easy, workouts mean controlled quality, and recovery means actually recovering.",
-        context,
-        summary,
-        "If you tell me the exact situation, I can answer more directly."
-      ),
-    };
-  }
-
-  return null;
-}
-
-function summarizeContext(context: RunningCoachContext): CoachSummary {
-  const mileageGoal = Number.parseFloat(context.profile.mileage) || 30;
-  const recentWorkouts = [...context.workouts]
-    .sort((left, right) => new Date(right.date).getTime() - new Date(left.date).getTime())
-    .slice(0, 5);
-
-  return {
-    mileageGoal,
-    recentHighEffort: recentWorkouts.some((workout) => workout.effort >= 8),
-    recentWorkoutTypes: recentWorkouts.map((workout) => workout.type).filter(Boolean),
-    recentTimedRuns: recentWorkouts.filter((workout) => {
-      const distance = parseDistance(workout.distance);
-      const seconds = parseTimeToSeconds(workout.time);
-      return Boolean(distance && seconds);
-    }).length,
-    goalEventLabel: context.profile.goalEvent || "running",
-    pr5k: context.profile.pr5k || context.profile.prs["5k"] || "",
-  };
-}
-
-function normalizeQuestion(input: string) {
-  return input.trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-function isRunningQuestion(question: string) {
-  const runningKeywords = [
-    "run",
-    "running",
-    "workout",
-    "pace",
-    "easy",
-    "tempo",
-    "threshold",
-    "interval",
-    "track",
-    "long run",
-    "race",
-    "mile",
-    "mileage",
-    "effort",
-    "fuel",
-    "eat",
-    "carb",
-    "recovery",
-    "rest",
-    "taper",
-    "sore",
-    "fatigue",
-    "5k",
-    "10k",
-    "marathon",
-    "half",
-    "400",
-    "800",
-    "1600",
-    "3200",
-    "split",
-    "splits",
-  ];
-
-  return runningKeywords.some((keyword) => question.includes(keyword));
-}
-
-function withContext(
-  primary: string,
-  _context: RunningCoachContext,
-  summary: CoachSummary,
-  followUp?: string
-) {
-  const pieces = [primary];
-
-  if (followUp) {
-    pieces.push(followUp);
-  }
-
-  if (
-    summary.goalEventLabel &&
-    summary.goalEventLabel !== "running" &&
-    !primary.toLowerCase().includes(summary.goalEventLabel.toLowerCase())
-  ) {
-    pieces.push(`That fits your current ${summary.goalEventLabel} focus.`);
-  }
-
-  return pieces.join(" ");
 }
 
 function parseFlexibleTime(value: string, unit?: string) {

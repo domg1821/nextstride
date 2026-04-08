@@ -2,16 +2,20 @@ import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useRef } from "react";
 import { Animated, Easing, Image, Pressable, Text, View } from "react-native";
-import { InfoCard, PageHeader, PrimaryButton, StatCard } from "@/components/ui-kit";
+import { AmbientTrackBackdrop, GlowBackground, RunningSurfaceAccent } from "@/components/running-visuals";
+import { getSurfaceCardStyle, InfoCard, PageHeader, PrimaryButton, StatCard } from "@/components/ui-kit";
 import { AnimatedTabScene, ScreenScroll, SectionTitle } from "@/components/ui-shell";
 import { useProfile } from "@/contexts/profile-context";
 import { useThemeColors } from "@/contexts/theme-context";
 import { useWorkouts } from "@/contexts/workout-context";
+import { useResponsiveLayout } from "@/lib/responsive";
+import { ThemeTokens } from "@/constants/theme";
 
 export default function Profile() {
   const { profile, setProfile } = useProfile();
   const { workouts } = useWorkouts();
   const { colors } = useThemeColors();
+  const layout = useResponsiveLayout();
 
   const spinValue = useRef(new Animated.Value(0)).current;
   const gearScale = useRef(new Animated.Value(1)).current;
@@ -134,15 +138,16 @@ export default function Profile() {
   return (
     <AnimatedTabScene tabKey="profile">
       <ScreenScroll colors={colors}>
+        <AmbientTrackBackdrop variant="road" style={{ top: 64, height: 860 }} />
         <View
           style={{
-            flexDirection: "row",
+            flexDirection: layout.isPhone ? "column" : "row",
             justifyContent: "space-between",
-            alignItems: "center",
+            alignItems: layout.isPhone ? "flex-start" : "center",
             gap: 16,
           }}
         >
-        <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+        <View style={{ flexDirection: layout.isCompact ? "column" : "row", alignItems: layout.isCompact ? "flex-start" : "center", flex: 1 }}>
           {profile.image ? (
             <Image
               source={{ uri: profile.image }}
@@ -173,7 +178,7 @@ export default function Profile() {
             </View>
           )}
 
-          <View style={{ marginLeft: 16, flex: 1 }}>
+          <View style={{ marginLeft: layout.isCompact ? 0 : 16, marginTop: layout.isCompact ? 14 : 0, flex: 1 }}>
             <Text style={{ color: colors.text, fontSize: 28, fontWeight: "700" }}>
               {profile.name || "Runner"}
             </Text>
@@ -225,9 +230,36 @@ export default function Profile() {
           subtitle="A focused place for your photo, stats, and quick links into the rest of the app."
         />
 
-        <PrimaryButton label="Upload Profile Picture" onPress={pickImage} />
+        <View
+          style={[
+            getSurfaceCardStyle(colors, { tone: "accent", padding: ThemeTokens.spacing.ml }),
+            { gap: ThemeTokens.spacing.m, overflow: "hidden" },
+          ]}
+        >
+          <GlowBackground variant="road" />
+          <RunningSurfaceAccent variant="road" />
+          <View style={{ gap: 8 }}>
+            <Text style={{ color: "#67e8f9", fontSize: ThemeTokens.typography.caption.fontSize, fontWeight: "800", letterSpacing: 1 }}>
+              PROFILE OVERVIEW
+            </Text>
+            <Text style={{ color: colors.text, fontSize: ThemeTokens.typography.h2.fontSize, fontWeight: "800", lineHeight: ThemeTokens.typography.h2.lineHeight }}>
+              Keep your runner identity and key links in one place
+            </Text>
+            <Text style={{ color: colors.subtext, fontSize: ThemeTokens.typography.body.fontSize, lineHeight: ThemeTokens.typography.body.lineHeight }}>
+              Update your photo, jump to settings, and keep your most useful profile tools close.
+            </Text>
+          </View>
+          <View style={{ flexDirection: layout.isPhone ? "column" : "row", gap: 12 }}>
+            <View style={{ flex: 1 }}>
+              <PrimaryButton label="Upload Profile Picture" onPress={pickImage} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <PrimaryButton label="Open Settings" onPress={openSettings} />
+            </View>
+          </View>
+        </View>
 
-        <View style={{ flexDirection: "row", gap: 14 }}>
+        <View style={{ flexDirection: layout.isPhone ? "column" : "row", gap: 14 }}>
         <View style={{ flex: 1 }}>
           <StatCard label="Workouts" value={`${workouts.length}`} />
         </View>
@@ -236,41 +268,45 @@ export default function Profile() {
         </View>
         </View>
 
-        <SectionTitle
-          colors={colors}
-          title="Quick links"
-          subtitle="Jump into the places you are most likely to revisit."
-        />
+        <InfoCard>
+          <SectionTitle
+            colors={colors}
+            title="Quick links"
+            subtitle="Jump into the places you are most likely to revisit."
+          />
 
-        <RouteCard
-          title="Activity Feed"
-          subtitle="View your recent runs in a cleaner feed-style history."
-          onPress={() => router.push("/activities")}
-        />
+          <View style={{ marginTop: 16, gap: 12 }}>
+            <RouteCard
+              title="Activity Feed"
+              subtitle="View your recent runs in a cleaner feed-style history."
+              onPress={() => router.push("/activities")}
+            />
 
-        <RouteCard
-          title="Statistics"
-          subtitle="See mileage totals, benchmarks, and training trends."
-          onPress={() => router.push("/statistics")}
-        />
+            <RouteCard
+              title="Statistics"
+              subtitle="See mileage totals, benchmarks, and training trends."
+              onPress={() => router.push("/statistics")}
+            />
 
-        <RouteCard
-          title="Goals"
-          subtitle="Track race countdowns, target times, and simple on-track guidance."
-          onPress={() => router.push("/goals")}
-        />
+            <RouteCard
+              title="Goals"
+              subtitle="Track race countdowns, target times, and simple on-track guidance."
+              onPress={() => router.push("/goals")}
+            />
 
-        <RouteCard
-          title="Gear"
-          subtitle="Track shoe mileage and keep your running rotation organized."
-          onPress={() => router.push("/gear")}
-        />
+            <RouteCard
+              title="Gear"
+              subtitle="Track shoe mileage and keep your running rotation organized."
+              onPress={() => router.push("/gear")}
+            />
 
-        <RouteCard
-          title="Race Predictor"
-          subtitle="Estimate current race fitness from recent training, effort, mileage, and saved PRs."
-          onPress={() => router.push("/race-predictor")}
-        />
+            <RouteCard
+              title="Race Predictor"
+              subtitle="Estimate current race fitness from recent training, effort, mileage, and saved PRs."
+              onPress={() => router.push("/race-predictor")}
+            />
+          </View>
+        </InfoCard>
       </ScreenScroll>
     </AnimatedTabScene>
   );
@@ -288,12 +324,28 @@ function RouteCard({
   const { colors } = useThemeColors();
 
   return (
-    <Pressable onPress={onPress}>
-      <InfoCard title={title} subtitle={subtitle}>
-        <Text style={{ color: colors.primary, fontSize: 14, fontWeight: "700" }}>
-          Open
-        </Text>
-      </InfoCard>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        backgroundColor: "rgba(10, 21, 35, 0.82)",
+        borderRadius: ThemeTokens.radii.lg,
+        borderWidth: 1,
+        borderColor: "rgba(148, 163, 184, 0.12)",
+        padding: ThemeTokens.spacing.m,
+        gap: ThemeTokens.spacing.s,
+        opacity: pressed ? 0.96 : 1,
+        transform: [{ scale: pressed ? 0.988 : 1 }, { translateY: pressed ? 1 : 0 }],
+      })}
+    >
+      <Text style={{ color: colors.text, fontSize: ThemeTokens.typography.h3.fontSize, fontWeight: "800", lineHeight: ThemeTokens.typography.h3.lineHeight }}>
+        {title}
+      </Text>
+      <Text style={{ color: colors.subtext, fontSize: ThemeTokens.typography.body.fontSize, lineHeight: ThemeTokens.typography.body.lineHeight }}>
+        {subtitle}
+      </Text>
+      <Text style={{ color: colors.primary, fontSize: 14, fontWeight: "700" }}>
+        Open
+      </Text>
     </Pressable>
   );
 }

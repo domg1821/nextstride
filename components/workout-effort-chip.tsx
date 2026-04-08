@@ -21,7 +21,7 @@ export function WorkoutEffortChip({
       }}
     >
       <Text style={{ color: guidance.accent, fontSize: compact ? 11 : 12, fontWeight: "800" }}>
-        {`Effort ${guidance.effortRange}`}
+        {`${guidance.label} ${guidance.effortRange}`}
       </Text>
     </View>
   );

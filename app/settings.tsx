@@ -4,6 +4,7 @@ import { Animated, Pressable, ScrollView, Switch, Text, TextInput, View } from "
 import { usePremium } from "@/contexts/premium-context";
 import { useProfile } from "@/contexts/profile-context";
 import { useThemeColors } from "@/contexts/theme-context";
+import { useResponsiveLayout } from "@/lib/responsive";
 import { buildUpgradePath } from "@/lib/upgrade-route";
 
 type SettingsRowProps = {
@@ -53,19 +54,22 @@ function SettingsRow({
     >
       <Pressable
         onPress={onPress}
-        style={{
+        style={({ pressed }) => ({
           backgroundColor: colors.card,
           borderRadius: 22,
           padding: 18,
           borderWidth: 1,
           borderColor: colors.border,
-        }}
+          opacity: pressed ? 0.96 : 1,
+          transform: [{ translateY: pressed ? 1 : 0 }],
+        })}
       >
         <View
           style={{
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "space-between",
+            gap: 14,
           }}
         >
           <View style={{ flex: 1, paddingRight: 14 }}>
@@ -76,7 +80,7 @@ function SettingsRow({
                 borderRadius: 999,
                 paddingHorizontal: 10,
                 paddingVertical: 5,
-                marginBottom: 12,
+                marginBottom: 10,
               }}
             >
               <Text style={{ color: "#ffffff", fontSize: 12, fontWeight: "700" }}>
@@ -90,9 +94,23 @@ function SettingsRow({
           </View>
 
           {trailing ?? (
-            <Text style={{ color: colors.subtext, fontSize: 22, marginLeft: 12 }}>
-              {">"}
-            </Text>
+            <View
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 999,
+                borderWidth: 1,
+                borderColor: colors.border,
+                backgroundColor: colors.cardAlt,
+                alignItems: "center",
+                justifyContent: "center",
+                marginLeft: 12,
+              }}
+            >
+              <Text style={{ color: colors.subtext, fontSize: 18, fontWeight: "700" }}>
+                {">"}
+              </Text>
+            </View>
           )}
         </View>
       </Pressable>
@@ -104,6 +122,7 @@ export default function Settings() {
   const { profile, updateProfile, heartRateZones, resolvedMaxHeartRate, signOut } = useProfile();
   const { status, statusTitle } = usePremium();
   const { mode, isDark, colors, toggleTheme } = useThemeColors();
+  const layout = useResponsiveLayout();
   const heroOpacity = useRef(new Animated.Value(0)).current;
   const heroTranslate = useRef(new Animated.Value(20)).current;
   const backOpacity = useRef(new Animated.Value(0)).current;
@@ -146,7 +165,7 @@ export default function Settings() {
         backgroundColor: colors.background,
       }}
       contentContainerStyle={{
-        paddingHorizontal: 20,
+        paddingHorizontal: layout.pagePadding,
         paddingTop: 24,
         paddingBottom: 28,
       }}
@@ -169,14 +188,26 @@ export default function Settings() {
       >
         <View
           style={{
-            backgroundColor: colors.cardAlt,
-            borderRadius: 28,
+            backgroundColor: "#101b2d",
+            borderRadius: 30,
             padding: 22,
             borderWidth: 1,
-            borderColor: colors.border,
+            borderColor: "rgba(103, 232, 249, 0.12)",
+            overflow: "hidden",
           }}
         >
-          <Text style={{ color: colors.subtext, fontSize: 13, letterSpacing: 0.4 }}>
+          <View
+            style={{
+              position: "absolute",
+              top: -24,
+              right: -12,
+              width: 150,
+              height: 150,
+              borderRadius: 999,
+              backgroundColor: "rgba(37, 99, 235, 0.16)",
+            }}
+          />
+          <Text style={{ color: "#67e8f9", fontSize: 12, fontWeight: "800", letterSpacing: 1 }}>
             SETTINGS
           </Text>
 
@@ -184,7 +215,7 @@ export default function Settings() {
             style={{
               color: colors.text,
               fontSize: 30,
-              fontWeight: "700",
+              fontWeight: "800",
               marginTop: 8,
             }}
           >
@@ -201,100 +232,200 @@ export default function Settings() {
           >
             {profile.name || "Runner"}, your profile, training preferences, and reminders are all local and ready to use.
           </Text>
+
+          <View style={{ flexDirection: layout.isPhone ? "column" : "row", gap: 10, marginTop: 18 }}>
+            <HeaderMiniPill label="Profile" value={profile.goalEvent || "Runner setup"} />
+            <HeaderMiniPill label="Premium" value={statusTitle} />
+            <HeaderMiniPill label="Theme" value={mode === "dark" ? "Night mode" : "Day mode"} />
+          </View>
         </View>
       </Animated.View>
 
       <View style={{ marginTop: 22, gap: 14 }}>
-        <HeartRateSetupCard
-          age={profile.age}
-          restingHeartRate={profile.restingHeartRate}
-          maxHeartRate={profile.maxHeartRate}
-          resolvedMaxHeartRate={resolvedMaxHeartRate}
-          heartRateZones={heartRateZones}
-          onChangeAge={(value) => updateProfile({ age: value })}
-          onChangeRestingHeartRate={(value) => updateProfile({ restingHeartRate: value })}
-          onChangeMaxHeartRate={(value) => updateProfile({ maxHeartRate: value })}
-        />
+        <View style={{ gap: 8 }}>
+          <Text style={{ color: "#67e8f9", fontSize: 12, fontWeight: "800", letterSpacing: 1 }}>SETUP</Text>
+          <Text style={{ color: colors.text, fontSize: 24, fontWeight: "800" }}>Training details that shape the app</Text>
+          <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 21 }}>
+            These settings stay practical: profile basics, notifications, premium status, and heart rate setup.
+          </Text>
+        </View>
 
-        <SettingsRow
-          title="Edit Profile"
-          subtitle="Update your name, goal event, weekly mileage, and recent race times."
-          accent={colors.success}
-          delay={120}
-          onPress={() => router.push("/edit-profile")}
-        />
+        <SettingsSection
+          colors={colors}
+          eyebrow="Heart Rate"
+          title="Training zones"
+          subtitle="Use your age or known max heart rate to make heart rate guidance more useful."
+        >
+          <HeartRateSetupCard
+            age={profile.age}
+            restingHeartRate={profile.restingHeartRate}
+            maxHeartRate={profile.maxHeartRate}
+            resolvedMaxHeartRate={resolvedMaxHeartRate}
+            heartRateZones={heartRateZones}
+            onChangeAge={(value) => updateProfile({ age: value })}
+            onChangeRestingHeartRate={(value) => updateProfile({ restingHeartRate: value })}
+            onChangeMaxHeartRate={(value) => updateProfile({ maxHeartRate: value })}
+          />
+        </SettingsSection>
 
-        <SettingsRow
-          title="Notifications"
-          subtitle="Control workout reminders, streak nudges, recovery prompts, and weekly goal reminders."
-          accent={colors.primary}
-          delay={180}
-          onPress={() => router.push("/notifications")}
-        />
+        <SettingsSection
+          colors={colors}
+          eyebrow="Profile"
+          title="Account and app setup"
+          subtitle="Keep the rest of your setup easy to scan: profile, reminders, premium, theme, and session controls."
+        >
+          <SettingsRow
+            title="Edit Profile"
+            subtitle="Update your name, goal event, weekly mileage, and recent race times."
+            accent={colors.success}
+            delay={120}
+            onPress={() => router.push("/edit-profile")}
+          />
 
-        <SettingsRow
-          title="Premium"
-          subtitle={
-            status === "premium_active"
-              ? "Your paid premium tier is active. Review plan access, locked features, and billing details."
-              : status === "upgrade_pending"
-                ? "Upgrade started. Open plans to review pending status and next billing steps."
-                : "Unlock Pro or Elite for heart rate guidance, fueling, adaptive training, and premium feedback."
-          }
-          accent="#d97706"
-          delay={240}
-          onPress={() => router.push(buildUpgradePath({ plan: status === "premium_active" ? "elite" : "pro" }))}
-          trailing={
-            <View
-              style={{
-                backgroundColor: status === "premium_active" ? colors.success : status === "upgrade_pending" ? "#f59e0b" : colors.primarySoft,
-                borderRadius: 999,
-                paddingHorizontal: 12,
-                paddingVertical: 7,
-                marginLeft: 12,
-              }}
-            >
-              <Text
+          <SettingsRow
+            title="Notifications"
+            subtitle="Control workout reminders, streak nudges, recovery prompts, and weekly goal reminders."
+            accent={colors.primary}
+            delay={180}
+            onPress={() => router.push("/notifications")}
+          />
+        </SettingsSection>
+
+        <SettingsSection
+          colors={colors}
+          eyebrow="Premium"
+          title="Plan and access"
+          subtitle="Your subscription status stays visible here without taking over the page."
+        >
+          <SettingsRow
+            title="Premium"
+            subtitle={
+              status === "premium_active"
+                ? "Your paid premium tier is active. Review plan access, locked features, and billing details."
+                : status === "upgrade_pending"
+                  ? "Upgrade started. Open plans to review pending status and next billing steps."
+                  : "Unlock Pro or Elite for heart rate guidance, fueling, adaptive training, and premium feedback."
+            }
+            accent="#d97706"
+            delay={240}
+            onPress={() => router.push(buildUpgradePath({ plan: status === "premium_active" ? "elite" : "pro" }))}
+            trailing={
+              <View
                 style={{
-                  color: status === "not_premium" ? colors.primary : "#ffffff",
-                  fontSize: 12,
-                  fontWeight: "800",
+                  backgroundColor: status === "premium_active" ? "rgba(74, 222, 128, 0.16)" : status === "upgrade_pending" ? "rgba(245, 158, 11, 0.16)" : colors.primarySoft,
+                  borderRadius: 999,
+                  borderWidth: 1,
+                  borderColor: status === "premium_active" ? colors.success : status === "upgrade_pending" ? "#f59e0b" : colors.primary,
+                  paddingHorizontal: 12,
+                  paddingVertical: 7,
+                  marginLeft: 12,
                 }}
               >
-                {statusTitle}
-              </Text>
-            </View>
-          }
-        />
+                <Text
+                  style={{
+                    color: status === "premium_active" ? colors.success : status === "upgrade_pending" ? "#f59e0b" : colors.primary,
+                    fontSize: 12,
+                    fontWeight: "800",
+                  }}
+                >
+                  {statusTitle}
+                </Text>
+              </View>
+            }
+          />
+        </SettingsSection>
 
-        <SettingsRow
-          title="Day / Night"
-          subtitle={`Currently in ${mode === "dark" ? "night" : "day"} mode. This updates the global app theme.`}
-          accent={colors.primary}
-          onPress={toggleTheme}
-          delay={300}
-          trailing={
-            <Switch
-              value={isDark}
-              onValueChange={toggleTheme}
-              trackColor={{ false: colors.primarySoft, true: colors.primary }}
-              thumbColor="#ffffff"
-            />
-          }
-        />
+        <SettingsSection
+          colors={colors}
+          eyebrow="Appearance"
+          title="Theme and session"
+          subtitle="Keep visual preferences and account actions separate from training setup."
+        >
+          <SettingsRow
+            title="Day / Night"
+            subtitle={`Currently in ${mode === "dark" ? "night" : "day"} mode. This updates the global app theme.`}
+            accent={colors.primary}
+            onPress={toggleTheme}
+            delay={300}
+            trailing={
+              <Switch
+                value={isDark}
+                onValueChange={toggleTheme}
+                trackColor={{ false: colors.primarySoft, true: colors.primary }}
+                thumbColor="#ffffff"
+              />
+            }
+          />
 
-        <SettingsRow
-          title="Sign Out"
-          subtitle="Clear the current session and return to the login screen."
-          accent={colors.danger}
-          delay={360}
-          onPress={() => {
-            signOut();
-            router.replace("/login");
-          }}
-        />
+          <SettingsRow
+            title="Sign Out"
+            subtitle="Clear the current session and return to the login screen."
+            accent={colors.danger}
+            delay={360}
+            onPress={() => {
+              signOut();
+              router.replace("/login");
+            }}
+          />
+        </SettingsSection>
       </View>
     </ScrollView>
+  );
+}
+
+function SettingsSection({
+  colors,
+  eyebrow,
+  title,
+  subtitle,
+  children,
+}: {
+  colors: ReturnType<typeof useThemeColors>["colors"];
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={{ gap: 12 }}>
+      <View style={{ gap: 6 }}>
+        <Text style={{ color: "#67e8f9", fontSize: 12, fontWeight: "800", letterSpacing: 1 }}>{eyebrow.toUpperCase()}</Text>
+        <Text style={{ color: colors.text, fontSize: 22, fontWeight: "800" }}>{title}</Text>
+        <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 21 }}>{subtitle}</Text>
+      </View>
+      <View style={{ gap: 12 }}>{children}</View>
+    </View>
+  );
+}
+
+function HeaderMiniPill({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <View
+      style={{
+        flex: 1,
+        minWidth: 0,
+        backgroundColor: "rgba(15, 23, 42, 0.72)",
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: "rgba(255,255,255,0.08)",
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        gap: 4,
+      }}
+    >
+      <Text style={{ color: "rgba(226, 232, 240, 0.72)", fontSize: 10, fontWeight: "800", letterSpacing: 0.8 }}>
+        {label.toUpperCase()}
+      </Text>
+      <Text style={{ color: "#f8fafc", fontSize: 13, fontWeight: "700" }} numberOfLines={2}>
+        {value}
+      </Text>
+    </View>
   );
 }
 
@@ -322,11 +453,11 @@ function HeartRateSetupCard({
   return (
     <View
       style={{
-        backgroundColor: colors.card,
-        borderRadius: 24,
+        backgroundColor: "#101b2d",
+        borderRadius: 26,
         padding: 18,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: "rgba(103, 232, 249, 0.12)",
       }}
     >
       <View
@@ -347,7 +478,7 @@ function HeartRateSetupCard({
         style={{
           color: colors.text,
           fontSize: 24,
-          fontWeight: "700",
+          fontWeight: "800",
           marginTop: 14,
         }}
       >

@@ -28,8 +28,18 @@ export default function SignUp() {
       return;
     }
 
+    if (!email.includes("@")) {
+      setError("Enter a valid email address.");
+      return;
+    }
+
     if (!password.trim()) {
       setError("Please enter your password.");
+      return;
+    }
+
+    if (password.trim().length < 6) {
+      setError("Password must be at least 6 characters.");
       return;
     }
 
@@ -146,6 +156,7 @@ export default function SignUp() {
           onChangeText={setEmail}
           autoCapitalize="none"
           keyboardType="email-address"
+          autoComplete="email"
           style={{
             backgroundColor: "#122033",
             color: "#f8fbff",
@@ -164,6 +175,7 @@ export default function SignUp() {
           value={password}
           onChangeText={setPassword}
           secureTextEntry
+          autoComplete="password-new"
           style={{
             backgroundColor: "#122033",
             color: "#f8fbff",

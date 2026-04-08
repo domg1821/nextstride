@@ -1,6 +1,6 @@
 import type { HeartRateZone } from "@/contexts/profile-context";
 import type { PlanDay } from "@/lib/training-plan";
-import { getPlanDayEffortGuidance, type WorkoutEffortGuidance } from "@/lib/workout-effort";
+import { getPlanDayEffortGuidance, getWorkoutPurpose, type WorkoutEffortGuidance } from "@/lib/workout-effort";
 
 export type TodayWorkoutState = {
   state: "planned" | "completed" | "rest" | "none";
@@ -103,22 +103,11 @@ export function getWorkoutWhyItMatters(workout: PlanDay | null) {
     return "Keeps your training week simple and easy to follow.";
   }
 
-  switch (workout.category) {
-    case "intervals":
-      return "Improves pacing, leg speed, and race-specific strength.";
-    case "threshold":
-      return "Builds stamina and helps you hold strong effort longer.";
-    case "long":
-      return "Builds aerobic endurance and confidence for longer efforts.";
-    case "recovery":
-      return "Helps you absorb recent work while keeping consistency.";
-    case "rest":
-      return "Lets your body recover so the next key session lands better.";
-    case "steady":
-      return "Builds aerobic strength without pushing too hard.";
-    default:
-      return "Builds aerobic endurance and reinforces smooth daily running.";
-  }
+  return getWorkoutPurpose({
+    category: workout.category,
+    title: workout.title,
+    type: workout.logType,
+  });
 }
 
 export function getWorkoutGuidance(

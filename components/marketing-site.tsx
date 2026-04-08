@@ -1,5 +1,7 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import React from "react";
 import { Pressable, Text, View } from "react-native";
+import { MarketingBackdrop, RunningSurfaceAccent } from "@/components/running-visuals";
 
 export type SiteSectionProps = {
   eyebrow?: string;
@@ -50,7 +52,7 @@ export function SiteButton({
         shadowRadius: isPrimary ? 18 : 10,
         shadowOffset: { width: 0, height: isPrimary ? 10 : 4 },
         opacity: pressed ? 0.9 : 1,
-        transform: [{ scale: pressed ? 0.99 : 1 }],
+        transform: [{ scale: pressed ? 0.985 : 1 }, { translateY: pressed ? 1 : 0 }],
       })}
     >
       <Text
@@ -76,7 +78,7 @@ export function SiteSection({
   children,
 }: SiteSectionProps) {
   return (
-    <View style={{ paddingHorizontal: padding, marginTop: 112 }}>
+    <View style={{ paddingHorizontal: padding, marginTop: 124 }}>
       <View style={{ alignItems: centered ? "center" : "flex-start" }}>
         {eyebrow ? (
           <Text
@@ -122,7 +124,7 @@ export function SiteSection({
         ) : null}
       </View>
 
-      <View style={{ marginTop: 30 }}>{children}</View>
+      <View style={{ marginTop: 34 }}>{children}</View>
     </View>
   );
 }
@@ -150,8 +152,11 @@ export function GlassPanel({
         shadowOpacity: highlight ? 0.18 : 0.1,
         shadowRadius: highlight ? 24 : 12,
         shadowOffset: { width: 0, height: highlight ? 10 : 5 },
+        overflow: "hidden",
       }}
     >
+      {highlight ? <RunningSurfaceAccent variant="race" /> : null}
+      {highlight ? <MarketingBackdrop tone="panel" /> : null}
       {children}
     </View>
   );
@@ -178,9 +183,11 @@ export function SectionChip({ label }: { label: string }) {
 export function MarketingIcon({
   label,
   active,
+  icon,
 }: {
   label: string;
   active?: boolean;
+  icon?: keyof typeof Ionicons.glyphMap;
 }) {
   return (
     <View
@@ -195,7 +202,11 @@ export function MarketingIcon({
         justifyContent: "center",
       }}
     >
-      <Text style={{ color: "#f8fbff", fontWeight: "800", fontSize: 15 }}>{label}</Text>
+      {icon ? (
+        <Ionicons name={icon} size={20} color="#f8fbff" />
+      ) : (
+        <Text style={{ color: "#f8fbff", fontWeight: "800", fontSize: 15 }}>{label}</Text>
+      )}
     </View>
   );
 }

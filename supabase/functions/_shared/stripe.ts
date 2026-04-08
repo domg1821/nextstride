@@ -19,6 +19,18 @@ type SubscriptionUpsert = {
   renewal_date?: string | null;
 };
 
+export type PremiumSubscriptionRecord = {
+  user_id: string;
+  email: string | null;
+  plan_tier: PaidPlan | "free";
+  billing_cycle: BillingCycle;
+  status: SubscriptionStatus;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  stripe_checkout_session_id: string | null;
+  renewal_date: string | null;
+};
+
 const PRICE_ENV_KEYS: Record<StripeLookupKey, string> = {
   pro_monthly: "STRIPE_PRICE_PRO_MONTHLY",
   pro_yearly: "STRIPE_PRICE_PRO_YEARLY",
@@ -27,19 +39,26 @@ const PRICE_ENV_KEYS: Record<StripeLookupKey, string> = {
 };
 
 export const PREMIUM_SUBSCRIPTIONS_TABLE = "premium_subscriptions";
+export const STRIPE_CHECKOUT_SESSION_PLACEHOLDER = "{CHECKOUT_SESSION_ID}";
 
-function getEnv(name: string) {
+function getRequiredRuntimeEnv(name: "SUPABASE_URL" | "SUPABASE_ANON_KEY" | "SUPABASE_SERVICE_ROLE_KEY") {
   const value = Deno.env.get(name)?.trim();
 
   if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
+    throw new Error(`Missing required Supabase Edge Function runtime variable: ${name}`);
   }
 
   return value;
 }
 
-function getOptionalEnv(name: string) {
-  return Deno.env.get(name)?.trim() || null;
+function getRequiredEdgeFunctionSecret(name: string) {
+  const value = Deno.env.get(name)?.trim();
+
+  if (!value) {
+    throw new Error(`Missing ${name} - check Supabase Edge Function secrets`);
+  }
+
+  return value;
 }
 
 export function isPaidPlan(value: unknown): value is PaidPlan {
@@ -51,13 +70,35 @@ export function isBillingCycle(value: unknown): value is BillingCycle {
 }
 
 export function getStripe() {
-  return new Stripe(getEnv("STRIPE_SECRET_KEY"), {
+  return new Stripe(getRequiredEdgeFunctionSecret("STRIPE_SECRET_KEY"), {
     apiVersion: "2024-06-20",
   });
 }
 
+function getValidatedStripePriceSecrets() {
+  const entries = Object.entries(PRICE_ENV_KEYS) as [StripeLookupKey, string][];
+  const resolvedEntries = entries.map(([lookupKey, envKey]) => [lookupKey, getRequiredEdgeFunctionSecret(envKey)] as const);
+  const seenPriceIds = new Map<string, string>();
+
+  for (const [lookupKey, priceId] of resolvedEntries) {
+    const existingLookupKey = seenPriceIds.get(priceId);
+
+    if (existingLookupKey) {
+      const currentEnvKey = PRICE_ENV_KEYS[lookupKey];
+      const existingEnvKey = PRICE_ENV_KEYS[existingLookupKey as StripeLookupKey];
+      throw new Error(
+        `Duplicate Stripe price ID detected for ${existingEnvKey} and ${currentEnvKey}. Each STRIPE_PRICE_* secret must use a unique Stripe price ID.`
+      );
+    }
+
+    seenPriceIds.set(priceId, lookupKey);
+  }
+
+  return Object.fromEntries(resolvedEntries) as Record<StripeLookupKey, string>;
+}
+
 export function getUserSupabaseClient(authHeader: string | null) {
-  return createClient(getEnv("SUPABASE_URL"), getEnv("SUPABASE_ANON_KEY"), {
+  return createClient(getRequiredRuntimeEnv("SUPABASE_URL"), getRequiredRuntimeEnv("SUPABASE_ANON_KEY"), {
     global: {
       headers: authHeader ? { Authorization: authHeader } : {},
     },
@@ -65,7 +106,10 @@ export function getUserSupabaseClient(authHeader: string | null) {
 }
 
 export function getServiceSupabaseClient() {
-  return createClient(getEnv("SUPABASE_URL"), getEnv("SUPABASE_SERVICE_ROLE_KEY"));
+  return createClient(
+    getRequiredRuntimeEnv("SUPABASE_URL"),
+    getRequiredRuntimeEnv("SUPABASE_SERVICE_ROLE_KEY")
+  );
 }
 
 export async function getAuthenticatedUser(request: Request) {
@@ -93,15 +137,14 @@ export async function getAuthenticatedUser(request: Request) {
 }
 
 export function getPriceId(plan: PaidPlan, billingCycle: BillingCycle) {
-  const envKey = PRICE_ENV_KEYS[`${plan}_${billingCycle}`];
-  return getEnv(envKey);
+  return getValidatedStripePriceSecrets()[`${plan}_${billingCycle}`];
 }
 
 export function getPlanFromPriceId(priceId: string): { plan: PaidPlan; billingCycle: BillingCycle } | null {
-  const entries = Object.entries(PRICE_ENV_KEYS) as [StripeLookupKey, string][];
+  const entries = Object.entries(getValidatedStripePriceSecrets()) as [StripeLookupKey, string][];
 
-  for (const [lookupKey, envKey] of entries) {
-    if (getOptionalEnv(envKey) === priceId) {
+  for (const [lookupKey, configuredPriceId] of entries) {
+    if (configuredPriceId === priceId) {
       const [plan, billingCycle] = lookupKey.split("_") as [PaidPlan, BillingCycle];
       return { plan, billingCycle };
     }
@@ -110,10 +153,14 @@ export function getPlanFromPriceId(priceId: string): { plan: PaidPlan; billingCy
   return null;
 }
 
-export function getAbsoluteSuccessUrl(successUrl: string, sessionIdPlaceholder = "{CHECKOUT_SESSION_ID}") {
-  const url = new URL(successUrl);
-  url.searchParams.set("session_id", sessionIdPlaceholder);
-  return url.toString();
+export function getAbsoluteSuccessUrl(successUrl: string) {
+  const cleaned = successUrl
+    .replace(/[?&]session_id=[^&]*/g, "")
+    .replace(/\?&/, "?")
+    .replace(/[?&]$/, "");
+  const separator = cleaned.includes("?") ? "&" : "?";
+
+  return `${cleaned}${separator}session_id=${STRIPE_CHECKOUT_SESSION_PLACEHOLDER}`;
 }
 
 export function getAbsoluteCancelUrl(cancelUrl: string) {
@@ -143,6 +190,46 @@ export async function upsertPremiumSubscription(input: SubscriptionUpsert) {
   if (error) {
     throw new Error(error.message);
   }
+}
+
+export async function findPremiumSubscriptionRecord(input: {
+  stripeCustomerId?: string | null;
+  stripeSubscriptionId?: string | null;
+  stripeCheckoutSessionId?: string | null;
+  email?: string | null;
+}) {
+  const serviceClient = getServiceSupabaseClient();
+  const lookups: Array<{ column: keyof PremiumSubscriptionRecord; value: string | null | undefined }> = [
+    { column: "stripe_subscription_id", value: input.stripeSubscriptionId },
+    { column: "stripe_checkout_session_id", value: input.stripeCheckoutSessionId },
+    { column: "stripe_customer_id", value: input.stripeCustomerId },
+    { column: "email", value: input.email?.trim().toLowerCase() },
+  ];
+
+  for (const lookup of lookups) {
+    const value = lookup.value?.trim();
+
+    if (!value) {
+      continue;
+    }
+
+    const { data, error } = await serviceClient
+      .from(PREMIUM_SUBSCRIPTIONS_TABLE)
+      .select("user_id, email, plan_tier, billing_cycle, status, stripe_customer_id, stripe_subscription_id, stripe_checkout_session_id, renewal_date")
+      .eq(lookup.column, value)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (data) {
+      return data as PremiumSubscriptionRecord;
+    }
+  }
+
+  return null;
 }
 
 export function mapStripeSubscriptionStatus(status: Stripe.Subscription.Status): SubscriptionStatus {

@@ -16,6 +16,36 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npx expo start
    ```
 
+## Stripe Billing Setup
+
+Stripe billing for NextStride runs through Supabase Edge Functions. The frontend does not store Stripe secret keys, and the functions expect Stripe configuration through `Deno.env.get(...)`.
+
+Required Supabase Edge Function secrets:
+
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_PRICE_PRO_MONTHLY`
+- `STRIPE_PRICE_PRO_YEARLY`
+- `STRIPE_PRICE_ELITE_MONTHLY`
+- `STRIPE_PRICE_ELITE_YEARLY`
+
+Where to set them:
+
+- Supabase Dashboard: Project Settings -> Edge Functions -> Secrets
+- Supabase CLI: `supabase secrets set --env-file supabase/functions/.env`
+
+Local development:
+
+- Start from `supabase/functions/.env.example` and create a local `supabase/functions/.env`
+- Put Stripe test values in that local file only
+- Do not commit real secrets
+
+Notes:
+
+- Hosted Supabase Edge Functions already provide `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`, so you do not need to add those manually for production
+- Stripe secrets become available to functions immediately after you set them
+- Redeploying the functions is not required just to pick up newly added Edge Function secrets
+
 In the output, you'll find options to open the app in a
 
 - [development build](https://docs.expo.dev/develop/development-builds/introduction/)

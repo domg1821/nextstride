@@ -1,6 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { Image, Pressable, Text, View } from "react-native";
+import { ThemeTokens } from "@/constants/theme";
 import { useThemeColors } from "@/contexts/theme-context";
 
 type Props = {
@@ -41,7 +42,21 @@ export default function TopProfileBar({
         <Pressable
           onPress={onAvatarPress}
           disabled={!onAvatarPress}
-          style={{ borderRadius: 26 }}
+          style={({ pressed }) => ({
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 12,
+            minHeight: 68,
+            borderRadius: ThemeTokens.radii.lg,
+            backgroundColor: colors.card,
+            borderWidth: 1,
+            borderColor: colors.border,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            opacity: pressed ? 0.94 : 1,
+            transform: [{ scale: pressed ? 0.99 : 1 }, { translateY: pressed ? 1 : 0 }],
+            ...ThemeTokens.shadows.low,
+          })}
         >
           {imageUri ? (
             <Image
@@ -72,33 +87,44 @@ export default function TopProfileBar({
               </Text>
             </View>
           )}
-        </Pressable>
 
-        {showName && (
-          <Text
-            style={{
-              color: colors.text,
-              fontSize: 26,
-              fontWeight: "700",
-              marginLeft: 14,
-            }}
-          >
-            {name || "Runner"}
-          </Text>
-        )}
+          <View style={{ minWidth: showName ? 112 : 0, paddingRight: 4 }}>
+            <Text
+              style={{
+                color: colors.text,
+                fontSize: showName ? 20 : 15,
+                fontWeight: "800",
+                letterSpacing: -0.2,
+              }}
+            >
+              {name || "Runner"}
+            </Text>
+            <Text style={{ color: colors.subtext, fontSize: 12, marginTop: 3, fontWeight: "600" }}>
+              Quick access
+            </Text>
+          </View>
+
+          {onAvatarPress ? (
+            <Ionicons name="chevron-down" size={16} color={colors.subtext} />
+          ) : null}
+        </Pressable>
       </View>
 
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
         <Pressable
           onPress={() => router.push("/welcome")}
-          style={{
+          style={({ pressed }) => ({
             borderRadius: 18,
             backgroundColor: colors.card,
             borderWidth: 1,
             borderColor: colors.border,
-            paddingHorizontal: 12,
+            minHeight: 44,
+            paddingHorizontal: 14,
             paddingVertical: 10,
-          }}
+            justifyContent: "center",
+            opacity: pressed ? 0.94 : 1,
+            transform: [{ scale: pressed ? 0.985 : 1 }],
+          })}
         >
           <Text style={{ color: colors.text, fontSize: 13, fontWeight: "700" }}>
             Website
@@ -107,7 +133,7 @@ export default function TopProfileBar({
 
         <Pressable
           onPress={openNotifications}
-          style={{
+          style={({ pressed }) => ({
             width: 44,
             height: 44,
             borderRadius: 22,
@@ -116,7 +142,9 @@ export default function TopProfileBar({
             borderColor: colors.border,
             justifyContent: "center",
             alignItems: "center",
-          }}
+            opacity: pressed ? 0.94 : 1,
+            transform: [{ scale: pressed ? 0.985 : 1 }],
+          })}
         >
           <Ionicons name="notifications-outline" size={20} color={colors.text} />
         </Pressable>
@@ -124,7 +152,7 @@ export default function TopProfileBar({
         {onRightPress && (
           <Pressable
             onPress={onRightPress}
-            style={{
+            style={({ pressed }) => ({
               width: 44,
               height: 44,
               borderRadius: 22,
@@ -133,7 +161,9 @@ export default function TopProfileBar({
               borderColor: colors.border,
               justifyContent: "center",
               alignItems: "center",
-            }}
+              opacity: pressed ? 0.94 : 1,
+              transform: [{ scale: pressed ? 0.985 : 1 }],
+            })}
           >
             <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700" }}>
               {rightIcon}

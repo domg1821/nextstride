@@ -14,12 +14,14 @@ import {
 import { usePremium } from "@/contexts/premium-context";
 import { useThemeColors } from "@/contexts/theme-context";
 import type { BillingCycle } from "@/lib/premium-products";
+import { useResponsiveLayout } from "@/lib/responsive";
 import { getSubscriptionCopy, getSubscriptionOffering } from "@/lib/subscription-config";
 import { buildUpgradePath, normalizeBillingCycle, normalizeUpgradePlan, type UpgradePlan } from "@/lib/upgrade-route";
 
 export default function UpgradeScreen() {
   const { colors } = useThemeColors();
   const { width } = useWindowDimensions();
+  const layout = useResponsiveLayout();
   const params = useLocalSearchParams<{ plan?: string; billing?: string; recommendation?: string }>();
   const { beginUpgrade, statusTitle, statusDetail } = usePremium();
   const isWide = width >= 980;
@@ -85,7 +87,7 @@ export default function UpgradeScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ paddingHorizontal: isWide ? 32 : 20, paddingTop: 24, paddingBottom: 54, gap: 28, width: "100%", maxWidth: 1180, alignSelf: "center" }}
+      contentContainerStyle={{ paddingHorizontal: layout.pagePadding, paddingTop: 24, paddingBottom: 54, gap: 28 }}
       showsVerticalScrollIndicator={false}
     >
       <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace("/premium"))} style={{ alignSelf: "flex-start" }}>

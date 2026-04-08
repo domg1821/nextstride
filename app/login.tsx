@@ -16,6 +16,22 @@ export default function Login() {
     }
 
     setError("");
+
+    if (!email.trim()) {
+      setError("Please enter your email.");
+      return;
+    }
+
+    if (!email.includes("@")) {
+      setError("Enter a valid email address.");
+      return;
+    }
+
+    if (!password.trim()) {
+      setError("Please enter your password.");
+      return;
+    }
+
     setLoading(true);
     let nextRoute: AppRoute | "/onboarding" | null = null;
 
@@ -73,6 +89,7 @@ export default function Login() {
           onChangeText={setEmail}
           autoCapitalize="none"
           keyboardType="email-address"
+          autoComplete="email"
           style={{
             backgroundColor: "#122033",
             color: "#f8fbff",
@@ -91,6 +108,7 @@ export default function Login() {
           value={password}
           onChangeText={setPassword}
           secureTextEntry
+          autoComplete="password"
           style={{
             backgroundColor: "#122033",
             color: "#f8fbff",

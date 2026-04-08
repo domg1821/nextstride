@@ -1,5 +1,7 @@
 import { router } from "expo-router";
 import { Pressable, Text, View } from "react-native";
+import { FinishLineAccent, RunningSurfaceAccent } from "@/components/running-visuals";
+import { AnimatedProgressBar, FadeInView } from "@/components/ui-polish";
 import { usePremium } from "@/contexts/premium-context";
 import { useProfile } from "@/contexts/profile-context";
 import { useThemeColors } from "@/contexts/theme-context";
@@ -17,46 +19,120 @@ export function AdvancedRacePredictorCard() {
   const sortedWorkouts = [...workouts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const prediction = buildDynamicRacePrediction(profile, sortedWorkouts);
   const trendAccent = getTrendAccent(prediction.trendDirection);
+  const confidenceProgress =
+    prediction.confidenceLabel === "High confidence"
+      ? 84
+      : prediction.confidenceLabel === "Medium confidence"
+        ? 62
+        : 36;
 
   if (unlocked) {
     return (
-      <View
-        style={{
-          backgroundColor: "#12243b",
-          borderRadius: 30,
-          borderWidth: 1,
-          borderColor: "rgba(103, 232, 249, 0.18)",
-          padding: 20,
-          gap: 14,
-          shadowColor: "#2563eb",
-          shadowOpacity: 0.12,
-          shadowRadius: 18,
-          shadowOffset: { width: 0, height: 8 },
-        }}
-      >
-        <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
-          <View style={{ flex: 1, gap: 8 }}>
-            <Text style={{ color: "#67e8f9", fontSize: 12, fontWeight: "800", letterSpacing: 1.1 }}>ELITE RACE PREDICTOR</Text>
-            <Text style={{ color: colors.text, fontSize: 24, fontWeight: "800", lineHeight: 30 }}>{prediction.eventLabel}</Text>
-            <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 21 }}>{prediction.summary}</Text>
-          </View>
+      <FadeInView delay={140}>
+        <View
+          style={{
+            backgroundColor: "#12243b",
+            borderRadius: 30,
+            borderWidth: 1,
+            borderColor: "rgba(103, 232, 249, 0.18)",
+            padding: 20,
+            gap: 14,
+            shadowColor: "#2563eb",
+            shadowOpacity: 0.12,
+            shadowRadius: 18,
+            shadowOffset: { width: 0, height: 8 },
+            overflow: "hidden",
+          }}
+        >
+          <RunningSurfaceAccent variant="race" />
+          <FinishLineAccent />
           <View
             style={{
-              minWidth: 120,
-              backgroundColor: "rgba(8, 17, 29, 0.66)",
-              borderRadius: 20,
+              position: "absolute",
+              top: 0,
+              left: 18,
+              right: 18,
+              height: 2,
+              borderRadius: 999,
+              backgroundColor: "rgba(103, 232, 249, 0.5)",
+            }}
+          />
+          <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+            <View style={{ flex: 1, gap: 8 }}>
+              <Text style={{ color: "#67e8f9", fontSize: 12, fontWeight: "800", letterSpacing: 1.1 }}>ELITE RACE PREDICTOR</Text>
+              <Text style={{ color: colors.text, fontSize: 24, fontWeight: "800", lineHeight: 30 }}>{prediction.eventLabel}</Text>
+              <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 21 }}>{prediction.summary}</Text>
+            </View>
+            <View
+              style={{
+                minWidth: 120,
+                backgroundColor: "rgba(8, 17, 29, 0.66)",
+                borderRadius: 20,
+                borderWidth: 1,
+                borderColor: "rgba(103, 232, 249, 0.12)",
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: colors.subtext, fontSize: 11, fontWeight: "700" }}>PROJECTED</Text>
+              <Text style={{ color: colors.text, fontSize: 26, fontWeight: "800", marginTop: 4 }}>
+                {prediction.predictedTime || "--"}
+              </Text>
+            </View>
+          </View>
+
+          <View style={{ gap: 8 }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+              <Text style={{ color: colors.subtext, fontSize: 11, fontWeight: "800", letterSpacing: 0.8 }}>
+                PREDICTION CONFIDENCE
+              </Text>
+              <Text style={{ color: "#67e8f9", fontSize: 12, fontWeight: "800" }}>{prediction.confidenceLabel}</Text>
+            </View>
+            <AnimatedProgressBar
+              progress={confidenceProgress}
+              fillColor="#67e8f9"
+              trackColor="rgba(255,255,255,0.08)"
+              height={8}
+            />
+          </View>
+
+          <View
+            style={{
+              backgroundColor: "rgba(8, 17, 29, 0.58)",
+              borderRadius: 22,
               borderWidth: 1,
-              borderColor: "rgba(103, 232, 249, 0.12)",
-              paddingHorizontal: 14,
-              paddingVertical: 12,
-              alignItems: "center",
+              borderColor: "rgba(103, 232, 249, 0.1)",
+              padding: 16,
+              gap: 10,
             }}
           >
-            <Text style={{ color: colors.subtext, fontSize: 11, fontWeight: "700" }}>PROJECTED</Text>
-            <Text style={{ color: colors.text, fontSize: 26, fontWeight: "800", marginTop: 4 }}>
-              {prediction.predictedTime || "--"}
-            </Text>
+            <MetricRow label="Trend" value={prediction.trendLabel} accent={trendAccent} />
+            <MetricRow label="Confidence" value={prediction.confidenceLabel} accent="#67e8f9" />
+            <MetricRow label="Read" value={prediction.explanation} />
           </View>
+        </View>
+      </FadeInView>
+    );
+  }
+
+  return (
+    <FadeInView delay={140}>
+      <View
+        style={{
+          backgroundColor: "#101f34",
+          borderRadius: 30,
+          borderWidth: 1,
+          borderColor: "rgba(103, 232, 249, 0.16)",
+          padding: 20,
+          gap: 14,
+          overflow: "hidden",
+        }}
+      >
+        <RunningSurfaceAccent variant="race" />
+        <View style={{ gap: 8 }}>
+          <Text style={{ color: "#67e8f9", fontSize: 12, fontWeight: "800", letterSpacing: 1.1 }}>ELITE PREVIEW</Text>
+          <Text style={{ color: colors.text, fontSize: 24, fontWeight: "800" }}>Advanced race predictor</Text>
         </View>
 
         <View
@@ -64,79 +140,46 @@ export function AdvancedRacePredictorCard() {
             backgroundColor: "rgba(8, 17, 29, 0.58)",
             borderRadius: 22,
             borderWidth: 1,
-            borderColor: "rgba(103, 232, 249, 0.1)",
+            borderColor: "rgba(103, 232, 249, 0.12)",
             padding: 16,
-            gap: 10,
+            gap: 8,
+            opacity: 0.84,
           }}
         >
-          <MetricRow label="Trend" value={prediction.trendLabel} accent={trendAccent} />
-          <MetricRow label="Confidence" value={prediction.confidenceLabel} accent="#67e8f9" />
-          <MetricRow label="Read" value={prediction.explanation} />
+          <Text style={{ color: "#dcecff", fontSize: 15, fontWeight: "700" }}>Projected {prediction.eventLabel}: {prediction.predictedTime || "18:12"}</Text>
+          <Text style={{ color: trendAccent, fontSize: 13, fontWeight: "800" }}>{prediction.trendLabel}</Text>
+          <Text style={{ color: "#9db2ca", fontSize: 13, lineHeight: 20 }}>
+            {prediction.explanation || gate.preview}
+          </Text>
         </View>
-      </View>
-    );
-  }
 
-  return (
-    <View
-      style={{
-        backgroundColor: "#101f34",
-        borderRadius: 30,
-        borderWidth: 1,
-        borderColor: "rgba(103, 232, 249, 0.16)",
-        padding: 20,
-        gap: 14,
-      }}
-    >
-      <View style={{ gap: 8 }}>
-        <Text style={{ color: "#67e8f9", fontSize: 12, fontWeight: "800", letterSpacing: 1.1 }}>ELITE PREVIEW</Text>
-        <Text style={{ color: colors.text, fontSize: 24, fontWeight: "800" }}>Advanced race predictor</Text>
-      </View>
-
-      <View
-        style={{
-          backgroundColor: "rgba(8, 17, 29, 0.58)",
-          borderRadius: 22,
-          borderWidth: 1,
-          borderColor: "rgba(103, 232, 249, 0.12)",
-          padding: 16,
-          gap: 8,
-          opacity: 0.84,
-        }}
-      >
-        <Text style={{ color: "#dcecff", fontSize: 15, fontWeight: "700" }}>Projected {prediction.eventLabel}: {prediction.predictedTime || "18:12"}</Text>
-        <Text style={{ color: trendAccent, fontSize: 13, fontWeight: "800" }}>{prediction.trendLabel}</Text>
-        <Text style={{ color: "#9db2ca", fontSize: 13, lineHeight: 20 }}>
-          {prediction.explanation || gate.preview}
+        <Text style={{ color: colors.subtext, fontSize: 13, lineHeight: 20 }}>
+          Elite adds a deeper race read with trend direction, confidence, and a more coaching-style explanation of what your recent training suggests.
         </Text>
+
+        <Pressable
+          onPress={() =>
+            router.push(
+              buildUpgradePath({
+                plan: "elite",
+                recommendation: "Best choice for unlocking advanced race prediction",
+              })
+            )
+          }
+          style={{
+            alignSelf: "flex-start",
+            minHeight: 46,
+            borderRadius: 16,
+            backgroundColor: "#2563eb",
+            paddingHorizontal: 16,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Text style={{ color: "#ffffff", fontSize: 14, fontWeight: "800" }}>Unlock Elite predictor</Text>
+        </Pressable>
       </View>
-
-      <Text style={{ color: colors.subtext, fontSize: 13, lineHeight: 20 }}>
-        Elite adds a deeper race read with trend direction, confidence, and a more coaching-style explanation of what your recent training suggests.
-      </Text>
-
-      <Pressable
-        onPress={() =>
-          router.push(
-            buildUpgradePath({
-              plan: "elite",
-              recommendation: "Best choice for unlocking advanced race prediction",
-            })
-          )
-        }
-        style={{
-          alignSelf: "flex-start",
-          minHeight: 46,
-          borderRadius: 16,
-          backgroundColor: "#2563eb",
-          paddingHorizontal: 16,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Text style={{ color: "#ffffff", fontSize: 14, fontWeight: "800" }}>Unlock Elite predictor</Text>
-      </Pressable>
-    </View>
+    </FadeInView>
   );
 }
 

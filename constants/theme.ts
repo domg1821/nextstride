@@ -56,40 +56,52 @@ export const Fonts = Platform.select({
 export const Spacing = {
   xs: 4,
   s: 8,
+  ms: 12,
   m: 16,
+  ml: 20,
   l: 24,
   xl: 32,
+  xxl: 40,
+  xxxl: 56,
 };
 
 export const Radii = {
-  sm: 6,
-  md: 12,
-  lg: 20,
+  sm: 14,
+  md: 20,
+  lg: 28,
+  xl: 36,
   round: 9999,
 };
 
 // Simple shadow presets for iOS / Android (React Native style)
 export const Shadows = {
   low: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowColor: '#020817',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.14,
+    shadowRadius: 20,
+    elevation: 6,
   },
   medium: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 6,
+    shadowColor: '#020817',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.18,
+    shadowRadius: 30,
+    elevation: 11,
+  },
+  high: {
+    shadowColor: '#020817',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.22,
+    shadowRadius: 36,
+    elevation: 14,
   },
 };
 
 export const Palette = {
-  primary: '#00B8B3', // teal
-  accent: '#FF6B6B', // coral
-  secondary: '#4B6BFF', // indigo
+  primary: '#63B3FF',
+  accent: '#2DD4BF',
+  secondary: '#38BDF8',
   backgroundSoft: '#F7FBFC',
   surface: '#FFFFFF',
   borderSubtle: '#E6EEF0',
@@ -98,13 +110,22 @@ export const Palette = {
 };
 
 export const Typography = {
-  h1: { fontSize: 32, lineHeight: 40, fontWeight: '800' },
-  h2: { fontSize: 24, lineHeight: 32, fontWeight: '700' },
-  h3: { fontSize: 18, lineHeight: 26, fontWeight: '700' },
-  body: { fontSize: 16, lineHeight: 24, fontWeight: '400' },
-  bodyStrong: { fontSize: 16, lineHeight: 24, fontWeight: '600' },
-  small: { fontSize: 13, lineHeight: 20, fontWeight: '400' },
-  link: { fontSize: 16, lineHeight: 24, fontWeight: '700', color: '#00B8B3' },
+  display: { fontSize: 40, lineHeight: 46, fontWeight: '800' },
+  h1: { fontSize: 34, lineHeight: 40, fontWeight: '800' },
+  h2: { fontSize: 26, lineHeight: 32, fontWeight: '800' },
+  h3: { fontSize: 19, lineHeight: 25, fontWeight: '700' },
+  body: { fontSize: 15, lineHeight: 23, fontWeight: '400' },
+  bodyStrong: { fontSize: 15, lineHeight: 23, fontWeight: '600' },
+  small: { fontSize: 13, lineHeight: 19, fontWeight: '500' },
+  caption: { fontSize: 12, lineHeight: 16, fontWeight: '700' },
+  link: { fontSize: 15, lineHeight: 22, fontWeight: '700', color: '#63B3FF' },
+};
+
+export const IconSizes = {
+  sm: 16,
+  md: 20,
+  lg: 24,
+  xl: 28,
 };
 
 // Export a minimal ThemeTokens object for easy imports elsewhere.
@@ -114,4 +135,5 @@ export const ThemeTokens = {
   shadows: Shadows,
   palette: Palette,
   typography: Typography,
+  icons: IconSizes,
 };

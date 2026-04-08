@@ -5,7 +5,7 @@ import { InfoCard, PageHeader } from "@/components/ui-kit";
 import { ScreenScroll, SectionTitle } from "@/components/ui-shell";
 import { useThemeColors } from "@/contexts/theme-context";
 import { useWorkouts } from "@/contexts/workout-context";
-import { getLoggedWorkoutEffortGuidance } from "@/lib/workout-effort";
+import { getLoggedWorkoutEffortGuidance, getWorkoutPurpose } from "@/lib/workout-effort";
 import { getWeeklyGoalProgress } from "@/utils/training-insights";
 import { formatFeedDate, getWorkoutPace } from "@/utils/workout-utils";
 
@@ -118,6 +118,7 @@ function FeaturedFeedCard({
   shoeName?: string;
 }) {
   const pace = getWorkoutPace(workout.distance, workout.time);
+  const effortGuidance = getLoggedWorkoutEffortGuidance({ type: workout.type, effort: workout.effort });
 
   return (
     <View
@@ -165,11 +166,15 @@ function FeaturedFeedCard({
       </View>
 
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
-        <WorkoutEffortChip guidance={getLoggedWorkoutEffortGuidance({ type: workout.type, effort: workout.effort })} compact={true} />
+        <WorkoutEffortChip guidance={effortGuidance} compact={true} />
         <Text style={{ color: colors.subtext, fontSize: 13, lineHeight: 19, flex: 1 }}>
-          {getLoggedWorkoutEffortGuidance({ type: workout.type, effort: workout.effort }).beginnerTip}
+          {effortGuidance.beginnerTip}
         </Text>
       </View>
+
+      <Text style={{ color: colors.subtext, fontSize: 13, lineHeight: 19 }}>
+        Purpose: {getWorkoutPurpose({ type: workout.type })}
+      </Text>
 
       {shoeName ? (
         <Text style={{ color: colors.subtext, fontSize: 13 }}>In rotation: {shoeName}</Text>
@@ -206,6 +211,7 @@ function FeedCard({
   shoeName?: string;
 }) {
   const pace = getWorkoutPace(workout.distance, workout.time);
+  const effortGuidance = getLoggedWorkoutEffortGuidance({ type: workout.type, effort: workout.effort });
 
   return (
     <View
@@ -266,11 +272,15 @@ function FeedCard({
           </View>
 
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
-            <WorkoutEffortChip guidance={getLoggedWorkoutEffortGuidance({ type: workout.type, effort: workout.effort })} compact={true} />
+            <WorkoutEffortChip guidance={effortGuidance} compact={true} />
             <Text style={{ color: colors.subtext, fontSize: 13, lineHeight: 19, flex: 1 }}>
-              {getLoggedWorkoutEffortGuidance({ type: workout.type, effort: workout.effort }).shortDescription}
+              {effortGuidance.shortDescription}
             </Text>
           </View>
+
+          <Text style={{ color: colors.subtext, fontSize: 13, lineHeight: 19 }}>
+            Purpose: {getWorkoutPurpose({ type: workout.type })}
+          </Text>
 
           {shoeName ? (
             <Text style={{ color: colors.subtext, fontSize: 13 }}>Shoe: {shoeName}</Text>

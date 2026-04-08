@@ -1,5 +1,6 @@
 import { router } from "expo-router";
 import { Pressable, Text, View } from "react-native";
+import { FadeInView } from "@/components/ui-polish";
 import { WorkoutEffortChip } from "@/components/workout-effort-chip";
 import { usePremium } from "@/contexts/premium-context";
 import { useProfile } from "@/contexts/profile-context";
@@ -47,7 +48,8 @@ export function WeeklyPerformanceSummaryCard() {
 
   if (unlocked) {
     return (
-      <View
+      <FadeInView delay={150}>
+        <View
         style={{
           backgroundColor: "#12243b",
           borderRadius: 30,
@@ -96,12 +98,14 @@ export function WeeklyPerformanceSummaryCard() {
           <SummaryRow label="Takeaway" body={summary.takeaway} />
           <SummaryRow label="Next week" body={summary.nextWeekSuggestion} accent="#67e8f9" />
         </View>
-      </View>
+        </View>
+      </FadeInView>
     );
   }
 
   return (
-    <View
+    <FadeInView delay={150}>
+      <View
       style={{
         backgroundColor: "#101f34",
         borderRadius: 30,
@@ -128,7 +132,7 @@ export function WeeklyPerformanceSummaryCard() {
         }}
       >
         <Text style={{ color: "#dcecff", fontSize: 15, fontWeight: "700", lineHeight: 21 }}>
-          You stayed consistent this week and completed your key workout. That's a strong foundation to build on.
+          You stayed consistent this week and completed your key workout. That&apos;s a strong foundation to build on.
         </Text>
         <Text style={{ color: "#9db2ca", fontSize: 13, lineHeight: 20 }}>{gate.preview}</Text>
       </View>
@@ -158,7 +162,8 @@ export function WeeklyPerformanceSummaryCard() {
       >
         <Text style={{ color: "#ffffff", fontSize: 14, fontWeight: "800" }}>Unlock Elite weekly review</Text>
       </Pressable>
-    </View>
+      </View>
+    </FadeInView>
   );
 }
 

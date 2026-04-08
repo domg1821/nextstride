@@ -11,9 +11,23 @@ import {
   upsertPremiumSubscription,
 } from "../_shared/stripe.ts";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Content-Type": "application/json",
+};
+
 serve(async (request) => {
+  if (request.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   if (request.method !== "POST") {
-    return errorResponse(new Error("Method not allowed."), 405);
+    return new Response(JSON.stringify({ error: "Method not allowed." }), {
+      status: 405,
+      headers: corsHeaders,
+    });
   }
 
   try {
@@ -81,17 +95,33 @@ serve(async (request) => {
       renewal_date: renewalDate,
     });
 
-    return jsonResponse(200, {
-      subscription: {
-        plan_tier: resolvedPlan.plan,
-        billing_cycle: resolvedPlan.billingCycle,
-        status: mappedStatus,
-        renewal_date: renewalDate,
-        stripe_customer_id: typeof subscription.customer === "string" ? subscription.customer : null,
-        stripe_subscription_id: subscription.id,
-      },
-    });
+    return new Response(
+      JSON.stringify({
+        subscription: {
+          plan_tier: resolvedPlan.plan,
+          billing_cycle: resolvedPlan.billingCycle,
+          status: mappedStatus,
+          renewal_date: renewalDate,
+          stripe_customer_id: typeof subscription.customer === "string" ? subscription.customer : null,
+          stripe_subscription_id: subscription.id,
+        },
+      }),
+      {
+        status: 200,
+        headers: corsHeaders,
+      }
+    );
   } catch (error) {
-    return errorResponse(error);
+    console.error("stripe-confirm-session error:", error);
+
+    return new Response(
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Unknown error",
+      }),
+      {
+        status: 500,
+        headers: corsHeaders,
+      }
+    );
   }
 });

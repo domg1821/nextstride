@@ -1,10 +1,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useProfile } from "@/contexts/profile-context";
 import type { PlanDay, WorkoutPreferenceCategory } from "@/lib/training-plan";
+import { supabase } from "@/lib/supabase";
 import { readStoredJson, writeStoredJson } from "@/utils/local-storage";
 import { parseDistance } from "@/utils/workout-utils";
 
 const WORKOUT_STORAGE_KEY = "nextstride.workouts.by-account.v1";
+const SUPABASE_WORKOUT_RECORDS_TABLE = "workout_records";
 
 export type WorkoutType = {
   id: string;
@@ -16,6 +18,8 @@ export type WorkoutType = {
   notes: string;
   date: string;
   shoeId?: string | null;
+  reflectionFeel?: "great" | "solid" | "flat" | "rough";
+  expectation?: "easier" | "as_expected" | "harder";
 };
 
 export type ShoeType = {
@@ -46,6 +50,8 @@ type NewWorkoutInput = {
   notes: string;
   date?: string;
   shoeId?: string | null;
+  reflectionFeel?: WorkoutType["reflectionFeel"];
+  expectation?: WorkoutType["expectation"];
 };
 
 type NewShoeInput =
@@ -93,6 +99,8 @@ type WorkoutContextType = {
       splits?: string;
       shoeId?: string | null;
       skipWorkoutSave?: boolean;
+      reflectionFeel?: WorkoutType["reflectionFeel"];
+      expectation?: WorkoutType["expectation"];
     }
   ) => void;
   skipPlannedWorkout: (day: PlanDay, note?: string) => void;
@@ -143,11 +151,15 @@ export const WorkoutProvider = ({
 }: {
   children: React.ReactNode;
 }) => {
-  const { account, authReady } = useProfile();
-  const accountKey = account?.email ?? "guest";
+  const { account, authReady, userId } = useProfile();
+  const accountKey = userId ?? account?.email ?? "guest";
   const [recordsByAccount, setRecordsByAccount] = useState<Record<string, WorkoutRecord>>({});
   const [storageReady, setStorageReady] = useState(false);
-  const currentRecord = normalizeWorkoutRecord(recordsByAccount[accountKey]);
+  const [remoteReadyKey, setRemoteReadyKey] = useState<string | null>(null);
+  const currentRecord = useMemo(
+    () => normalizeWorkoutRecord(recordsByAccount[accountKey]),
+    [accountKey, recordsByAccount]
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -185,6 +197,87 @@ export const WorkoutProvider = ({
     void writeStoredJson(WORKOUT_STORAGE_KEY, recordsByAccount);
   }, [authReady, recordsByAccount, storageReady]);
 
+  useEffect(() => {
+    if (!authReady || !storageReady) {
+      return;
+    }
+
+    if (!userId) {
+      setRemoteReadyKey(accountKey);
+      return;
+    }
+
+    let isMounted = true;
+
+    const hydrateRemoteRecord = async () => {
+      const { data, error } = await supabase
+        .from(SUPABASE_WORKOUT_RECORDS_TABLE)
+        .select("record")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (!isMounted) {
+        return;
+      }
+
+      if (error) {
+        console.warn("Unable to load workout record from Supabase:", error.message);
+        setRemoteReadyKey(userId);
+        return;
+      }
+
+      if (data?.record) {
+        setRecordsByAccount((current) => ({
+          ...current,
+          [accountKey]: normalizeWorkoutRecord(data.record as Partial<WorkoutRecord>),
+        }));
+      } else {
+        const { error: upsertError } = await supabase.from(SUPABASE_WORKOUT_RECORDS_TABLE).upsert(
+          {
+            user_id: userId,
+            email: account?.email?.trim().toLowerCase() ?? null,
+            record: currentRecord,
+          },
+          { onConflict: "user_id" }
+        );
+
+        if (upsertError) {
+          console.warn("Unable to seed workout record in Supabase:", upsertError.message);
+        }
+      }
+
+      setRemoteReadyKey(userId);
+    };
+
+    void hydrateRemoteRecord();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [account?.email, accountKey, authReady, currentRecord, storageReady, userId]);
+
+  useEffect(() => {
+    if (!authReady || !storageReady || !userId || remoteReadyKey !== userId) {
+      return;
+    }
+
+    void supabase
+      .from(SUPABASE_WORKOUT_RECORDS_TABLE)
+      .upsert(
+        {
+          user_id: userId,
+          email: account?.email?.trim().toLowerCase() ?? null,
+          record: currentRecord,
+        },
+        { onConflict: "user_id" }
+      )
+      .then(({ error }) => {
+        if (error) {
+          console.warn("Unable to save workout record to Supabase:", error.message);
+        }
+      });
+  }, [account?.email, authReady, currentRecord, remoteReadyKey, storageReady, userId]);
+
   const updateCurrentRecord = useCallback(
     (updater: (current: WorkoutRecord) => WorkoutRecord) => {
       setRecordsByAccount((current) => ({
@@ -205,6 +298,8 @@ export const WorkoutProvider = ({
             id: createId("workout"),
             date: workout.date ?? new Date().toISOString(),
             shoeId: workout.shoeId ?? null,
+            reflectionFeel: workout.reflectionFeel,
+            expectation: workout.expectation,
           },
           ...current.workouts,
         ],
@@ -314,6 +409,8 @@ export const WorkoutProvider = ({
         splits?: string;
         shoeId?: string | null;
         skipWorkoutSave?: boolean;
+        reflectionFeel?: WorkoutType["reflectionFeel"];
+        expectation?: WorkoutType["expectation"];
       }
     ) => {
       updateCurrentRecord((current) => {
@@ -334,6 +431,8 @@ export const WorkoutProvider = ({
                 notes: input.notes?.trim() || `Completed from weekly plan: ${day.title}`,
                 date: input.dateOverride ?? new Date().toISOString(),
                 shoeId: input.shoeId ?? null,
+                reflectionFeel: input.reflectionFeel,
+                expectation: input.expectation,
               },
               ...current.workouts,
             ];

@@ -16,6 +16,7 @@ export type PremiumFeatureKey =
   | "goal_pacing_calculator"
   | "weekly_performance_summaries"
   | "goal_on_track"
+  | "condition_training"
   | "personalized_insights_advanced"
   | "priority_premium_access";
 
@@ -179,6 +180,15 @@ export const PREMIUM_FEATURES: PremiumFeatureDefinition[] = [
     category: "Personalization",
   },
   {
+    key: "condition_training",
+    badge: "COND",
+    title: "Condition training adjustments",
+    summary: "Adjust workout guidance for heat, humidity, wind, and treadmill days.",
+    preview: "Get a more coach-like read on pace, effort, and heart rate when conditions are not neutral.",
+    minimumTier: "elite",
+    category: "Premium coaching tools",
+  },
+  {
     key: "personalized_insights_advanced",
     badge: "COACH",
     title: "Deeper personalized insights",
@@ -276,6 +286,7 @@ export const PREMIUM_COMPARISON_ROWS: PremiumComparisonRow[] = [
   { category: "Personalization", feature: "\"On track\" goal system", free: "-", pro: "-", elite: "Included" },
   { category: "Personalization", feature: "Personalized insights", free: "Core", pro: "Guided", elite: "Deeper coaching layer" },
   { category: "Premium coaching tools", feature: "Adaptive adjustments", free: "-", pro: "-", elite: "Included" },
+  { category: "Premium coaching tools", feature: "Condition training adjustments", free: "-", pro: "-", elite: "Included" },
   { category: "Premium coaching tools", feature: "Post-run feedback", free: "-", pro: "-", elite: "Included" },
   { category: "Premium coaching tools", feature: "Goal pacing calculator", free: "-", pro: "-", elite: "Included" },
   { category: "Premium coaching tools", feature: "Weekly performance summaries", free: "-", pro: "-", elite: "Included" },

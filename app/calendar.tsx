@@ -1,13 +1,14 @@
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
-import { Modal, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { WorkoutEffortChip } from "@/components/workout-effort-chip";
 import { InfoCard, PageHeader, PrimaryButton, SecondaryButton } from "@/components/ui-kit";
+import { FloatingModalCard } from "@/components/ui-polish";
 import { ScreenScroll, SectionTitle } from "@/components/ui-shell";
 import { useProfile } from "@/contexts/profile-context";
 import { useThemeColors } from "@/contexts/theme-context";
 import { useWorkouts } from "@/contexts/workout-context";
-import { getPlanDayEffortGuidance } from "@/lib/workout-effort";
+import { getPlanDayEffortGuidance, getWorkoutPurpose } from "@/lib/workout-effort";
 import { buildLongRangePlan, buildMonthGrid, type CalendarPlanDay } from "@/utils/training-insights";
 import { formatFeedDate, formatMonthLabel } from "@/utils/workout-utils";
 
@@ -125,15 +126,7 @@ export default function CalendarScreen() {
         </Text>
       </InfoCard>
 
-      <Modal visible={Boolean(selectedDay)} transparent animationType="fade" onRequestClose={() => setSelectedDay(null)}>
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(3, 8, 18, 0.7)",
-            justifyContent: "center",
-            padding: 20,
-          }}
-        >
+      <FloatingModalCard visible={Boolean(selectedDay)} onClose={() => setSelectedDay(null)}>
           <View
             style={{
               backgroundColor: colors.card,
@@ -166,8 +159,14 @@ export default function CalendarScreen() {
                 <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
                   <WorkoutEffortChip guidance={getPlanDayEffortGuidance(selectedDay)} />
                 </View>
+                <Text style={{ color: colors.text, fontSize: 14, fontWeight: "700" }}>
+                  {getPlanDayEffortGuidance(selectedDay).shortDescription}
+                </Text>
                 <Text style={{ color: colors.subtext, fontSize: 14 }}>
                   {selectedDay.kind === "rest" ? "Rest / recovery focus" : `${selectedDay.distance} mi planned`}
+                </Text>
+                <Text style={{ color: colors.subtext, fontSize: 13, lineHeight: 19 }}>
+                  Purpose: {getWorkoutPurpose(selectedDay)}
                 </Text>
                 <Text style={{ color: colors.text, fontSize: 14, lineHeight: 20 }}>{selectedDay.details}</Text>
                 <Text style={{ color: colors.subtext, fontSize: 13, lineHeight: 19 }}>
@@ -196,8 +195,7 @@ export default function CalendarScreen() {
               ) : null}
             </View>
           </View>
-        </View>
-      </Modal>
+      </FloatingModalCard>
     </ScreenScroll>
   );
 }

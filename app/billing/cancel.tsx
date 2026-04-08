@@ -1,10 +1,12 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useThemeColors } from "@/contexts/theme-context";
+import { useResponsiveLayout } from "@/lib/responsive";
 import { normalizeBillingCycle, normalizeUpgradePlan } from "@/lib/upgrade-route";
 
 export default function BillingCancelScreen() {
   const { colors } = useThemeColors();
+  const layout = useResponsiveLayout();
   const params = useLocalSearchParams<{ plan?: string; billing?: string }>();
   const plan = normalizeUpgradePlan(params.plan);
   const billing = typeof params.billing === "string" ? normalizeBillingCycle(params.billing) : "yearly";
@@ -12,7 +14,7 @@ export default function BillingCancelScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 28, paddingBottom: 40, gap: 22, width: "100%", maxWidth: 880, alignSelf: "center" }}
+      contentContainerStyle={{ paddingHorizontal: layout.pagePadding, paddingTop: 28, paddingBottom: 40, gap: 22 }}
       showsVerticalScrollIndicator={false}
     >
       <View style={{ backgroundColor: colors.card, borderRadius: 32, borderWidth: 1, borderColor: colors.border, padding: 24, gap: 12 }}>
@@ -30,7 +32,7 @@ export default function BillingCancelScreen() {
         </Text>
       </View>
 
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+      <View style={{ flexDirection: layout.isPhone ? "column" : "row", flexWrap: "wrap", gap: 12 }}>
         <Pressable
           onPress={() => router.replace({ pathname: "/upgrade", params: { plan, billing } })}
           style={{ flex: 1, minWidth: 220, minHeight: 54, borderRadius: 18, backgroundColor: "#2563eb", alignItems: "center", justifyContent: "center", paddingHorizontal: 18 }}

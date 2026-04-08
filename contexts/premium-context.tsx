@@ -1,4 +1,5 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { AppState } from "react-native";
 import {
   type PurchaseAdapter,
   type PurchaseResult,
@@ -122,6 +123,7 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
   const accountKey = account?.email ?? "guest";
   const [recordsByKey, setRecordsByKey] = useState<Record<string, PremiumRecord>>({});
   const [purchaseAdapter, setPurchaseAdapterState] = useState<PurchaseAdapter>(stripePurchaseAdapter);
+  const refreshInFlightRef = useRef<Promise<PurchaseResult> | null>(null);
   const currentRecord = recordsByKey[accountKey] ?? DEFAULT_RECORD;
 
   const updateRecord = useCallback(
@@ -148,66 +150,82 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
   );
 
   const refreshSubscription = useCallback(async (): Promise<PurchaseResult> => {
-    if (!isAuthenticated) {
-      replaceRecord(DEFAULT_RECORD);
-      return getFallbackResult("Sign in to sync your Stripe subscription.", DEFAULT_RECORD.billingCycle);
+    if (refreshInFlightRef.current) {
+      return refreshInFlightRef.current;
     }
 
+    const refreshPromise = (async () => {
+      if (!isAuthenticated) {
+        replaceRecord(DEFAULT_RECORD);
+        return getFallbackResult("Sign in to sync your Stripe subscription.", DEFAULT_RECORD.billingCycle);
+      }
+
+      try {
+        const remoteState = await fetchRemoteSubscriptionState();
+
+        if (remoteState.status === "premium_active" && remoteState.tier !== "free") {
+          const nextResult: PurchaseResult = {
+            status: "active",
+            environment: getPurchaseEnvironment(),
+            tier: remoteState.tier,
+            billingCycle: remoteState.billingCycle,
+            renewalDate: remoteState.renewalDate ?? undefined,
+            message: remoteState.lastMessage,
+          };
+
+          replaceRecord({
+            status: "premium_active",
+            tier: remoteState.tier,
+            pendingTier: null,
+            billingCycle: remoteState.billingCycle,
+            renewalDate: remoteState.renewalDate,
+            lastMessage: remoteState.lastMessage,
+          });
+          return nextResult;
+        }
+
+        if (remoteState.status === "upgrade_pending" && remoteState.pendingTier) {
+          const nextResult: PurchaseResult = {
+            status: "pending",
+            environment: getPurchaseEnvironment(),
+            tier: remoteState.pendingTier,
+            billingCycle: remoteState.billingCycle,
+            message: remoteState.lastMessage,
+          };
+
+          replaceRecord({
+            status: "upgrade_pending",
+            tier: "free",
+            pendingTier: remoteState.pendingTier,
+            billingCycle: remoteState.billingCycle,
+            renewalDate: null,
+            lastMessage: remoteState.lastMessage,
+          });
+          return nextResult;
+        }
+
+        const fallback = getFallbackResult(remoteState.lastMessage, remoteState.billingCycle);
+        replaceRecord({
+          ...DEFAULT_RECORD,
+          billingCycle: remoteState.billingCycle,
+          lastMessage: remoteState.lastMessage,
+        });
+        return fallback;
+      } catch (error) {
+        const fallback = getFallbackResult(getErrorMessage(error), DEFAULT_RECORD.billingCycle);
+        updateRecord({ lastMessage: fallback.message });
+        return fallback;
+      }
+    })();
+
+    refreshInFlightRef.current = refreshPromise;
+
     try {
-      const remoteState = await fetchRemoteSubscriptionState();
-
-      if (remoteState.status === "premium_active" && remoteState.tier !== "free") {
-        const nextResult: PurchaseResult = {
-          status: "active",
-          environment: getPurchaseEnvironment(),
-          tier: remoteState.tier,
-          billingCycle: remoteState.billingCycle,
-          renewalDate: remoteState.renewalDate ?? undefined,
-          message: remoteState.lastMessage,
-        };
-
-        replaceRecord({
-          status: "premium_active",
-          tier: remoteState.tier,
-          pendingTier: null,
-          billingCycle: remoteState.billingCycle,
-          renewalDate: remoteState.renewalDate,
-          lastMessage: remoteState.lastMessage,
-        });
-        return nextResult;
+      return await refreshPromise;
+    } finally {
+      if (refreshInFlightRef.current === refreshPromise) {
+        refreshInFlightRef.current = null;
       }
-
-      if (remoteState.status === "upgrade_pending" && remoteState.pendingTier) {
-        const nextResult: PurchaseResult = {
-          status: "pending",
-          environment: getPurchaseEnvironment(),
-          tier: remoteState.pendingTier,
-          billingCycle: remoteState.billingCycle,
-          message: remoteState.lastMessage,
-        };
-
-        replaceRecord({
-          status: "upgrade_pending",
-          tier: "free",
-          pendingTier: remoteState.pendingTier,
-          billingCycle: remoteState.billingCycle,
-          renewalDate: null,
-          lastMessage: remoteState.lastMessage,
-        });
-        return nextResult;
-      }
-
-      const fallback = getFallbackResult(remoteState.lastMessage, remoteState.billingCycle);
-      replaceRecord({
-        ...DEFAULT_RECORD,
-        billingCycle: remoteState.billingCycle,
-        lastMessage: remoteState.lastMessage,
-      });
-      return fallback;
-    } catch (error) {
-      const fallback = getFallbackResult(getErrorMessage(error), DEFAULT_RECORD.billingCycle);
-      updateRecord({ lastMessage: fallback.message });
-      return fallback;
     }
   }, [isAuthenticated, replaceRecord, updateRecord]);
 
@@ -223,6 +241,38 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
 
     void refreshSubscription();
   }, [authReady, isAuthenticated, refreshSubscription, replaceRecord]);
+
+  useEffect(() => {
+    if (!authReady || !isAuthenticated) {
+      return;
+    }
+
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        void refreshSubscription();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [authReady, isAuthenticated, refreshSubscription]);
+
+  useEffect(() => {
+    if (!authReady || !isAuthenticated || currentRecord.status !== "upgrade_pending") {
+      return;
+    }
+
+    void refreshSubscription();
+
+    const intervalId = setInterval(() => {
+      void refreshSubscription();
+    }, 4000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [authReady, currentRecord.status, isAuthenticated, refreshSubscription]);
 
   const beginUpgrade = useCallback(
     async (tier: PremiumTier, billingCycle?: BillingCycle) => {
@@ -285,7 +335,7 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
           ? `${activePlan.name} is active and set to renew on ${renewalDate}.`
           : `${activePlan.name} is active with ${getPlanPriceLabel(tier, billingCycle)} billing.`
         : status === "upgrade_pending"
-          ? `Your Stripe checkout is in progress for ${pendingPlan?.name ?? "the selected"} plan.`
+          ? `Your ${pendingPlan?.name ?? "selected"} upgrade is processing. We will keep checking Stripe and unlock premium features as soon as the subscription sync completes.`
           : "You are on Free. Upgrade to Pro or Elite to unlock deeper personalized guidance.";
 
     return {

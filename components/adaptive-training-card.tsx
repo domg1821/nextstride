@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import { useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
+import { AnimatedProgressBar, FadeInView } from "@/components/ui-polish";
 import { usePremium } from "@/contexts/premium-context";
 import { useProfile } from "@/contexts/profile-context";
 import { useThemeColors } from "@/contexts/theme-context";
@@ -54,10 +55,12 @@ export function AdaptiveTrainingCard() {
 
   const accent = getStatusAccent(adaptiveResult.status);
   const statusLabel = getStatusLabel(adaptiveResult.status);
+  const progressValue = adaptiveResult.status === "increase" ? 78 : adaptiveResult.status === "hold" ? 58 : 34;
 
   if (unlocked) {
     return (
-      <View
+      <FadeInView delay={120}>
+        <View
         style={{
           backgroundColor: "#12243b",
           borderRadius: 30,
@@ -71,6 +74,17 @@ export function AdaptiveTrainingCard() {
           shadowOffset: { width: 0, height: 8 },
         }}
       >
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 18,
+            right: 18,
+            height: 2,
+            borderRadius: 999,
+            backgroundColor: `${accent}55`,
+          }}
+        />
         <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
           <View style={{ flex: 1, gap: 8 }}>
             <Text style={{ color: accent, fontSize: 12, fontWeight: "800", letterSpacing: 1.1 }}>ELITE ADAPTIVE TRAINING</Text>
@@ -94,6 +108,21 @@ export function AdaptiveTrainingCard() {
           </View>
         </View>
 
+        <View style={{ gap: 8 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+            <Text style={{ color: colors.subtext, fontSize: 11, fontWeight: "800", letterSpacing: 0.8 }}>
+              NEXT WEEK LOAD
+            </Text>
+            <Text style={{ color: accent, fontSize: 12, fontWeight: "800" }}>{statusLabel.toUpperCase()}</Text>
+          </View>
+          <AnimatedProgressBar
+            progress={progressValue}
+            fillColor={accent}
+            trackColor="rgba(255,255,255,0.08)"
+            height={8}
+          />
+        </View>
+
         <View
           style={{
             backgroundColor: "rgba(8, 17, 29, 0.62)",
@@ -107,12 +136,14 @@ export function AdaptiveTrainingCard() {
           <MetricRow label="Reason" value={adaptiveResult.reason} accent={accent} />
           <MetricRow label="Suggestion" value={adaptiveResult.suggestion} />
         </View>
-      </View>
+        </View>
+      </FadeInView>
     );
   }
 
   return (
-    <View
+    <FadeInView delay={120}>
+      <View
       style={{
         backgroundColor: "#101f34",
         borderRadius: 30,
@@ -170,7 +201,8 @@ export function AdaptiveTrainingCard() {
       >
         <Text style={{ color: "#ffffff", fontSize: 14, fontWeight: "800" }}>Unlock Elite adaptive training</Text>
       </Pressable>
-    </View>
+      </View>
+    </FadeInView>
   );
 }
 
