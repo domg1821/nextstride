@@ -76,8 +76,9 @@ export default function Welcome() {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("yearly");
   const isDesktop = layout.isDesktop;
   const isTablet = layout.isTablet;
-  const padding = isDesktop ? 72 : isTablet ? 34 : layout.pagePadding;
-  const heroTitleSize = isDesktop ? 74 : isTablet ? 56 : layout.isPhone ? 36 : 42;
+  const isTabletViewport = layout.width >= 768 && !isDesktop;
+  const padding = isDesktop ? 72 : isTablet ? 34 : isTabletViewport ? 28 : layout.pagePadding;
+  const heroTitleSize = isDesktop ? 74 : isTablet ? 56 : isTabletViewport ? 46 : layout.isPhone ? 36 : 42;
   const heroTopPadding = isDesktop ? 34 : isTablet ? 24 : Math.max(32, insets.top + 16);
   const pageBottomPadding = Math.max(44, insets.bottom + (layout.isPhone ? 88 : 64));
   const openAppRoute = isAuthenticated && !profile.onboardingComplete ? "/onboarding" : appHomeRoute;
@@ -99,7 +100,7 @@ export default function Welcome() {
       <View style={{ position: "relative", paddingHorizontal: padding, paddingTop: heroTopPadding, paddingBottom: layout.isPhone ? 26 : 36 }} onLayout={setSectionOffset("hero")}>
         <MarketingBackdrop tone="hero" style={{ height: isDesktop ? 720 : 640 }} />
         <TopNavigation
-          isTablet={isTablet}
+          isDesktop={isDesktop}
           onJump={scrollToSection}
           isAuthenticated={isAuthenticated}
           onLogin={() => router.push("/login")}
@@ -107,7 +108,7 @@ export default function Welcome() {
           onOpenApp={() => router.push(openAppRoute)}
         />
 
-        <View style={{ marginTop: isDesktop ? 56 : layout.isPhone ? 24 : 32, flexDirection: isDesktop ? "row" : "column", alignItems: "center", gap: isDesktop ? 68 : layout.isPhone ? 24 : 34 }}>
+        <View style={{ marginTop: isDesktop ? 56 : layout.isPhone ? 24 : 32, flexDirection: isDesktop ? "row" : "column", alignItems: isDesktop ? "center" : "stretch", gap: isDesktop ? 68 : layout.isPhone ? 24 : 34 }}>
           <View style={{ flex: isDesktop ? 1 : undefined, width: "100%", minWidth: 0, maxWidth: isDesktop ? 630 : undefined }}>
             <SectionChip label="Built for solo runners" />
             <Text style={{ color: "#f8fbff", fontSize: heroTitleSize, fontWeight: "800", lineHeight: heroTitleSize + (layout.isPhone ? 4 : 2), marginTop: layout.isPhone ? 16 : 20 }}>
@@ -117,26 +118,26 @@ export default function Welcome() {
               NextStride helps solo runners train with more structure, clearer guidance, smarter progression, and a more premium way to improve.
             </Text>
 
-            <View style={{ flexDirection: isTablet ? "row" : "column", gap: 12, marginTop: layout.isPhone ? 24 : 30 }}>
+            <View style={{ flexDirection: isDesktop ? "row" : "column", gap: 12, marginTop: layout.isPhone ? 24 : 30 }}>
               <SiteButton label={isAuthenticated ? "Open My Plan" : "Start Free"} onPress={() => router.push(isAuthenticated ? openAppRoute : "/signup")} />
               <SiteButton label="See The Product" variant="secondary" onPress={() => scrollToSection("week")} />
             </View>
 
-            <View style={{ flexDirection: isTablet ? "row" : "column", gap: 12, marginTop: layout.isPhone ? 22 : 28 }}>
+            <View style={{ flexDirection: isDesktop ? "row" : "column", gap: 12, marginTop: layout.isPhone ? 22 : 28 }}>
               <MetricCard value="Today" label="See the workout, pace, effort, and purpose fast" />
               <MetricCard value="This Week" label="Understand how the whole week fits together" />
               <MetricCard value="Next Step" label="Know what is improving and what comes next" />
             </View>
           </View>
 
-          <View style={{ flex: isDesktop ? 1 : undefined, width: "100%", minWidth: 0, maxWidth: isDesktop ? 540 : undefined }}>
+          <View style={{ flex: isDesktop ? 1 : undefined, width: "100%", minWidth: 0, maxWidth: isDesktop ? 540 : undefined, alignSelf: isDesktop ? "auto" : "stretch" }}>
             <HeroPreview />
           </View>
         </View>
       </View>
 
       <View onLayout={setSectionOffset("value")} style={{ paddingHorizontal: padding, marginTop: layout.isPhone ? 10 : 18 }}>
-        <QuickValueStrip isTablet={isTablet} />
+        <QuickValueStrip />
       </View>
 
       <View onLayout={setSectionOffset("week")}>
@@ -227,7 +228,7 @@ export default function Welcome() {
           centered={true}
         >
           <FinalCta
-            isTablet={isTablet}
+            isDesktop={isDesktop}
             isAuthenticated={isAuthenticated}
             onPrimaryAction={() => router.push(isAuthenticated ? openAppRoute : "/signup")}
           />
@@ -248,40 +249,38 @@ export default function Welcome() {
 }
 
 function TopNavigation({
-  isTablet,
+  isDesktop,
   isAuthenticated,
   onJump,
   onLogin,
   onSignup,
   onOpenApp,
 }: {
-  isTablet: boolean;
+  isDesktop: boolean;
   isAuthenticated: boolean;
   onJump: (key: SectionKey) => void;
   onLogin: () => void;
   onSignup: () => void;
   onOpenApp: () => void;
 }) {
-  const layout = useResponsiveLayout();
-
   return (
-    <View style={{ flexDirection: isTablet ? "row" : "column", justifyContent: "space-between", alignItems: isTablet ? "center" : "flex-start", gap: 14 }}>
-      <View>
+    <View style={{ flexDirection: isDesktop ? "row" : "column", justifyContent: "space-between", alignItems: isDesktop ? "center" : "flex-start", gap: 14 }}>
+      <View style={{ width: isDesktop ? undefined : "100%", minWidth: 0, maxWidth: isDesktop ? 360 : undefined, flexShrink: isDesktop ? 1 : undefined }}>
         <Text style={{ color: "#f8fbff", fontSize: 26, fontWeight: "800" }}>NextStride</Text>
         <Text style={{ color: "#8ea5c2", marginTop: 4, fontSize: 13 }}>A solo-runner training app built to make improvement feel clearer.</Text>
       </View>
 
-      <View style={{ flexDirection: isTablet ? "row" : "column", alignItems: isTablet ? "center" : "flex-start", gap: 12 }}>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+      <View style={{ flexDirection: isDesktop ? "row" : "column", alignItems: isDesktop ? "center" : "stretch", width: isDesktop ? undefined : "100%", minWidth: 0, flexShrink: isDesktop ? 1 : undefined, gap: 12 }}>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, width: isDesktop ? undefined : "100%", minWidth: 0, flexShrink: 1 }}>
           <NavLink label="Week View" onPress={() => onJump("week")} />
           <NavLink label="Why It Works" onPress={() => onJump("why")} />
           <NavLink label="Pricing" onPress={() => onJump("premium")} />
           <NavLink label="FAQ" onPress={() => onJump("faq")} />
         </View>
 
-        <View style={{ flexDirection: layout.isPhone ? "column" : "row", width: layout.isPhone ? "100%" : undefined, gap: 10 }}>
-          {isAuthenticated ? <SiteButton label="Open App" variant="secondary" compact={true} onPress={onOpenApp} /> : <SiteButton label="Log In" variant="secondary" compact={true} onPress={onLogin} />}
-          <SiteButton label={isAuthenticated ? "See Pricing" : "Start Free"} compact={true} onPress={isAuthenticated ? () => onJump("premium") : onSignup} />
+        <View style={{ flexDirection: isDesktop ? "row" : "column", width: isDesktop ? undefined : "100%", gap: 10 }}>
+          {isAuthenticated ? <SiteButton label="Open App" variant="secondary" compact={isDesktop} onPress={onOpenApp} /> : <SiteButton label="Log In" variant="secondary" compact={isDesktop} onPress={onLogin} />}
+          <SiteButton label={isAuthenticated ? "See Pricing" : "Start Free"} compact={isDesktop} onPress={isAuthenticated ? () => onJump("premium") : onSignup} />
         </View>
       </View>
     </View>
@@ -291,7 +290,7 @@ function TopNavigation({
 function NavLink({ label, onPress }: { label: string; onPress: () => void }) {
   return (
     <Pressable onPress={onPress}>
-      <Text style={{ color: "#d7e3f4", fontSize: 14, fontWeight: "600" }}>{label}</Text>
+      <Text style={{ color: "#d7e3f4", fontSize: 14, fontWeight: "600", lineHeight: 20 }}>{label}</Text>
     </Pressable>
   );
 }
@@ -317,8 +316,8 @@ function HeroPreview() {
 
       <GlassPanel highlight={true} padding={layout.isPhone ? 16 : 20} radius={34}>
         <View style={{ backgroundColor: "#0a1525", borderRadius: 28, borderWidth: 1, borderColor: "rgba(103, 232, 249, 0.12)", padding: layout.isPhone ? 16 : 18, gap: layout.isPhone ? 14 : 16 }}>
-          <View style={{ flexDirection: layout.isPhone ? "column" : "row", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-            <View>
+          <View style={{ flexDirection: layout.isDesktop ? "row" : "column", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+            <View style={{ minWidth: 0 }}>
               <Text style={{ color: "#67e8f9", fontSize: 12, fontWeight: "800", letterSpacing: 1.2 }}>TODAY&apos;S WORKOUT</Text>
               <Text style={{ color: "#f8fbff", fontSize: layout.isPhone ? 24 : 28, fontWeight: "800", marginTop: 8 }}>Tempo Run</Text>
               <Text style={{ color: "#9db2ca", fontSize: 14, marginTop: 6 }}>20 min strong and controlled</Text>
@@ -336,7 +335,7 @@ function HeroPreview() {
             <Text style={{ color: "#67e8f9", fontSize: 13, fontWeight: "700" }}>Pace: 7:10-7:25 /mi</Text>
           </View>
 
-          <View style={{ flexDirection: layout.isPhone ? "column" : "row", gap: 12 }}>
+          <View style={{ flexDirection: layout.isDesktop ? "row" : "column", gap: 12 }}>
             <View style={{ flex: 1 }}>
               <SummaryPill label="Week shape" value="2 key days + long run" accent="#67e8f9" />
             </View>
@@ -359,12 +358,12 @@ function SummaryPill({ label, value, accent }: { label: string; value: string; a
   );
 }
 
-function QuickValueStrip({ isTablet }: { isTablet: boolean }) {
+function QuickValueStrip() {
   const layout = useResponsiveLayout();
 
   return (
     <GlassPanel highlight={true} padding={layout.isPhone ? 12 : 14} radius={26}>
-      <View style={{ flexDirection: isTablet ? "row" : "column", gap: 10 }}>
+      <View style={{ flexDirection: layout.isDesktop ? "row" : "column", gap: 10 }}>
         {VALUE_STRIP.map((item, index) => (
           <View key={item} style={{ flex: 1, backgroundColor: index === 0 ? "rgba(20, 35, 57, 0.98)" : "rgba(8, 17, 29, 0.62)", borderRadius: 20, borderWidth: 1, borderColor: index === 0 ? "rgba(103, 232, 249, 0.2)" : "rgba(103, 232, 249, 0.08)", paddingHorizontal: layout.isPhone ? 14 : 16, paddingVertical: layout.isPhone ? 13 : 15 }}>
             <Text style={{ color: "#dcecff", fontSize: 14, fontWeight: "700", lineHeight: 20 }}>{item}</Text>
@@ -380,11 +379,11 @@ function WeekShowcase() {
 
   return (
     <View style={{ width: "100%", minWidth: 0 }}>
-      <GlassPanel highlight={true} padding={28} radius={34}>
-        <View style={{ flexDirection: layout.isPhone ? "column" : "row", justifyContent: "space-between", gap: 18, alignItems: "flex-start" }}>
+      <GlassPanel highlight={true} padding={layout.isPhone ? 22 : layout.isDesktop ? 28 : 24} radius={34}>
+        <View style={{ flexDirection: layout.isDesktop ? "row" : "column", justifyContent: "space-between", gap: 18, alignItems: "flex-start" }}>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={{ color: "#f8fbff", fontSize: layout.isPhone ? 28 : 34, fontWeight: "800" }}>See your week in one glance</Text>
-            <Text style={{ color: "#9db2ca", fontSize: 15, lineHeight: 24, marginTop: 10, maxWidth: 540 }}>
+            <Text style={{ color: "#f8fbff", fontSize: layout.isPhone ? 26 : 34, fontWeight: "800", lineHeight: layout.isPhone ? 32 : 40 }}>See your week in one glance</Text>
+            <Text style={{ color: "#9db2ca", fontSize: 15, lineHeight: 24, marginTop: 10, maxWidth: layout.isPhone ? undefined : 540 }}>
               The key sessions stand out, support days stay calmer, and the whole week feels more intentional at first glance.
             </Text>
           </View>
@@ -415,12 +414,12 @@ function WeekPlanRow({ day, title, detail, tone }: { day: string; title: string;
   const icon = tone === "long" ? "footsteps-outline" : tone === "key" ? "flash-outline" : "partly-sunny-outline";
 
   return (
-    <View style={{ backgroundColor: tone === "default" ? "rgba(8, 17, 29, 0.78)" : "rgba(9, 20, 33, 0.98)", borderRadius: 24, borderWidth: 1, borderColor, padding: 16, flexDirection: layout.isPhone ? "column" : "row", alignItems: layout.isPhone ? "flex-start" : "center", gap: 14, shadowColor: tone === "default" ? "#000000" : "#38bdf8", shadowOpacity: tone === "default" ? 0.05 : 0.12, shadowRadius: tone === "default" ? 8 : 18, shadowOffset: { width: 0, height: tone === "default" ? 2 : 8 } }}>
+    <View style={{ backgroundColor: tone === "default" ? "rgba(8, 17, 29, 0.78)" : "rgba(9, 20, 33, 0.98)", borderRadius: 24, borderWidth: 1, borderColor, padding: layout.isPhone ? 14 : 16, flexDirection: layout.isDesktop ? "row" : "column", alignItems: layout.isDesktop ? "center" : "flex-start", gap: 14, shadowColor: tone === "default" ? "#000000" : "#38bdf8", shadowOpacity: tone === "default" ? 0.05 : 0.12, shadowRadius: tone === "default" ? 8 : 18, shadowOffset: { width: 0, height: tone === "default" ? 2 : 8 } }}>
       <View style={{ width: 56, height: 56, borderRadius: 20, backgroundColor: tone === "long" ? "rgba(103, 232, 249, 0.15)" : tone === "key" ? "rgba(37, 99, 235, 0.18)" : "rgba(15, 27, 45, 0.96)", alignItems: "center", justifyContent: "center", gap: 2 }}>
         <MarketingIcon label={day} icon={icon} active={tone !== "default"} />
         <Text style={{ color: "#cfe1f7", fontSize: 11, fontWeight: "800" }}>{day}</Text>
       </View>
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={{ color: "#f8fbff", fontSize: 17, fontWeight: "700" }}>{title}</Text>
         <Text style={{ color: "#9db2ca", fontSize: 14, lineHeight: 21, marginTop: 4 }}>{detail}</Text>
       </View>
@@ -432,9 +431,11 @@ function WeekPlanRow({ day, title, detail, tone }: { day: string; title: string;
 }
 
 function StoryCard({ icon, title, body }: { icon: keyof typeof Ionicons.glyphMap; title: string; body: string }) {
+  const layout = useResponsiveLayout();
+
   return (
     <View style={{ width: "100%", minWidth: 0 }}>
-      <GlassPanel padding={20} radius={26}>
+      <GlassPanel padding={layout.isPhone ? 18 : 20} radius={26}>
         <View style={{ flexDirection: "row", gap: 14, alignItems: "flex-start" }}>
           <MarketingIcon label="" icon={icon} active={true} />
           <View style={{ flex: 1, minWidth: 0 }}>
@@ -458,12 +459,16 @@ function WhyCard({
   body: string;
   active?: boolean;
 }) {
+  const layout = useResponsiveLayout();
+
   return (
-    <GlassPanel highlight={active} padding={22} radius={28}>
-      <MarketingIcon label="" icon={icon} active={active} />
-      <Text style={{ color: "#f8fbff", fontSize: 22, fontWeight: "800", marginTop: 18 }}>{title}</Text>
-      <Text style={{ color: "#9db2ca", fontSize: 14, lineHeight: 22, marginTop: 10 }}>{body}</Text>
-    </GlassPanel>
+    <View style={{ width: "100%", minWidth: 0 }}>
+      <GlassPanel highlight={active} padding={layout.isPhone ? 20 : 22} radius={28}>
+        <MarketingIcon label="" icon={icon} active={active} />
+        <Text style={{ color: "#f8fbff", fontSize: layout.isPhone ? 20 : 22, fontWeight: "800", marginTop: 18, lineHeight: layout.isPhone ? 26 : 28 }}>{title}</Text>
+        <Text style={{ color: "#9db2ca", fontSize: 14, lineHeight: 22, marginTop: 10 }}>{body}</Text>
+      </GlassPanel>
+    </View>
   );
 }
 
@@ -478,13 +483,15 @@ function PremiumPlans({
   isDesktop: boolean;
   isTablet: boolean;
 }) {
+  const layout = useResponsiveLayout();
+
   return (
-    <GlassPanel highlight={true} padding={isDesktop ? 30 : 22} radius={34}>
+    <GlassPanel highlight={true} padding={isDesktop ? 30 : layout.isPhone ? 18 : 22} radius={34}>
       <View style={{ flexDirection: isDesktop ? "row" : "column", justifyContent: "space-between", gap: 18, alignItems: isDesktop ? "center" : "stretch" }}>
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, minWidth: 0 }}>
           <SectionChip label="Free vs Pro vs Elite" />
-          <Text style={{ color: "#f8fbff", fontSize: 34, fontWeight: "800", marginTop: 18 }}>Start simple. Upgrade when you want more guidance.</Text>
-          <Text style={{ color: "#9db2ca", fontSize: 15, lineHeight: 24, marginTop: 12, maxWidth: 620 }}>
+          <Text style={{ color: "#f8fbff", fontSize: layout.isPhone ? 28 : 34, lineHeight: layout.isPhone ? 34 : 40, fontWeight: "800", marginTop: 18 }}>Start simple. Upgrade when you want more guidance.</Text>
+          <Text style={{ color: "#9db2ca", fontSize: 15, lineHeight: 24, marginTop: 12, maxWidth: isDesktop ? 620 : undefined }}>
             Pro helps you train sharper. Elite adds adaptive coaching, post-run feedback, and goal-focused reads that feel much closer to a real coach.
           </Text>
         </View>
@@ -545,6 +552,7 @@ function PlanCard({
   billingCycle: BillingCycle;
   compact?: boolean;
 }) {
+  const layout = useResponsiveLayout();
   const plan = PREMIUM_PLANS[tier];
   const highlight = tier === "elite";
   const featurePoints =
@@ -555,11 +563,11 @@ function PlanCard({
         : ["Adaptive training", "Post-run feedback", "On-track progress + coach-like guidance"];
 
   return (
-    <View style={{ flex: 1, minWidth: compact ? 0 : 280, backgroundColor: highlight ? "#142339" : "rgba(8, 17, 29, 0.82)", borderRadius: 30, borderWidth: 1, borderColor: highlight ? "rgba(103, 232, 249, 0.24)" : "rgba(103, 232, 249, 0.1)", padding: 22, gap: 12, shadowColor: highlight ? "#38bdf8" : "#000000", shadowOpacity: highlight ? 0.14 : 0.05, shadowRadius: highlight ? 24 : 10, shadowOffset: { width: 0, height: highlight ? 10 : 4 } }}>
+    <View style={{ flex: 1, width: "100%", minWidth: compact ? 0 : 280, backgroundColor: highlight ? "#142339" : "rgba(8, 17, 29, 0.82)", borderRadius: 30, borderWidth: 1, borderColor: highlight ? "rgba(103, 232, 249, 0.24)" : "rgba(103, 232, 249, 0.1)", padding: layout.isPhone ? 18 : 22, gap: 12, shadowColor: highlight ? "#38bdf8" : "#000000", shadowOpacity: highlight ? 0.14 : 0.05, shadowRadius: highlight ? 24 : 10, shadowOffset: { width: 0, height: highlight ? 10 : 4 } }}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={{ color: plan.accent, fontSize: 12, fontWeight: "800", letterSpacing: 1 }}>{plan.name.toUpperCase()}</Text>
-          <Text style={{ color: "#f8fbff", fontSize: 28, fontWeight: "800", marginTop: 8 }}>{plan.name}</Text>
+          <Text style={{ color: "#f8fbff", fontSize: layout.isPhone ? 24 : 28, lineHeight: layout.isPhone ? 30 : 34, fontWeight: "800", marginTop: 8 }}>{plan.name}</Text>
         </View>
         {highlight ? (
           <View style={{ backgroundColor: "rgba(103, 232, 249, 0.16)", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 }}>
@@ -568,7 +576,7 @@ function PlanCard({
         ) : null}
       </View>
 
-      <Text style={{ color: "#f8fbff", fontSize: 38, fontWeight: "800", marginTop: 2 }}>
+      <Text style={{ color: "#f8fbff", fontSize: layout.isPhone ? 34 : 38, lineHeight: layout.isPhone ? 38 : 42, fontWeight: "800", marginTop: 2 }}>
         {plan.prices[billingCycle].label}
         <Text style={{ color: "#9db2ca", fontSize: 15 }}>{plan.prices[billingCycle].cadenceLabel}</Text>
       </Text>
@@ -624,33 +632,37 @@ function PlanCard({
 }
 
 function FaqRow({ question, answer }: { question: string; answer: string }) {
+  const layout = useResponsiveLayout();
+
   return (
-    <GlassPanel padding={20} radius={24}>
-      <Text style={{ color: "#f8fbff", fontSize: 19, fontWeight: "700" }}>{question}</Text>
+    <GlassPanel padding={layout.isPhone ? 18 : 20} radius={24}>
+      <Text style={{ color: "#f8fbff", fontSize: layout.isPhone ? 18 : 19, lineHeight: layout.isPhone ? 24 : 26, fontWeight: "700" }}>{question}</Text>
       <Text style={{ color: "#9db2ca", fontSize: 15, lineHeight: 23, marginTop: 10 }}>{answer}</Text>
     </GlassPanel>
   );
 }
 
 function FinalCta({
-  isTablet,
+  isDesktop,
   isAuthenticated,
   onPrimaryAction,
 }: {
-  isTablet: boolean;
+  isDesktop: boolean;
   isAuthenticated: boolean;
   onPrimaryAction: () => void;
 }) {
+  const layout = useResponsiveLayout();
+
   return (
-    <View style={{ position: "relative", backgroundColor: "#0d1830", borderRadius: 38, borderWidth: 1, borderColor: "rgba(103, 232, 249, 0.2)", padding: 28, alignItems: "center", shadowColor: "#2563eb", shadowOpacity: 0.22, shadowRadius: 26, shadowOffset: { width: 0, height: 10 }, overflow: "hidden" }}>
-      <MarketingBackdrop tone="cta" style={{ height: 420 }} />
-      <View style={{ width: "100%", maxWidth: 760, backgroundColor: "rgba(8, 17, 29, 0.58)", borderRadius: 30, borderWidth: 1, borderColor: "rgba(103, 232, 249, 0.1)", padding: 22, alignItems: "center" }}>
+    <View style={{ position: "relative", backgroundColor: "#0d1830", borderRadius: 38, borderWidth: 1, borderColor: "rgba(103, 232, 249, 0.2)", padding: layout.isPhone ? 20 : 28, alignItems: "center", shadowColor: "#2563eb", shadowOpacity: 0.22, shadowRadius: 26, shadowOffset: { width: 0, height: 10 }, overflow: "hidden" }}>
+      <MarketingBackdrop tone="cta" style={{ height: layout.isPhone ? 360 : 420 }} />
+      <View style={{ width: "100%", maxWidth: 760, backgroundColor: "rgba(8, 17, 29, 0.58)", borderRadius: 30, borderWidth: 1, borderColor: "rgba(103, 232, 249, 0.1)", padding: layout.isPhone ? 18 : 22, alignItems: "center" }}>
         <Text style={{ color: "#67e8f9", fontSize: 12, fontWeight: "800", letterSpacing: 1.5 }}>READY TO RUN SMARTER</Text>
-        <Text style={{ color: "#f8fbff", fontSize: 34, fontWeight: "800", marginTop: 12, textAlign: "center" }}>Start your next week with more clarity</Text>
+        <Text style={{ color: "#f8fbff", fontSize: layout.isPhone ? 28 : 34, lineHeight: layout.isPhone ? 34 : 40, fontWeight: "800", marginTop: 12, textAlign: "center" }}>Start your next week with more clarity</Text>
         <Text style={{ color: "#9db2ca", fontSize: 15, lineHeight: 24, marginTop: 12, textAlign: "center", maxWidth: 560 }}>
           Create your account, see your first week, and train with a product that feels cleaner, sharper, and more useful from the first run.
         </Text>
-        <View style={{ flexDirection: isTablet ? "row" : "column", gap: 12, marginTop: 24 }}>
+        <View style={{ flexDirection: isDesktop ? "row" : "column", gap: 12, marginTop: 24 }}>
           <SiteButton label={isAuthenticated ? "Open My Plan" : "Create Free Account"} onPress={onPrimaryAction} />
           <SiteButton label="See Elite" variant="secondary" onPress={() => router.push(buildUpgradePath({ plan: "elite" }))} />
         </View>
@@ -676,14 +688,15 @@ function Footer({
   onSignup: () => void;
   onOpenApp: () => void;
 }) {
+  const layout = useResponsiveLayout();
   const openInstagram = () => {
     void Linking.openURL("https://instagram.com/NextStrideRunning");
   };
 
   return (
-    <View style={{ marginTop: 90, paddingHorizontal: padding, paddingTop: 34, paddingBottom: 18, borderTopWidth: 1, borderTopColor: "rgba(103, 232, 249, 0.1)" }}>
+    <View style={{ marginTop: layout.isPhone ? 72 : 90, paddingHorizontal: padding, paddingTop: layout.isPhone ? 28 : 34, paddingBottom: 18, borderTopWidth: 1, borderTopColor: "rgba(103, 232, 249, 0.1)" }}>
       <View style={{ flexDirection: isDesktop ? "row" : "column", justifyContent: "space-between", gap: 24 }}>
-        <View style={{ maxWidth: 360 }}>
+        <View style={{ width: "100%", maxWidth: isDesktop ? 360 : undefined }}>
           <Text style={{ color: "#f8fbff", fontSize: 24, fontWeight: "800" }}>NextStride</Text>
           <Text style={{ color: "#9db2ca", fontSize: 14, lineHeight: 22, marginTop: 10 }}>
             A solo-runner training app built around clear plans, better feedback, and smarter progression.

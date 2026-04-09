@@ -1,36 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
+import { useEngine } from "@/contexts/engine-context";
 import { usePremium } from "@/contexts/premium-context";
 import { useThemeColors } from "@/contexts/theme-context";
 import {
-  type ConditionExposure,
-  type ConditionRunType,
   evaluateConditionTraining,
 } from "@/lib/condition-training";
 import type { PlanDay } from "@/lib/training-plan";
 import { buildUpgradePath } from "@/lib/upgrade-route";
-import { readStoredJson, writeStoredJson } from "@/utils/local-storage";
 import { router } from "expo-router";
-
-const CONDITION_TRAINING_STORAGE_KEY = "nextstride.condition-training.last.v1";
-
-type StoredConditions = {
-  temperature: string;
-  humidity: string;
-  windSpeed: string;
-  runType: ConditionRunType;
-  exposure: ConditionExposure;
-  feelsLikeNote: string;
-};
-
-const DEFAULT_CONDITIONS: StoredConditions = {
-  temperature: "",
-  humidity: "",
-  windSpeed: "",
-  runType: "outside",
-  exposure: "shaded",
-  feelsLikeNote: "",
-};
 
 export function ConditionTrainingCard({
   workout,
@@ -39,41 +17,19 @@ export function ConditionTrainingCard({
 }) {
   const { colors } = useThemeColors();
   const { hasAccess, getFeatureGate } = usePremium();
+  const { engine, updateEngine } = useEngine();
   const unlocked = hasAccess("condition_training");
   const gate = getFeatureGate("condition_training");
-  const [conditions, setConditions] = useState<StoredConditions>(DEFAULT_CONDITIONS);
-  const [loadedConditions, setLoadedConditions] = useState<StoredConditions | null>(null);
-  const [storageReady, setStorageReady] = useState(false);
+  const conditions = engine.conditionPreferences;
 
-  useEffect(() => {
-    let mounted = true;
-
-    const hydrate = async () => {
-      const stored = await readStoredJson<StoredConditions>(CONDITION_TRAINING_STORAGE_KEY, DEFAULT_CONDITIONS);
-
-      if (!mounted) {
-        return;
-      }
-
-      setConditions(stored);
-      setLoadedConditions(stored);
-      setStorageReady(true);
-    };
-
-    void hydrate();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!storageReady) {
-      return;
-    }
-
-    void writeStoredJson(CONDITION_TRAINING_STORAGE_KEY, conditions);
-  }, [conditions, storageReady]);
+  const setConditions = (updates: Partial<typeof conditions>) => {
+    updateEngine({
+      conditionPreferences: {
+        ...conditions,
+        ...updates,
+      },
+    });
+  };
 
   const parsedTemperature = Number.parseFloat(conditions.temperature);
   const parsedHumidity = Number.parseFloat(conditions.humidity);
@@ -194,21 +150,21 @@ export function ConditionTrainingCard({
           colors={colors}
           label="Temp"
           value={conditions.temperature}
-          onChangeText={(value) => setConditions((current) => ({ ...current, temperature: value }))}
+          onChangeText={(value) => setConditions({ temperature: value })}
           placeholder="72"
         />
         <ConditionField
           colors={colors}
           label="Humidity"
           value={conditions.humidity}
-          onChangeText={(value) => setConditions((current) => ({ ...current, humidity: value }))}
+          onChangeText={(value) => setConditions({ humidity: value })}
           placeholder="60"
         />
         <ConditionField
           colors={colors}
           label="Wind"
           value={conditions.windSpeed}
-          onChangeText={(value) => setConditions((current) => ({ ...current, windSpeed: value }))}
+          onChangeText={(value) => setConditions({ windSpeed: value })}
           placeholder="8"
         />
       </View>
@@ -222,7 +178,7 @@ export function ConditionTrainingCard({
             { label: "Treadmill", value: "treadmill" as const },
           ]}
           selectedValue={conditions.runType}
-          onSelect={(value) => setConditions((current) => ({ ...current, runType: value }))}
+          onSelect={(value) => setConditions({ runType: value })}
         />
 
         <ToggleRow
@@ -234,13 +190,13 @@ export function ConditionTrainingCard({
             { label: "Cloudy", value: "cloudy" as const },
           ]}
           selectedValue={conditions.exposure}
-          onSelect={(value) => setConditions((current) => ({ ...current, exposure: value }))}
+          onSelect={(value) => setConditions({ exposure: value })}
         />
       </View>
 
       <TextInput
         value={conditions.feelsLikeNote}
-        onChangeText={(value) => setConditions((current) => ({ ...current, feelsLikeNote: value }))}
+        onChangeText={(value) => setConditions({ feelsLikeNote: value })}
         placeholder="Optional note: sticky, dry heat, exposed route..."
         placeholderTextColor={colors.subtext}
         style={{
@@ -254,23 +210,6 @@ export function ConditionTrainingCard({
           fontSize: 14,
         }}
       />
-
-      {loadedConditions ? (
-        <Pressable
-          onPress={() => setConditions(loadedConditions)}
-          style={{
-            alignSelf: "flex-start",
-            borderRadius: 999,
-            borderWidth: 1,
-            borderColor: colors.border,
-            backgroundColor: "rgba(8, 17, 29, 0.6)",
-            paddingHorizontal: 12,
-            paddingVertical: 8,
-          }}
-        >
-          <Text style={{ color: colors.text, fontSize: 12, fontWeight: "700" }}>Use last conditions</Text>
-        </Pressable>
-      ) : null}
 
       {result ? (
         <View

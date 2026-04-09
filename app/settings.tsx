@@ -230,7 +230,7 @@ export default function Settings() {
               lineHeight: 22,
             }}
           >
-            {profile.name || "Runner"}, your profile, training preferences, and reminders are all local and ready to use.
+            {profile.name || "Runner"}, your profile, training preferences, and reminders stay tied to your account and sync back when you sign in again.
           </Text>
 
           <View style={{ flexDirection: layout.isPhone ? "column" : "row", gap: 10, marginTop: 18 }}>

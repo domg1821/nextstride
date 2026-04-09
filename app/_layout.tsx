@@ -7,8 +7,8 @@ import { WorkoutProvider } from "@/contexts/workout-context";
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <ProfileProvider>
+    <ProfileProvider>
+      <ThemeProvider>
         <PremiumProvider>
           <WorkoutProvider>
             <EngineProvider>
@@ -16,7 +16,7 @@ export default function RootLayout() {
             </EngineProvider>
           </WorkoutProvider>
         </PremiumProvider>
-      </ProfileProvider>
-    </ThemeProvider>
+      </ThemeProvider>
+    </ProfileProvider>
   );
 }

@@ -156,7 +156,7 @@ export default function Notifications() {
         </View>
       </InfoCard>
 
-      <InfoCard title="Reminder settings" subtitle="These local toggles still control the existing reminder preferences in the app.">
+      <InfoCard title="Reminder settings" subtitle="These reminder preferences are saved to your account and restore on your next sign-in.">
         <NotificationRow
           label="Workout reminders"
           description="General reminders to stay on top of planned sessions."

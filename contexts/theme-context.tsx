@@ -1,6 +1,7 @@
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useProfile } from "@/contexts/profile-context";
 
 export type ThemeType = "light" | "dark";
 
@@ -59,7 +60,16 @@ export const ThemeProvider = ({
 }: {
   children: React.ReactNode;
 }) => {
+  const { authReady, isAuthenticated, themePreference, updateThemePreference } = useProfile();
   const [mode, setMode] = useState<ThemeType>("dark");
+
+  useEffect(() => {
+    if (!authReady) {
+      return;
+    }
+
+    setMode(themePreference);
+  }, [authReady, themePreference]);
 
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(themes[mode].background).catch(() => {
@@ -72,12 +82,26 @@ export const ThemeProvider = ({
       mode,
       isDark: mode === "dark",
       colors: themes[mode],
-      setMode,
+      setMode: (nextMode: ThemeType) => {
+        setMode(nextMode);
+
+        if (authReady && isAuthenticated) {
+          updateThemePreference(nextMode);
+        }
+      },
       toggleTheme: () => {
-        setMode((prev) => (prev === "dark" ? "light" : "dark"));
+        setMode((prev) => {
+          const nextMode = prev === "dark" ? "light" : "dark";
+
+          if (authReady && isAuthenticated) {
+            updateThemePreference(nextMode);
+          }
+
+          return nextMode;
+        });
       },
     }),
-    [mode]
+    [authReady, isAuthenticated, mode, updateThemePreference]
   );
 
   return (

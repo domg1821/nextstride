@@ -24,16 +24,20 @@ export function SiteButton({
   onPress: () => void;
   compact?: boolean;
 }) {
+  const layout = useResponsiveLayout();
   const isPrimary = variant === "primary";
   const isGhost = variant === "ghost";
+  const fullWidth = !layout.isDesktop && !compact;
 
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => ({
+        alignSelf: fullWidth ? "stretch" : "flex-start",
         minWidth: compact ? 0 : 170,
+        width: fullWidth ? "100%" : undefined,
         paddingHorizontal: compact ? 16 : 22,
-        paddingVertical: compact ? 11 : 15,
+        paddingVertical: compact ? 11 : layout.isPhone ? 14 : 15,
         borderRadius: 18,
         alignItems: "center",
         justifyContent: "center",
@@ -60,8 +64,10 @@ export function SiteButton({
         style={{
           color: isPrimary ? "#f8fbff" : "#d9e9ff",
           fontSize: compact ? 13 : 15,
+          lineHeight: compact ? 18 : 20,
           fontWeight: "700",
           letterSpacing: 0.2,
+          textAlign: "center",
         }}
       >
         {label}
@@ -79,14 +85,15 @@ export function SiteSection({
   children,
 }: SiteSectionProps) {
   const layout = useResponsiveLayout();
-  const sectionTopMargin = layout.isDesktop ? 124 : layout.isPhone ? 84 : 104;
-  const titleSize = centered ? (layout.isPhone ? 34 : 44) : layout.isPhone ? 32 : 40;
-  const titleLineHeight = centered ? (layout.isPhone ? 40 : 50) : layout.isPhone ? 38 : 46;
-  const contentTopMargin = layout.isPhone ? 26 : 34;
+  const sectionTopMargin = layout.isDesktop ? 124 : layout.width >= 768 ? 94 : layout.isPhone ? 84 : 104;
+  const titleSize = centered ? (layout.isDesktop ? 44 : layout.width >= 768 ? 40 : layout.isPhone ? 34 : 38) : layout.isDesktop ? 40 : layout.width >= 768 ? 36 : layout.isPhone ? 32 : 34;
+  const titleLineHeight = centered ? (layout.isDesktop ? 50 : layout.width >= 768 ? 46 : layout.isPhone ? 40 : 44) : layout.isDesktop ? 46 : layout.width >= 768 ? 42 : layout.isPhone ? 38 : 40;
+  const contentTopMargin = layout.isDesktop ? 34 : layout.width >= 768 ? 30 : 26;
+  const titleMaxWidth = centered ? 760 : layout.isDesktop ? 700 : layout.width >= 768 ? 640 : "100%";
 
   return (
     <View style={{ paddingHorizontal: padding, marginTop: sectionTopMargin }}>
-      <View style={{ alignItems: centered ? "center" : "flex-start" }}>
+      <View style={{ alignItems: centered ? "center" : "flex-start", width: "100%", minWidth: 0 }}>
         {eyebrow ? (
           <Text
             style={{
@@ -108,7 +115,7 @@ export function SiteSection({
             fontWeight: "800",
             lineHeight: titleLineHeight,
             marginTop: eyebrow ? 14 : 0,
-            maxWidth: 760,
+            maxWidth: titleMaxWidth,
             textAlign: centered ? "center" : "left",
           }}
         >
@@ -122,7 +129,7 @@ export function SiteSection({
               fontSize: layout.isPhone ? 15 : 16,
               lineHeight: layout.isPhone ? 24 : 26,
               marginTop: layout.isPhone ? 12 : 14,
-              maxWidth: 760,
+              maxWidth: layout.isDesktop ? 760 : layout.width >= 768 ? 680 : "100%",
               textAlign: centered ? "center" : "left",
             }}
           >

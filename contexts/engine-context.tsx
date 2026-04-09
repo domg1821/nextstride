@@ -13,6 +13,14 @@ export type RecoveryLevel = "good" | "moderate" | "strained";
 export type FatigueLevel = "fresh" | "steady" | "heavy";
 export type MealSlot = "breakfast" | "lunch" | "dinner" | "snacks";
 export type FoodCategory = "fruit" | "carb" | "protein" | "fat" | "fuel" | "meal" | "custom";
+export type ConditionTrainingPreferences = {
+  temperature: string;
+  humidity: string;
+  windSpeed: string;
+  runType: "outside" | "treadmill";
+  exposure: "sunny" | "shaded" | "cloudy";
+  feelsLikeNote: string;
+};
 
 export type ReusableFood = {
   id: string;
@@ -48,6 +56,7 @@ export type EngineRecord = {
   foodLogsByDate: Record<string, FoodLogEntry[]>;
   customFoods: ReusableFood[];
   recentFoods: ReusableFood[];
+  conditionPreferences: ConditionTrainingPreferences;
   recoveryLevel: RecoveryLevel;
   updatedAt: string | null;
 };
@@ -83,6 +92,14 @@ const DEFAULT_ENGINE: EngineRecord = {
   foodLogsByDate: {},
   customFoods: [],
   recentFoods: [],
+  conditionPreferences: {
+    temperature: "",
+    humidity: "",
+    windSpeed: "",
+    runType: "outside",
+    exposure: "shaded",
+    feelsLikeNote: "",
+  },
   recoveryLevel: "moderate",
   updatedAt: null,
 };
@@ -94,6 +111,10 @@ function normalizeEngineRecord(record?: Partial<EngineRecord>): EngineRecord {
     foodLogsByDate: record?.foodLogsByDate ?? {},
     customFoods: record?.customFoods ?? [],
     recentFoods: record?.recentFoods ?? [],
+    conditionPreferences: {
+      ...DEFAULT_ENGINE.conditionPreferences,
+      ...(record?.conditionPreferences ?? {}),
+    },
   };
 }
 

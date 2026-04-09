@@ -121,6 +121,12 @@ export default function Login() {
           }}
         />
 
+        <Pressable onPress={() => router.push("/forgot-password" as never)} style={{ marginTop: 12, alignSelf: "flex-end" }}>
+          <Text style={{ color: "#93c5fd", fontSize: 14, fontWeight: "700" }}>
+            Forgot Password?
+          </Text>
+        </Pressable>
+
         {!!error ? (
           <Text style={{ color: "#f87171", marginTop: 14, fontSize: 14, fontWeight: "600" }}>
             {error}

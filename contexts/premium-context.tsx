@@ -119,8 +119,8 @@ function mapPurchaseResultToRecord(
 }
 
 export function PremiumProvider({ children }: { children: React.ReactNode }) {
-  const { account, authReady, isAuthenticated } = useProfile();
-  const accountKey = account?.email ?? "guest";
+  const { account, authReady, isAuthenticated, userId } = useProfile();
+  const accountKey = userId ?? account?.email ?? "guest";
   const [recordsByKey, setRecordsByKey] = useState<Record<string, PremiumRecord>>({});
   const [purchaseAdapter, setPurchaseAdapterState] = useState<PurchaseAdapter>(stripePurchaseAdapter);
   const refreshInFlightRef = useRef<Promise<PurchaseResult> | null>(null);

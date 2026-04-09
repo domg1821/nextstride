@@ -7,6 +7,8 @@ import { getSurfaceCardStyle, InfoCard, PageHeader, PrimaryButton, StatCard } fr
 import { AnimatedTabScene, ScreenScroll, SectionTitle } from "@/components/ui-shell";
 import { useProfile } from "@/contexts/profile-context";
 import { useThemeColors } from "@/contexts/theme-context";
+import { supabase } from "@/lib/supabase";
+import { uploadProfileImage } from "@/lib/profile-image";
 import { useWorkouts } from "@/contexts/workout-context";
 import { useResponsiveLayout } from "@/lib/responsive";
 import { ThemeTokens } from "@/constants/theme";
@@ -20,8 +22,13 @@ export default function Profile() {
   const spinValue = useRef(new Animated.Value(0)).current;
   const gearScale = useRef(new Animated.Value(1)).current;
   const gearGlow = useRef(new Animated.Value(0)).current;
+  const imageUploadInFlight = useRef(false);
 
   const pickImage = async () => {
+    if (imageUploadInFlight.current) {
+      return;
+    }
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
       allowsEditing: true,
@@ -31,10 +38,27 @@ export default function Profile() {
 
     if (!result.canceled) {
       const uri = result.assets[0].uri;
-      setProfile({
-        ...profile,
-        image: uri,
-      });
+      imageUploadInFlight.current = true;
+
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user?.id) {
+          return;
+        }
+
+        const uploadedUrl = await uploadProfileImage(user.id, uri);
+        setProfile({
+          ...profile,
+          image: uploadedUrl,
+        });
+      } catch (error) {
+        console.warn("Unable to upload profile image:", error);
+      } finally {
+        imageUploadInFlight.current = false;
+      }
     }
   };
 

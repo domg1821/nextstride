@@ -150,7 +150,7 @@ export function ScreenScroll({
   const layout = useResponsiveLayout();
   const insets = useSafeAreaInsets();
   const topPadding = Math.max(layout.isDesktop ? 24 : 20, insets.top + 12);
-  const bottomPadding = 104 + insets.bottom;
+  const bottomPadding = (layout.isDesktop ? 112 : layout.isPhone ? 136 : 124) + insets.bottom;
 
   return (
     <ScrollView
