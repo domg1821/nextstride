@@ -218,22 +218,22 @@ function AnimatedTabBar({
   const pressProgress = useRef<Record<string, Animated.Value>>(
     Object.fromEntries(tabs.map((tab) => [tab.key, new Animated.Value(tab.key === activeTab ? 1 : 0)]))
   ).current;
+  const [tabRowWidth, setTabRowWidth] = useState(0);
   const compact = width <= 390;
   const veryCompact = width <= 320;
   const horizontalPadding = veryCompact ? 6 : compact ? 8 : 10;
   const innerPadding = compact ? 4 : 6;
-  const innerGap = compact ? 4 : 6;
+  const slotInset = compact ? 2 : 3;
   const tabHeight = compact ? 56 : 60;
   const iconSize = compact ? 18 : 20;
   const labelSize = compact ? 11 : 12;
   const indicatorRadius = compact ? 20 : 22;
 
-  const tabWidth = useMemo(() => {
-    const availableWidth = width - horizontalPadding * 2 - innerPadding * 2;
-    const totalGap = innerGap * (tabs.length - 1);
-    return (availableWidth - totalGap) / tabs.length;
-  }, [horizontalPadding, innerGap, innerPadding, tabs.length, width]);
-  const indicatorTranslateX = Animated.multiply(visibleTabPosition, tabWidth + innerGap);
+  const tabSlotWidth = useMemo(
+    () => (tabRowWidth > 0 ? tabRowWidth / tabs.length : 0),
+    [tabRowWidth, tabs.length]
+  );
+  const indicatorTranslateX = Animated.multiply(visibleTabPosition, tabSlotWidth);
 
   useEffect(() => {
     tabs.forEach((tab) => {
@@ -273,129 +273,155 @@ function AnimatedTabBar({
         }}
       >
         <View
-        style={{
+          onLayout={(event) => {
+            const nextWidth = event.nativeEvent.layout.width;
+
+            if (nextWidth > 0 && Math.abs(nextWidth - tabRowWidth) > 0.5) {
+              setTabRowWidth(nextWidth);
+            }
+          }}
+          style={{
             position: "relative",
             flexDirection: "row",
-            gap: innerGap,
+            width: "100%",
+            alignItems: "stretch",
             overflow: "hidden",
           }}
         >
-          <Animated.View
-            pointerEvents="none"
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: tabWidth,
-              height: tabHeight,
-              borderRadius: indicatorRadius,
-              transform: [{ translateX: indicatorTranslateX }],
-              backgroundColor: colors.primarySoft,
-              borderWidth: 1,
-              borderColor: "rgba(110, 180, 255, 0.28)",
-              shadowColor: colors.primary,
-              shadowOpacity: 0.18,
-              shadowRadius: 12,
-              shadowOffset: { width: 0, height: 6 },
-            }}
-          >
-            <View
+          {tabSlotWidth > 0 ? (
+            <Animated.View
+              pointerEvents="none"
               style={{
                 position: "absolute",
-                left: 14,
-                right: 14,
                 top: 0,
-                height: 2,
-                borderRadius: 999,
-                backgroundColor: "rgba(110, 180, 255, 0.72)",
+                left: 0,
+                width: tabSlotWidth,
+                height: tabHeight,
+                transform: [{ translateX: indicatorTranslateX }],
               }}
-            />
-          </Animated.View>
+            >
+              <View
+                style={{
+                  flex: 1,
+                  marginHorizontal: slotInset,
+                  borderRadius: indicatorRadius,
+                  backgroundColor: colors.primarySoft,
+                  borderWidth: 1,
+                  borderColor: "rgba(110, 180, 255, 0.28)",
+                  shadowColor: colors.primary,
+                  shadowOpacity: 0.18,
+                  shadowRadius: 12,
+                  shadowOffset: { width: 0, height: 6 },
+                }}
+              >
+                <View
+                  style={{
+                    position: "absolute",
+                    left: 14,
+                    right: 14,
+                    top: 0,
+                    height: 2,
+                    borderRadius: 999,
+                    backgroundColor: "rgba(110, 180, 255, 0.72)",
+                  }}
+                />
+              </View>
+            </Animated.View>
+          ) : null}
 
           {tabs.map((tab) => {
             const active = tab.key === activeTab;
             const tabActiveProgress = pressProgress[tab.key];
 
             return (
-              <Pressable
+              <View
                 key={tab.key}
-                accessibilityRole="tab"
-                accessibilityLabel={`${tab.title} tab`}
-                accessibilityHint={`Open the ${tab.title} screen`}
-              accessibilityState={{ selected: active }}
-              onPress={() => {
-                if (!active) {
-                  router.replace(tab.href as never);
-                }
-              }}
-                style={({ pressed }) => ({
-                  width: tabWidth,
+                style={{
+                  flex: 1,
                   minWidth: 0,
-                  maxWidth: tabWidth,
-                  height: tabHeight,
-                  borderRadius: indicatorRadius,
-                  minHeight: tabHeight,
-                  alignItems: "center",
                   justifyContent: "center",
-                  gap: compact ? 2 : 3,
-                  opacity: pressed ? 0.96 : 1,
-                  transform: [{ scale: pressed ? 0.976 : 1 }, { translateY: pressed ? 1.2 : 0 }],
-                  paddingHorizontal: compact ? 2 : 4,
-                  backgroundColor: pressed ? "rgba(148, 163, 184, 0.07)" : "transparent",
-                })}
+                }}
               >
-                <Animated.View
-                  style={{
+                <Pressable
+                  accessibilityRole="tab"
+                  accessibilityLabel={`${tab.title} tab`}
+                  accessibilityHint={`Open the ${tab.title} screen`}
+                  accessibilityState={{ selected: active }}
+                  onPress={() => {
+                    if (!active) {
+                      router.replace(tab.href as never);
+                    }
+                  }}
+                  style={({ pressed }) => ({
+                    width: "100%",
+                    maxWidth: "100%",
                     minWidth: 0,
+                    height: tabHeight,
+                    minHeight: tabHeight,
+                    borderRadius: indicatorRadius,
                     alignItems: "center",
                     justifyContent: "center",
                     gap: compact ? 2 : 3,
-                    transform: [
-                      {
-                        translateY: tabActiveProgress.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [0.5, -0.5],
-                        }),
-                      },
-                    ],
-                    opacity: tabActiveProgress.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.84, 1],
-                    }),
-                  }}
+                    opacity: pressed ? 0.96 : 1,
+                    transform: [{ scale: pressed ? 0.976 : 1 }, { translateY: pressed ? 1.2 : 0 }],
+                    paddingHorizontal: slotInset,
+                    backgroundColor: pressed ? "rgba(148, 163, 184, 0.07)" : "transparent",
+                  })}
                 >
                   <Animated.View
                     style={{
+                      minWidth: 0,
+                      width: "100%",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: compact ? 2 : 3,
                       transform: [
                         {
-                          scale: tabActiveProgress.interpolate({
+                          translateY: tabActiveProgress.interpolate({
                             inputRange: [0, 1],
-                            outputRange: [1, compact ? 1.02 : 1.04],
+                            outputRange: [0.5, -0.5],
                           }),
                         },
                       ],
-                    }}
-                  >
-                    <Ionicons name={tab.icon} size={iconSize} color={active ? colors.text : colors.subtext} />
-                  </Animated.View>
-                  <Animated.Text
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.9}
-                    style={{
-                      color: active ? colors.text : colors.subtext,
-                      fontSize: labelSize,
-                      fontWeight: active ? "800" : "700",
-                      letterSpacing: tabActiveProgress.interpolate({
+                      opacity: tabActiveProgress.interpolate({
                         inputRange: [0, 1],
-                        outputRange: [0, 0.12],
-                      }) as unknown as number,
+                        outputRange: [0.84, 1],
+                      }),
                     }}
                   >
-                    {tab.title}
-                  </Animated.Text>
-                </Animated.View>
-              </Pressable>
+                    <Animated.View
+                      style={{
+                        transform: [
+                          {
+                            scale: tabActiveProgress.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [1, compact ? 1.02 : 1.04],
+                            }),
+                          },
+                        ],
+                      }}
+                    >
+                      <Ionicons name={tab.icon} size={iconSize} color={active ? colors.text : colors.subtext} />
+                    </Animated.View>
+                    <Animated.Text
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.9}
+                      style={{
+                        color: active ? colors.text : colors.subtext,
+                        fontSize: labelSize,
+                        fontWeight: active ? "800" : "700",
+                        letterSpacing: tabActiveProgress.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0, 0.12],
+                        }) as unknown as number,
+                      }}
+                    >
+                      {tab.title}
+                    </Animated.Text>
+                  </Animated.View>
+                </Pressable>
+              </View>
             );
           })}
         </View>
