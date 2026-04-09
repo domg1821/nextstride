@@ -36,9 +36,6 @@ const TAB_CONFIGS: TabConfig[] = [
 
 const VISIBLE_TAB_KEYS: TabKey[] = ["index", "explore", "engine", "guide", "progress"];
 const VISIBLE_TAB_CONFIGS = TAB_CONFIGS.filter((tab) => VISIBLE_TAB_KEYS.includes(tab.key));
-const TAB_BAR_HORIZONTAL_PADDING = 10;
-const TAB_BAR_INNER_GAP = 6;
-const TAB_BAR_HEIGHT = 60;
 const TAB_TRANSITION_SPRING = {
   duration: MotionTokens.tab,
   easing: MotionTokens.easeOut,
@@ -221,13 +218,22 @@ function AnimatedTabBar({
   const pressProgress = useRef<Record<string, Animated.Value>>(
     Object.fromEntries(tabs.map((tab) => [tab.key, new Animated.Value(tab.key === activeTab ? 1 : 0)]))
   ).current;
+  const compact = width <= 390;
+  const veryCompact = width <= 320;
+  const horizontalPadding = veryCompact ? 6 : compact ? 8 : 10;
+  const innerPadding = compact ? 4 : 6;
+  const innerGap = compact ? 4 : 6;
+  const tabHeight = compact ? 56 : 60;
+  const iconSize = compact ? 18 : 20;
+  const labelSize = compact ? 11 : 12;
+  const indicatorRadius = compact ? 20 : 22;
 
   const tabWidth = useMemo(() => {
-    const availableWidth = width - TAB_BAR_HORIZONTAL_PADDING * 2;
-    const totalGap = TAB_BAR_INNER_GAP * (tabs.length - 1);
+    const availableWidth = width - horizontalPadding * 2 - innerPadding * 2;
+    const totalGap = innerGap * (tabs.length - 1);
     return (availableWidth - totalGap) / tabs.length;
-  }, [tabs.length, width]);
-  const indicatorTranslateX = Animated.multiply(visibleTabPosition, tabWidth + TAB_BAR_INNER_GAP);
+  }, [horizontalPadding, innerGap, innerPadding, tabs.length, width]);
+  const indicatorTranslateX = Animated.multiply(visibleTabPosition, tabWidth + innerGap);
 
   useEffect(() => {
     tabs.forEach((tab) => {
@@ -244,7 +250,7 @@ function AnimatedTabBar({
   return (
     <View
       style={{
-        paddingHorizontal: TAB_BAR_HORIZONTAL_PADDING,
+        paddingHorizontal: horizontalPadding,
         paddingTop: 8,
         paddingBottom: 14,
         backgroundColor: colors.background,
@@ -258,7 +264,8 @@ function AnimatedTabBar({
           borderRadius: ThemeTokens.radii.xl,
           borderWidth: 1,
           borderColor: colors.border,
-          padding: 6,
+          padding: innerPadding,
+          overflow: "hidden",
           shadowColor: "#020817",
           shadowOpacity: isDark ? 0.18 : 0.08,
           shadowRadius: 18,
@@ -266,10 +273,11 @@ function AnimatedTabBar({
         }}
       >
         <View
-          style={{
+        style={{
             position: "relative",
             flexDirection: "row",
-            gap: TAB_BAR_INNER_GAP,
+            gap: innerGap,
+            overflow: "hidden",
           }}
         >
           <Animated.View
@@ -279,8 +287,8 @@ function AnimatedTabBar({
               top: 0,
               left: 0,
               width: tabWidth,
-              height: TAB_BAR_HEIGHT,
-              borderRadius: 22,
+              height: tabHeight,
+              borderRadius: indicatorRadius,
               transform: [{ translateX: indicatorTranslateX }],
               backgroundColor: colors.primarySoft,
               borderWidth: 1,
@@ -314,36 +322,34 @@ function AnimatedTabBar({
                 accessibilityRole="tab"
                 accessibilityLabel={`${tab.title} tab`}
                 accessibilityHint={`Open the ${tab.title} screen`}
-                accessibilityState={{ selected: active }}
-                onPress={() => {
-                  if (!active) {
-                    router.replace(tab.href as never);
-                  }
-                }}
-                style={({ pressed, focused }) => ({
+              accessibilityState={{ selected: active }}
+              onPress={() => {
+                if (!active) {
+                  router.replace(tab.href as never);
+                }
+              }}
+                style={({ pressed }) => ({
                   width: tabWidth,
-                  height: TAB_BAR_HEIGHT,
-                  borderRadius: 22,
-                  minHeight: TAB_BAR_HEIGHT,
+                  minWidth: 0,
+                  maxWidth: tabWidth,
+                  height: tabHeight,
+                  borderRadius: indicatorRadius,
+                  minHeight: tabHeight,
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: 3,
+                  gap: compact ? 2 : 3,
                   opacity: pressed ? 0.96 : 1,
                   transform: [{ scale: pressed ? 0.976 : 1 }, { translateY: pressed ? 1.2 : 0 }],
-                  backgroundColor: focused
-                    ? "rgba(110, 180, 255, 0.10)"
-                    : pressed
-                      ? "rgba(148, 163, 184, 0.07)"
-                      : "transparent",
-                  borderWidth: focused ? 2 : 0,
-                  borderColor: focused ? "#d7efff" : "transparent",
+                  paddingHorizontal: compact ? 2 : 4,
+                  backgroundColor: pressed ? "rgba(148, 163, 184, 0.07)" : "transparent",
                 })}
               >
                 <Animated.View
                   style={{
+                    minWidth: 0,
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: 3,
+                    gap: compact ? 2 : 3,
                     transform: [
                       {
                         translateY: tabActiveProgress.interpolate({
@@ -364,18 +370,21 @@ function AnimatedTabBar({
                         {
                           scale: tabActiveProgress.interpolate({
                             inputRange: [0, 1],
-                            outputRange: [1, 1.04],
+                            outputRange: [1, compact ? 1.02 : 1.04],
                           }),
                         },
                       ],
                     }}
                   >
-                    <Ionicons name={tab.icon} size={20} color={active ? colors.text : colors.subtext} />
+                    <Ionicons name={tab.icon} size={iconSize} color={active ? colors.text : colors.subtext} />
                   </Animated.View>
                   <Animated.Text
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.9}
                     style={{
                       color: active ? colors.text : colors.subtext,
-                      fontSize: 12,
+                      fontSize: labelSize,
                       fontWeight: active ? "800" : "700",
                       letterSpacing: tabActiveProgress.interpolate({
                         inputRange: [0, 1],
