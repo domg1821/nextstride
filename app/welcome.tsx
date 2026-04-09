@@ -2,6 +2,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { useRef, useState } from "react";
 import { LayoutChangeEvent, Linking, Pressable, ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FooterLink, FooterSocialLink, GlassPanel, MarketingIcon, SectionChip, SiteButton, SiteSection } from "@/components/marketing-site";
 import { MarketingBackdrop, RunningSurfaceAccent } from "@/components/running-visuals";
 import { useProfile } from "@/contexts/profile-context";
@@ -69,13 +70,16 @@ const FAQ_ITEMS = [
 export default function Welcome() {
   const { isAuthenticated, profile, appHomeRoute } = useProfile();
   const layout = useResponsiveLayout();
+  const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
   const sectionOffsets = useRef<Partial<Record<SectionKey, number>>>({});
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("yearly");
   const isDesktop = layout.isDesktop;
   const isTablet = layout.isTablet;
   const padding = isDesktop ? 72 : isTablet ? 34 : layout.pagePadding;
-  const heroTitleSize = isDesktop ? 74 : isTablet ? 56 : layout.isPhone ? 40 : 46;
+  const heroTitleSize = isDesktop ? 74 : isTablet ? 56 : layout.isPhone ? 36 : 42;
+  const heroTopPadding = isDesktop ? 34 : isTablet ? 24 : Math.max(32, insets.top + 16);
+  const pageBottomPadding = Math.max(44, insets.bottom + (layout.isPhone ? 88 : 64));
   const openAppRoute = isAuthenticated && !profile.onboardingComplete ? "/onboarding" : appHomeRoute;
 
   const setSectionOffset = (key: SectionKey) => (event: LayoutChangeEvent) => {
@@ -91,8 +95,8 @@ export default function Welcome() {
   };
 
   return (
-    <ScrollView ref={scrollRef} style={{ flex: 1, backgroundColor: "#08111d" }} contentContainerStyle={{ paddingBottom: 44 }} showsVerticalScrollIndicator={false}>
-      <View style={{ position: "relative", paddingHorizontal: padding, paddingTop: isDesktop ? 34 : 22, paddingBottom: 36 }} onLayout={setSectionOffset("hero")}>
+    <ScrollView ref={scrollRef} style={{ flex: 1, backgroundColor: "#08111d" }} contentContainerStyle={{ paddingBottom: pageBottomPadding }} showsVerticalScrollIndicator={false}>
+      <View style={{ position: "relative", paddingHorizontal: padding, paddingTop: heroTopPadding, paddingBottom: layout.isPhone ? 26 : 36 }} onLayout={setSectionOffset("hero")}>
         <MarketingBackdrop tone="hero" style={{ height: isDesktop ? 720 : 640 }} />
         <TopNavigation
           isTablet={isTablet}
@@ -103,35 +107,35 @@ export default function Welcome() {
           onOpenApp={() => router.push(openAppRoute)}
         />
 
-        <View style={{ marginTop: isDesktop ? 56 : 32, flexDirection: isDesktop ? "row" : "column", alignItems: "center", gap: isDesktop ? 68 : 34 }}>
-          <View style={{ flex: 1, maxWidth: 630 }}>
+        <View style={{ marginTop: isDesktop ? 56 : layout.isPhone ? 24 : 32, flexDirection: isDesktop ? "row" : "column", alignItems: "center", gap: isDesktop ? 68 : layout.isPhone ? 24 : 34 }}>
+          <View style={{ flex: isDesktop ? 1 : undefined, width: "100%", minWidth: 0, maxWidth: isDesktop ? 630 : undefined }}>
             <SectionChip label="Built for solo runners" />
-            <Text style={{ color: "#f8fbff", fontSize: heroTitleSize, fontWeight: "800", lineHeight: heroTitleSize + 2, marginTop: 20 }}>
+            <Text style={{ color: "#f8fbff", fontSize: heroTitleSize, fontWeight: "800", lineHeight: heroTitleSize + (layout.isPhone ? 4 : 2), marginTop: layout.isPhone ? 16 : 20 }}>
               Your running week, finally clear at a glance.
             </Text>
-            <Text style={{ color: "#9db2ca", fontSize: 19, lineHeight: 31, marginTop: 18, maxWidth: 560 }}>
+            <Text style={{ color: "#9db2ca", fontSize: layout.isPhone ? 17 : 19, lineHeight: layout.isPhone ? 28 : 31, marginTop: layout.isPhone ? 14 : 18, maxWidth: 560 }}>
               NextStride helps solo runners train with more structure, clearer guidance, smarter progression, and a more premium way to improve.
             </Text>
 
-            <View style={{ flexDirection: isTablet ? "row" : "column", gap: 12, marginTop: 30 }}>
+            <View style={{ flexDirection: isTablet ? "row" : "column", gap: 12, marginTop: layout.isPhone ? 24 : 30 }}>
               <SiteButton label={isAuthenticated ? "Open My Plan" : "Start Free"} onPress={() => router.push(isAuthenticated ? openAppRoute : "/signup")} />
               <SiteButton label="See The Product" variant="secondary" onPress={() => scrollToSection("week")} />
             </View>
 
-            <View style={{ flexDirection: isTablet ? "row" : "column", gap: 12, marginTop: 28 }}>
+            <View style={{ flexDirection: isTablet ? "row" : "column", gap: 12, marginTop: layout.isPhone ? 22 : 28 }}>
               <MetricCard value="Today" label="See the workout, pace, effort, and purpose fast" />
               <MetricCard value="This Week" label="Understand how the whole week fits together" />
               <MetricCard value="Next Step" label="Know what is improving and what comes next" />
             </View>
           </View>
 
-          <View style={{ flex: 1, width: "100%", maxWidth: 540 }}>
+          <View style={{ flex: isDesktop ? 1 : undefined, width: "100%", minWidth: 0, maxWidth: isDesktop ? 540 : undefined }}>
             <HeroPreview />
           </View>
         </View>
       </View>
 
-      <View onLayout={setSectionOffset("value")} style={{ paddingHorizontal: padding, marginTop: 18 }}>
+      <View onLayout={setSectionOffset("value")} style={{ paddingHorizontal: padding, marginTop: layout.isPhone ? 10 : 18 }}>
         <QuickValueStrip isTablet={isTablet} />
       </View>
 
@@ -258,6 +262,8 @@ function TopNavigation({
   onSignup: () => void;
   onOpenApp: () => void;
 }) {
+  const layout = useResponsiveLayout();
+
   return (
     <View style={{ flexDirection: isTablet ? "row" : "column", justifyContent: "space-between", alignItems: isTablet ? "center" : "flex-start", gap: 14 }}>
       <View>
@@ -273,7 +279,7 @@ function TopNavigation({
           <NavLink label="FAQ" onPress={() => onJump("faq")} />
         </View>
 
-        <View style={{ flexDirection: "row", gap: 10 }}>
+        <View style={{ flexDirection: layout.isPhone ? "column" : "row", width: layout.isPhone ? "100%" : undefined, gap: 10 }}>
           {isAuthenticated ? <SiteButton label="Open App" variant="secondary" compact={true} onPress={onOpenApp} /> : <SiteButton label="Log In" variant="secondary" compact={true} onPress={onLogin} />}
           <SiteButton label={isAuthenticated ? "See Pricing" : "Start Free"} compact={true} onPress={isAuthenticated ? () => onJump("premium") : onSignup} />
         </View>
@@ -291,10 +297,12 @@ function NavLink({ label, onPress }: { label: string; onPress: () => void }) {
 }
 
 function MetricCard({ value, label }: { value: string; label: string }) {
+  const layout = useResponsiveLayout();
+
   return (
-    <GlassPanel padding={16} radius={22}>
-      <Text style={{ color: "#f8fbff", fontSize: 20, fontWeight: "800" }}>{value}</Text>
-      <Text style={{ color: "#90a7c3", fontSize: 13, marginTop: 6, lineHeight: 19 }}>{label}</Text>
+    <GlassPanel padding={layout.isPhone ? 14 : 16} radius={22}>
+      <Text style={{ color: "#f8fbff", fontSize: layout.isPhone ? 18 : 20, fontWeight: "800" }}>{value}</Text>
+      <Text style={{ color: "#90a7c3", fontSize: 13, marginTop: 6, lineHeight: layout.isPhone ? 18 : 19 }}>{label}</Text>
     </GlassPanel>
   );
 }
@@ -303,12 +311,12 @@ function HeroPreview() {
   const layout = useResponsiveLayout();
 
   return (
-    <View style={{ position: "relative", padding: layout.isPhone ? 8 : 18 }}>
+    <View style={{ position: "relative", padding: layout.isPhone ? 4 : 18 }}>
       <MarketingBackdrop tone="hero" style={{ top: 8, height: layout.isPhone ? 420 : 500 }} />
       <RunningSurfaceAccent variant="track" />
 
-      <GlassPanel highlight={true} padding={20} radius={34}>
-        <View style={{ backgroundColor: "#0a1525", borderRadius: 28, borderWidth: 1, borderColor: "rgba(103, 232, 249, 0.12)", padding: 18, gap: 16 }}>
+      <GlassPanel highlight={true} padding={layout.isPhone ? 16 : 20} radius={34}>
+        <View style={{ backgroundColor: "#0a1525", borderRadius: 28, borderWidth: 1, borderColor: "rgba(103, 232, 249, 0.12)", padding: layout.isPhone ? 16 : 18, gap: layout.isPhone ? 14 : 16 }}>
           <View style={{ flexDirection: layout.isPhone ? "column" : "row", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
             <View>
               <Text style={{ color: "#67e8f9", fontSize: 12, fontWeight: "800", letterSpacing: 1.2 }}>TODAY&apos;S WORKOUT</Text>
@@ -352,11 +360,13 @@ function SummaryPill({ label, value, accent }: { label: string; value: string; a
 }
 
 function QuickValueStrip({ isTablet }: { isTablet: boolean }) {
+  const layout = useResponsiveLayout();
+
   return (
-    <GlassPanel highlight={true} padding={14} radius={26}>
+    <GlassPanel highlight={true} padding={layout.isPhone ? 12 : 14} radius={26}>
       <View style={{ flexDirection: isTablet ? "row" : "column", gap: 10 }}>
         {VALUE_STRIP.map((item, index) => (
-          <View key={item} style={{ flex: 1, backgroundColor: index === 0 ? "rgba(20, 35, 57, 0.98)" : "rgba(8, 17, 29, 0.62)", borderRadius: 20, borderWidth: 1, borderColor: index === 0 ? "rgba(103, 232, 249, 0.2)" : "rgba(103, 232, 249, 0.08)", paddingHorizontal: 16, paddingVertical: 15 }}>
+          <View key={item} style={{ flex: 1, backgroundColor: index === 0 ? "rgba(20, 35, 57, 0.98)" : "rgba(8, 17, 29, 0.62)", borderRadius: 20, borderWidth: 1, borderColor: index === 0 ? "rgba(103, 232, 249, 0.2)" : "rgba(103, 232, 249, 0.08)", paddingHorizontal: layout.isPhone ? 14 : 16, paddingVertical: layout.isPhone ? 13 : 15 }}>
             <Text style={{ color: "#dcecff", fontSize: 14, fontWeight: "700", lineHeight: 20 }}>{item}</Text>
           </View>
         ))}

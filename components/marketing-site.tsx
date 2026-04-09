@@ -2,6 +2,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import React from "react";
 import { Pressable, Text, View } from "react-native";
 import { MarketingBackdrop, RunningSurfaceAccent } from "@/components/running-visuals";
+import { useResponsiveLayout } from "@/lib/responsive";
 
 export type SiteSectionProps = {
   eyebrow?: string;
@@ -77,8 +78,14 @@ export function SiteSection({
   centered,
   children,
 }: SiteSectionProps) {
+  const layout = useResponsiveLayout();
+  const sectionTopMargin = layout.isDesktop ? 124 : layout.isPhone ? 84 : 104;
+  const titleSize = centered ? (layout.isPhone ? 34 : 44) : layout.isPhone ? 32 : 40;
+  const titleLineHeight = centered ? (layout.isPhone ? 40 : 50) : layout.isPhone ? 38 : 46;
+  const contentTopMargin = layout.isPhone ? 26 : 34;
+
   return (
-    <View style={{ paddingHorizontal: padding, marginTop: 124 }}>
+    <View style={{ paddingHorizontal: padding, marginTop: sectionTopMargin }}>
       <View style={{ alignItems: centered ? "center" : "flex-start" }}>
         {eyebrow ? (
           <Text
@@ -97,9 +104,9 @@ export function SiteSection({
         <Text
           style={{
             color: "#f8fbff",
-            fontSize: centered ? 44 : 40,
+            fontSize: titleSize,
             fontWeight: "800",
-            lineHeight: centered ? 50 : 46,
+            lineHeight: titleLineHeight,
             marginTop: eyebrow ? 14 : 0,
             maxWidth: 760,
             textAlign: centered ? "center" : "left",
@@ -112,9 +119,9 @@ export function SiteSection({
           <Text
             style={{
               color: "#9db2ca",
-              fontSize: 16,
-              lineHeight: 26,
-              marginTop: 14,
+              fontSize: layout.isPhone ? 15 : 16,
+              lineHeight: layout.isPhone ? 24 : 26,
+              marginTop: layout.isPhone ? 12 : 14,
               maxWidth: 760,
               textAlign: centered ? "center" : "left",
             }}
@@ -124,7 +131,7 @@ export function SiteSection({
         ) : null}
       </View>
 
-      <View style={{ marginTop: 34 }}>{children}</View>
+      <View style={{ marginTop: contentTopMargin }}>{children}</View>
     </View>
   );
 }
